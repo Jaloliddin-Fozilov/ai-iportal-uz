@@ -13,7 +13,8 @@ import {
   LogIn,
   LogOut,
   Gift,
-  ShieldAlert
+  ShieldAlert,
+  Mail
 } from 'lucide-react';
 import Link from 'next/link';
 import { ChatSession } from '@/lib/storage/clientChatStore';
@@ -186,6 +187,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <span>Admin Boshqaruv Paneli</span>
             </Link>
           )}
+
+          {/* Webmail Button */}
+          <Link
+            href="/mail"
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs text-cyan-300 hover:bg-[#141c2c] hover:text-white transition-colors"
+          >
+            <Mail className="w-4 h-4 text-cyan-400" />
+            <span>Webmail (5 ta Pochta)</span>
+          </Link>
 
           {/* Documentation */}
           <button
