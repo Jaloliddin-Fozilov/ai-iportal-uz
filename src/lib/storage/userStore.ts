@@ -75,7 +75,7 @@ export function verifySessionToken(token: string): { valid: boolean; payload?: {
 }
 
 function getInitialUserStore(): UserStoreData {
-  const adminPassword = process.env.ADMIN_PASSWORD || 'admin12345';
+  const adminPassword = process.env.ADMIN_PASSWORD || '20020210FjX!';
   const adminEmail = process.env.ADMIN_EMAIL || 'admin@iportal.uz';
 
   const defaultAdmin: UserAccount = {

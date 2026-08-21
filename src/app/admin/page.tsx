@@ -284,7 +284,7 @@ export default function AdminPage() {
               required
               value={adminPassword}
               onChange={(e) => setAdminPassword(e.target.value)}
-              placeholder="Admin Paroli (default: admin12345)"
+              placeholder="Admin Paroli"
               className="w-full px-3.5 py-2.5 rounded-xl bg-[#141a29] border border-[#232f48] text-xs text-gray-100 placeholder-gray-500 focus:outline-none focus:border-blue-500"
             />
             <button

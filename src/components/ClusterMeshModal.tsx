@@ -276,7 +276,7 @@ export const ClusterMeshModal: React.FC<ClusterMeshModalProps> = ({ isOpen, onCl
                     type="password"
                     value={nodeSecret}
                     onChange={(e) => setNodeSecret(e.target.value)}
-                    placeholder="X-Proxy-Secret (ixtiyoriy, default: iportal-proxy-secret-token)"
+                    placeholder="X-Proxy-Secret (ixtiyoriy)"
                     className="w-full sm:w-1/2 px-3 py-1.5 rounded-lg bg-[#0d121f] border border-[#232f48] text-xs text-gray-200 placeholder-gray-500 focus:outline-none focus:border-cyan-500"
                   />
                   <button
