@@ -1,7 +1,7 @@
 'use client';
 
-import React from 'react';
-import { X, BookOpen, ExternalLink, ShieldCheck, Zap, Server, Globe } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, BookOpen, Copy, Check, Terminal, Code, Cpu, ShieldCheck } from 'lucide-react';
 
 interface DocsModalProps {
   isOpen: boolean;
@@ -9,209 +9,218 @@ interface DocsModalProps {
 }
 
 export const DocsModal: React.FC<DocsModalProps> = ({ isOpen, onClose }) => {
+  const [activeTab, setActiveTab] = useState<'curl' | 'python' | 'node' | 'cursor'>('curl');
+  const [copied, setCopied] = useState<string | null>(null);
+
   if (!isOpen) return null;
 
+  const copySnippet = async (text: string, id: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(id);
+      setTimeout(() => setCopied(null), 2000);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const curlExample = `curl https://ai.iportal.uz/api/v1/chat/completions \\
+  -H "Authorization: Bearer <SIZNING_API_KALITINGIZ>" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "model": "iportal-ai",
+    "messages": [
+      {"role": "user", "content": "Salom! iportal-ai API orqali javob beryapsanmi?"}
+    ],
+    "stream": false
+  }'`;
+
+  const pythonExample = `import openai
+
+client = openai.OpenAI(
+    api_key="<SIZNING_API_KALITINGIZ>",
+    base_url="https://ai.iportal.uz/api/v1"
+)
+
+response = client.chat.completions.create(
+    model="iportal-ai",
+    messages=[
+        {"role": "user", "content": "FastAPI va PostgreSQL bilan arxitektura tuzib ber"}
+    ],
+    temperature=0.7
+)
+
+print(response.choices[0].message.content)`;
+
+  const nodeExample = `import OpenAI from "openai";
+
+const openai = new OpenAI({
+  apiKey: "<SIZNING_API_KALITINGIZ>",
+  baseURL: "https://ai.iportal.uz/api/v1",
+});
+
+async function main() {
+  const completion = await openai.chat.completions.create({
+    model: "iportal-ai-coder",
+    messages: [{ role: "user", content: "React 19 uchun custom hook yozib ber" }],
+    stream: true,
+  });
+
+  for await (const chunk of completion) {
+    process.stdout.write(chunk.choices[0]?.delta?.content || "");
+  }
+}
+
+main();`;
+
+  const cursorExample = `{
+  "models": [
+    {
+      "name": "iportal-ai 1.0",
+      "model": "iportal-ai",
+      "baseUrl": "https://ai.iportal.uz/api/v1",
+      "apiKey": "<SIZNING_API_KALITINGIZ>"
+    },
+    {
+      "name": "iportal-ai Code Master",
+      "model": "iportal-ai-coder",
+      "baseUrl": "https://ai.iportal.uz/api/v1",
+      "apiKey": "<SIZNING_API_KALITINGIZ>"
+    }
+  ]
+}`;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-in fade-in">
-      <div className="relative w-full max-w-4xl max-h-[90vh] bg-[#0d121f] border border-[#232f48] rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in">
+      <div className="relative w-full max-w-3xl max-h-[90vh] bg-[#0c101c] border border-[#1b253b] rounded-2xl shadow-2xl flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="p-5 border-b border-[#1e293f] flex items-center justify-between">
+        <div className="p-5 border-b border-[#162035] flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-400">
+            <div className="p-2.5 rounded-xl bg-gradient-to-tr from-blue-600/20 to-cyan-500/20 border border-blue-500/30 text-cyan-400">
               <BookOpen className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-white">ai.iportal.uz — To'liq Qo'llanma</h2>
-              <p className="text-xs text-gray-400">Bepul AI kalitlar olish, bepul hostinglarni ulash va API integratsiyasi</p>
+              <h2 className="text-base font-bold text-white tracking-tight">iportal-ai API & Integratsiya Qo'llanmasi</h2>
+              <p className="text-xs text-slate-400">OpenAI SDK bilan 100% mos keluvchi neyron API</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-[#1a2336] transition-colors"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-[#141b2b] transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6 text-sm text-gray-300 leading-relaxed">
-          {/* Section 1: Free AI Providers */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-6 text-xs text-slate-300 leading-relaxed">
+          {/* Quick specs grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="p-3 rounded-xl bg-[#090d16] border border-[#162035] space-y-1">
+              <div className="flex items-center gap-1.5 text-cyan-400 font-semibold text-[11px]">
+                <Terminal className="w-3.5 h-3.5" />
+                <span>Base URL:</span>
+              </div>
+              <div className="font-mono text-slate-200 text-[11px] select-all">https://ai.iportal.uz/api/v1</div>
+            </div>
+
+            <div className="p-3 rounded-xl bg-[#090d16] border border-[#162035] space-y-1">
+              <div className="flex items-center gap-1.5 text-emerald-400 font-semibold text-[11px]">
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>Moslik:</span>
+              </div>
+              <div className="text-slate-200 text-[11px]">OpenAI v1 API Spec (Chat & Streaming)</div>
+            </div>
+
+            <div className="p-3 rounded-xl bg-[#090d16] border border-[#162035] space-y-1">
+              <div className="flex items-center gap-1.5 text-purple-400 font-semibold text-[11px]">
+                <Cpu className="w-3.5 h-3.5" />
+                <span>Standart Model:</span>
+              </div>
+              <div className="font-mono text-slate-200 text-[11px]">iportal-ai</div>
+            </div>
+          </div>
+
+          {/* Code Integration Tabs */}
           <div className="space-y-3">
-            <div className="flex items-center gap-2 text-white font-bold text-sm">
-              <Zap className="w-4 h-4 text-amber-400" />
-              <span>1. Bepul AI API Kalitlarini Olish (0$ Budjet)</span>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1 bg-[#090d16] p-1 rounded-xl border border-[#162035]">
+                <button
+                  onClick={() => setActiveTab('curl')}
+                  className={`px-3 py-1 rounded-lg font-medium transition-all ${
+                    activeTab === 'curl' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  cURL
+                </button>
+                <button
+                  onClick={() => setActiveTab('python')}
+                  className={`px-3 py-1 rounded-lg font-medium transition-all ${
+                    activeTab === 'python' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Python
+                </button>
+                <button
+                  onClick={() => setActiveTab('node')}
+                  className={`px-3 py-1 rounded-lg font-medium transition-all ${
+                    activeTab === 'node' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Node.js / TS
+                </button>
+                <button
+                  onClick={() => setActiveTab('cursor')}
+                  className={`px-3 py-1 rounded-lg font-medium transition-all ${
+                    activeTab === 'cursor' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Cursor / VS Code
+                </button>
+              </div>
+
+              <button
+                onClick={() => {
+                  const text = activeTab === 'curl' ? curlExample : activeTab === 'python' ? pythonExample : activeTab === 'node' ? nodeExample : cursorExample;
+                  copySnippet(text, 'code');
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#12192a] hover:bg-[#19243d] border border-[#1f2b45] text-slate-300 transition-colors cursor-pointer"
+              >
+                {copied === 'code' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>{copied === 'code' ? 'Nusxalandi' : 'Kodni Nusxalash'}</span>
+              </button>
             </div>
 
-            <p className="text-xs text-gray-400">
-              Quyidagi har bir provayderda bepul ro'yxatdan o'tib, API kalit yaratib oling va saytdagi "Hosting & AI Klaster" oynasiga kiriting:
-            </p>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
-              {/* Groq */}
-              <div className="p-3.5 rounded-xl bg-[#121726] border border-[#1e293f] space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-xs text-white">Groq Cloud (Llama 3.3 70B)</span>
-                  <a
-                    href="https://console.groq.com/keys"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center gap-1 text-[11px] text-blue-400 hover:underline"
-                  >
-                    <span>console.groq.com</span>
-                    <ExternalLink className="w-3 h-3" />
-                  </a>
-                </div>
-                <p className="text-[11px] text-gray-400">
-                  Llama 3.3 70B va Gemma 2 modellarini 300+ token/sekund tezlikda bepul beradi.
-                </p>
-              </div>
-
-              {/* Google AI Studio */}
-              <div className="p-3.5 rounded-xl bg-[#121726] border border-[#1e293f] space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-xs text-white">Google Gemini (AI Studio)</span>
-                  <a
-                    href="https://aistudio.google.com/app/apikey"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center gap-1 text-[11px] text-blue-400 hover:underline"
-                  >
-                    <span>aistudio.google.com</span>
-                    <ExternalLink className="w-3 h-3" />
-                  </a>
-                </div>
-                <p className="text-[11px] text-gray-400">
-                  Gemini 2.0 Flash va 1.5 Flash modellarini 1M kontekst bilan kunlik 1500 ta so'rovgacha tekinga beradi.
-                </p>
-              </div>
-
-              {/* SambaNova */}
-              <div className="p-3.5 rounded-xl bg-[#121726] border border-[#1e293f] space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-xs text-white">SambaNova Cloud</span>
-                  <a
-                    href="https://cloud.sambanova.ai/apis"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center gap-1 text-[11px] text-blue-400 hover:underline"
-                  >
-                    <span>cloud.sambanova.ai</span>
-                    <ExternalLink className="w-3 h-3" />
-                  </a>
-                </div>
-                <p className="text-[11px] text-gray-400">
-                  DeepSeek R1 70B va Qwen 2.5 Coder modellarini yuqori RPM limitlari bilan bepul taqdim etadi.
-                </p>
-              </div>
-
-              {/* Cerebras */}
-              <div className="p-3.5 rounded-xl bg-[#121726] border border-[#1e293f] space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-xs text-white">Cerebras Inference</span>
-                  <a
-                    href="https://cloud.cerebras.ai"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center gap-1 text-[11px] text-blue-400 hover:underline"
-                  >
-                    <span>cloud.cerebras.ai</span>
-                    <ExternalLink className="w-3 h-3" />
-                  </a>
-                </div>
-                <p className="text-[11px] text-gray-400">
-                  Dunyoning eng tezkor AI inferensi (1000+ token/s) — Llama 3.1 8B va 70B bepul tier.
-                </p>
-              </div>
-
-              {/* OpenRouter */}
-              <div className="p-3.5 rounded-xl bg-[#121726] border border-[#1e293f] space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-xs text-white">OpenRouter Free Tier</span>
-                  <a
-                    href="https://openrouter.ai/keys"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center gap-1 text-[11px] text-blue-400 hover:underline"
-                  >
-                    <span>openrouter.ai</span>
-                    <ExternalLink className="w-3 h-3" />
-                  </a>
-                </div>
-                <p className="text-[11px] text-gray-400">
-                  DeepSeek R1, Llama 3.3, Gemma kabi o'nlab bepul (<code>:free</code>) modellarga kirish.
-                </p>
-              </div>
-
-              {/* Mistral AI */}
-              <div className="p-3.5 rounded-xl bg-[#121726] border border-[#1e293f] space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-xs text-white">Mistral AI Console</span>
-                  <a
-                    href="https://console.mistral.ai"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center gap-1 text-[11px] text-blue-400 hover:underline"
-                  >
-                    <span>console.mistral.ai</span>
-                    <ExternalLink className="w-3 h-3" />
-                  </a>
-                </div>
-                <p className="text-[11px] text-gray-400">
-                  Mistral Small, Codestral kabi modellar uchun bepul eksperiment kalitlari.
-                </p>
-              </div>
+            <div className="p-4 rounded-xl bg-[#070a12] border border-[#162035] overflow-x-auto font-mono text-[12px] leading-relaxed text-slate-200 shadow-inner">
+              <pre className="whitespace-pre">
+                {activeTab === 'curl' && curlExample}
+                {activeTab === 'python' && pythonExample}
+                {activeTab === 'node' && nodeExample}
+                {activeTab === 'cursor' && cursorExample}
+              </pre>
             </div>
           </div>
 
-          {/* Section 2: Distributed Hosting Proxies */}
-          <div className="space-y-3 pt-4 border-t border-[#1e293f]">
-            <div className="flex items-center gap-2 text-white font-bold text-sm">
-              <Server className="w-4 h-4 text-cyan-400" />
-              <span>2. Bepul Hosting Node-Proxylarini Ishga Tushirish</span>
-            </div>
-
-            <div className="p-3.5 rounded-xl bg-[#121726] border border-[#1e293f] space-y-2 text-xs text-gray-300">
-              <p>
-                Loyiha papkasidagi <code>workers/</code> papkasida tayyor shablonlar mavjud:
-              </p>
-              <ul className="list-disc pl-5 space-y-1 text-gray-400">
-                <li>
-                  <strong className="text-white">Cloudflare Worker:</strong> <code>workers/cloudflare/index.js</code> faylini <a href="https://dash.cloudflare.com" target="_blank" rel="noreferrer" className="text-cyan-400 hover:underline">Cloudflare Workers</a> ga joylang (Kunlik 100,000 so'rov bepul!).
-                </li>
-                <li>
-                  <strong className="text-white">Deno Deploy:</strong> <code>workers/deno/server.ts</code> ni <a href="https://dash.deno.com" target="_blank" rel="noreferrer" className="text-cyan-400 hover:underline">Deno Deploy</a> ga joylang.
-                </li>
-                <li>
-                  <strong className="text-white">Vercel Edge:</strong> <code>workers/vercel/</code> papkasini Vercel ga bepul deploy qiling.
-                </li>
-                <li>
-                  <strong className="text-white">Render / Koyeb:</strong> <code>workers/docker/</code> papkasini Render yoki Koyeb ga Docker Web Service sifatida tekinga joylang.
-                </li>
-              </ul>
-              <p className="text-[11px] text-cyan-300 pt-1">
-                Har bir joylangan workerning URL manzilini saytdagi "Hosting & AI Klaster" bo'limida "Node Qo'shish" tugmasi orqali kiriting.
-              </p>
-            </div>
-          </div>
-
-          {/* Section 3: Domain ai.iportal.uz */}
-          <div className="space-y-3 pt-4 border-t border-[#1e293f]">
-            <div className="flex items-center gap-2 text-white font-bold text-sm">
-              <Globe className="w-4 h-4 text-emerald-400" />
-              <span>3. ai.iportal.uz Domenini Bepul Ulash</span>
-            </div>
-
-            <div className="p-3.5 rounded-xl bg-[#121726] border border-[#1e293f] space-y-2 text-xs text-gray-300">
-              <ol className="list-decimal pl-5 space-y-1 text-gray-400">
-                <li>Ushbu loyihani Vercel yoki Cloudflare Pages ga 1 klikda deploy qiling.</li>
-                <li>Vercel Settings &gt; Domains bo'limiga o'ting va <code>ai.iportal.uz</code> domenini qo'shing.</li>
-                <li><code>iportal.uz</code> DNS sozlamalariga (masalan Cloudflare yoki domeningiz boshqaruv panelida) CNAME yozuvi kiriting:
-                  <div className="my-1.5 p-2 bg-[#090d16] font-mono text-cyan-300 rounded border border-[#1a2336]">
-                    Type: CNAME | Name: ai | Target: cname.vercel-dns.com
-                  </div>
-                </li>
-                <li>Sayt avtomatik SSL sertifikat bilan <code>https://ai.iportal.uz</code> manzilida ishga tushadi.</li>
-              </ol>
+          {/* Available Models Overview */}
+          <div className="space-y-2 pt-2 border-t border-[#162035]">
+            <h3 className="font-bold text-white text-xs uppercase tracking-wider">Mavjud Modellar:</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+              <div className="p-2.5 rounded-lg bg-[#090d16] border border-[#162035]">
+                <div className="font-bold font-mono text-cyan-400">iportal-ai</div>
+                <div className="text-slate-400">Asosiy universal flagman model. 128K kontekst.</div>
+              </div>
+              <div className="p-2.5 rounded-lg bg-[#090d16] border border-[#162035]">
+                <div className="font-bold font-mono text-emerald-400">iportal-ai-coder</div>
+                <div className="text-slate-400">Kod yozish, refaktoring va dasturlash uchun maxsus.</div>
+              </div>
+              <div className="p-2.5 rounded-lg bg-[#090d16] border border-[#162035]">
+                <div className="font-bold font-mono text-purple-400">iportal-ai-reasoning</div>
+                <div className="text-slate-400">Bosqichma-bosqich mantiqiy xulosalar va tahlil.</div>
+              </div>
+              <div className="p-2.5 rounded-lg bg-[#090d16] border border-[#162035]">
+                <div className="font-bold font-mono text-amber-400">iportal-ai-fast</div>
+                <div className="text-slate-400">Ultra tezkor javoblar (800+ tok/s).</div>
+              </div>
             </div>
           </div>
         </div>

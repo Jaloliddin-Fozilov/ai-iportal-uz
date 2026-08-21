@@ -4,41 +4,57 @@ import { IPORTAL_MODELS } from '@/lib/core/models';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-};
-
-export async function OPTIONS() {
-  return new NextResponse(null, { headers: corsHeaders });
-}
-
 export async function GET() {
-  const models = IPORTAL_MODELS.map(m => ({
+  const modelsData = IPORTAL_MODELS.map((m) => ({
     id: m.id,
     object: 'model',
-    created: 1700000000,
-    owned_by: 'iportal-uz',
-    permission: [],
+    created: 1787330000,
+    owned_by: 'iportal.uz',
+    permission: [
+      {
+        id: `perm-${m.id}`,
+        object: 'model_permission',
+        created: 1787330000,
+        allow_create_engine: false,
+        allow_sampling: true,
+        allow_logprobs: true,
+        allow_search_indices: false,
+        allow_view: true,
+        allow_fine_tuning: false,
+        organization: '*',
+        group: null,
+        is_blocking: false,
+      },
+    ],
     root: m.id,
     parent: null,
-    metadata: {
+    meta: {
       name: m.name,
-      provider: m.provider,
       category: m.category,
       description: m.description,
       context_window: m.contextWindow,
       speed: m.speed,
-      is_free: m.isFree,
     },
   }));
 
-  return NextResponse.json(
-    {
-      object: 'list',
-      data: models,
+  return NextResponse.json({
+    object: 'list',
+    data: modelsData,
+  }, {
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, OPTIONS',
+      'X-Powered-By': 'iportal-ai',
     },
-    { headers: corsHeaders }
-  );
+  });
+}
+
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, OPTIONS',
+      'Access-Control-Allow-Headers': '*',
+    },
+  });
 }

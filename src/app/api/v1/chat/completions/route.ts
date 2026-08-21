@@ -3,7 +3,8 @@ import { masterRouter } from '@/lib/core/router';
 import { validateApiKey } from '@/lib/storage/dataStore';
 import { findUserByApiKey, deductUserBalance, verifySessionToken, findUserById } from '@/lib/storage/userStore';
 import { SecurityGuard } from '@/lib/core/security';
-import { ChatCompletionRequest } from '@/lib/core/types';
+import { composeSystemMessages } from '@/lib/core/systemPrompt';
+import { ChatCompletionRequest, ChatMessage } from '@/lib/core/types';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -14,6 +15,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, X-Client, X-User-Token',
   'X-Content-Type-Options': 'nosniff',
   'X-Frame-Options': 'DENY',
+  'X-Powered-By': 'iportal-ai',
 };
 
 export async function OPTIONS() {
@@ -62,7 +64,6 @@ export async function POST(req: NextRequest) {
           authenticatedUserId = user.id;
           usedApiKeyId = keyItem.id;
 
-          // Check balance ($5 welcome balance or user balance)
           if (user.balance <= 0) {
             return NextResponse.json(
               {
@@ -131,27 +132,42 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    body.messages = body.messages.map(m => ({
-      role: m.role,
-      content: SecurityGuard.sanitizeInput(m.content),
-    }));
+    // 4. Inject Core Islamic & Legal System Safeguard (Invisible to user)
+    let userCustomPrompt = '';
+    const nonSystemMessages: ChatMessage[] = [];
+
+    for (const msg of body.messages) {
+      if (msg.role === 'system') {
+        userCustomPrompt += (userCustomPrompt ? '\n' : '') + msg.content;
+      } else {
+        nonSystemMessages.push({
+          role: msg.role,
+          content: SecurityGuard.sanitizeInput(msg.content),
+        });
+      }
+    }
+
+    // Always place composed system safeguard as first message
+    body.messages = [
+      composeSystemMessages(userCustomPrompt),
+      ...nonSystemMessages,
+    ];
 
     const isStreaming = body.stream !== false;
     body.stream = isStreaming;
 
-    // Estimate Prompt Tokens (roughly 4 chars = 1 token)
+    // Estimate Prompt Tokens
     const promptChars = body.messages.reduce((acc, m) => acc + (m.content?.length || 0), 0);
     const estimatedPromptTokens = Math.max(1, Math.ceil(promptChars / 4));
 
-    // 4. Execute Chat through Master Router (Failover cluster)
+    // 5. Execute Chat through Master Router (routed via edge worker proxies)
     const result = await masterRouter.executeChat(body);
 
-    // Deduct balance helper
     const finalizeUsage = (completionTokens: number) => {
       if (authenticatedUserId && !isMasterKey) {
         deductUserBalance(
           authenticatedUserId,
-          body.model,
+          body.model || 'iportal-ai',
           estimatedPromptTokens,
           completionTokens,
           usedApiKeyId
@@ -163,7 +179,6 @@ export async function POST(req: NextRequest) {
       let outputTokens = 0;
       const transformStream = new TransformStream({
         transform(chunk, controller) {
-          // Estimate output token chunk count
           outputTokens += Math.max(1, Math.ceil(chunk.length / 4));
           controller.enqueue(chunk);
         },
@@ -177,8 +192,6 @@ export async function POST(req: NextRequest) {
           'Content-Type': 'text/event-stream; charset=utf-8',
           'Cache-Control': 'no-cache, no-transform',
           'Connection': 'keep-alive',
-          'X-Used-Provider': result.usedKey.provider,
-          'X-Used-Node': result.usedNode?.name || 'Direct',
           ...corsHeaders,
         },
       });
@@ -187,10 +200,12 @@ export async function POST(req: NextRequest) {
       const completionTokens = Math.max(1, Math.ceil(completionText.length / 4));
       finalizeUsage(completionTokens);
 
+      if (result.response) {
+        result.response.model = body.model || 'iportal-ai';
+      }
+
       return NextResponse.json(result.response, {
         headers: {
-          'X-Used-Provider': result.usedKey.provider,
-          'X-Used-Node': result.usedNode?.name || 'Direct',
           ...corsHeaders,
         },
       });

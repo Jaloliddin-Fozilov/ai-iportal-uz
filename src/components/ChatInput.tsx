@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Square, Sliders, Sparkles } from 'lucide-react';
+import { Send, Square, Sliders, Sparkles, ShieldCheck } from 'lucide-react';
 
 interface ChatInputProps {
   onSendMessage: (message: string) => void;
@@ -50,31 +50,34 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     <div className="w-full max-w-4xl mx-auto px-3 md:px-6 pb-4">
       {/* System prompt toggle modal / drawer */}
       {showSystemSettings && (
-        <div className="mb-3 p-3 rounded-xl bg-[#111624] border border-[#232f48] shadow-lg animate-in fade-in">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold text-blue-400 flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5" />
-              Tizim Ko\'rsatmasi (System Persona Prompt)
-            </span>
+        <div className="mb-3 p-3.5 rounded-2xl bg-[#0e1422] border border-[#1e293f] shadow-2xl animate-in fade-in space-y-2.5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-xs font-semibold text-slate-200">
+              <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Shaxsiy Ko'rsatma (Ixtiyoriy)</span>
+            </div>
             <button
               onClick={() => setShowSystemSettings(false)}
-              className="text-xs text-gray-400 hover:text-white"
+              className="text-xs text-slate-400 hover:text-white"
             >
               Yopish
             </button>
           </div>
+          <p className="text-[11px] text-slate-400 leading-relaxed">
+            AI ga o'zingiz xohlagan qo'shimcha uslub yoki rolni belgilang (masalan: <em>"Python bo'yicha mutaxassis sifatida gapir"</em> yoki <em>"Javoblarni faqat punktlarda ber"</em>).
+          </p>
           <textarea
             value={systemPrompt}
             onChange={(e) => onUpdateSystemPrompt(e.target.value)}
             rows={2}
-            className="w-full bg-[#0a0d16] border border-[#1e283d] rounded-lg p-2 text-xs text-gray-200 focus:outline-none focus:border-blue-500 font-sans"
-            placeholder="AI modeliga rol yoki maxsus ko'rsatma bering..."
+            className="w-full bg-[#070a12] border border-[#1a2337] rounded-xl p-2.5 text-xs text-slate-200 focus:outline-none focus:border-cyan-500 font-sans resize-none"
+            placeholder="AI modeliga shaxsiy ko'rsatmalaringizni yozing..."
           />
         </div>
       )}
 
       {/* Main Input Box */}
-      <div className="relative rounded-2xl bg-[#121624] border border-[#20293d] shadow-2xl focus-within:border-blue-500/60 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
+      <div className="relative rounded-2xl bg-[#0d121f] border border-[#1a243a] shadow-2xl shadow-black/40 focus-within:border-cyan-500/50 focus-within:ring-1 focus-within:ring-cyan-500/20 transition-all">
         <textarea
           ref={textareaRef}
           value={input}
@@ -82,25 +85,27 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           onKeyDown={handleKeyDown}
           rows={1}
           placeholder="iportal-ai ga xabar yozing... (Enter — yuborish, Shift+Enter — yangi qator)"
-          className="w-full bg-transparent text-gray-100 placeholder-gray-500 px-4 pt-3.5 pb-12 focus:outline-none resize-none text-sm leading-relaxed max-h-48 overflow-y-auto"
+          className="w-full bg-transparent text-slate-100 placeholder-slate-500 px-4 pt-3.5 pb-12 focus:outline-none resize-none text-sm leading-relaxed max-h-48 overflow-y-auto"
         />
 
         {/* Bottom Actions Bar */}
         <div className="absolute bottom-2.5 left-3 right-3 flex items-center justify-between pointer-events-none">
           {/* Left tools */}
-          <div className="flex items-center gap-1 pointer-events-auto">
+          <div className="flex items-center gap-1.5 pointer-events-auto">
             <button
               type="button"
               onClick={() => setShowSystemSettings(!showSystemSettings)}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs transition-colors cursor-pointer ${
-                showSystemSettings
-                  ? 'bg-blue-600/30 text-blue-300 border border-blue-500/40'
-                  : 'text-gray-400 hover:text-gray-200 hover:bg-[#1c2338]'
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs transition-all cursor-pointer ${
+                showSystemSettings || systemPrompt.trim()
+                  ? 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/30'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-[#151c2d]'
               }`}
-              title="System prompt sozlash"
+              title="Shaxsiy ko'rsatma sozlash"
             >
               <Sliders className="w-3.5 h-3.5" />
-              <span className="text-[11px] hidden sm:inline">Ko'rsatma</span>
+              <span className="text-[11px] font-medium hidden sm:inline">
+                {systemPrompt.trim() ? "Ko'rsatma faol" : "Ko'rsatma"}
+              </span>
             </button>
           </div>
 
@@ -110,10 +115,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
               <button
                 type="button"
                 onClick={onStop}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-600/80 hover:bg-red-600 text-white text-xs font-semibold shadow-md transition-all cursor-pointer"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-500/90 hover:bg-red-600 text-white text-xs font-semibold shadow-md transition-all cursor-pointer"
               >
                 <Square className="w-3.5 h-3.5 fill-current" />
-                <span>To\'xtatish</span>
+                <span>To'xtatish</span>
               </button>
             ) : (
               <button
@@ -122,8 +127,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                 disabled={!input.trim()}
                 className={`p-2 rounded-xl text-white transition-all shadow-md cursor-pointer ${
                   input.trim()
-                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 shadow-blue-500/25'
-                    : 'bg-gray-800 text-gray-500 cursor-not-allowed opacity-50'
+                    ? 'bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 shadow-blue-500/25'
+                    : 'bg-[#151c2d] text-slate-600 cursor-not-allowed'
                 }`}
                 title="Xabar yuborish"
               >
@@ -134,8 +139,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         </div>
       </div>
 
-      <div className="mt-2 text-center text-[11px] text-gray-500">
-        ai.iportal.uz — Ko'p provayderli taqsimlangan bepul AI platformasi
+      <div className="mt-2 text-center text-[11px] text-slate-400">
+        iportal-ai muhim ma'lumotlar va axloqiy me'yorlarga mos javob beradi.
       </div>
     </div>
   );

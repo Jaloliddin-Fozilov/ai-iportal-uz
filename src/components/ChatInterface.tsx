@@ -3,213 +3,192 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Menu, 
-  Bot, 
-  Key, 
-  BookOpen, 
+  Sparkles, 
+  Brain, 
   Code, 
   Zap, 
-  Brain, 
-  Sparkles, 
+  DollarSign, 
+  Gift, 
+  Key, 
+  BookOpen, 
+  ShieldAlert,
   ShieldCheck,
-  User,
-  LogIn,
-  Gift,
-  DollarSign,
-  ShieldAlert
+  Cpu
 } from 'lucide-react';
 import Link from 'next/link';
 import { Sidebar } from './Sidebar';
 import { ModelSelector } from './ModelSelector';
 import { ChatMessageItem } from './ChatMessageItem';
 import { ChatInput } from './ChatInput';
+import { AuthModal } from './AuthModal';
 import { ApiKeysModal } from './ApiKeysModal';
 import { DocsModal } from './DocsModal';
-import { AuthModal } from './AuthModal';
 import { 
   ChatSession, 
   getStoredSessions, 
   saveStoredSessions, 
-  getActiveSessionId, 
-  setActiveSessionId, 
-  createNewSession, 
-  getStoredPreferences, 
-  saveStoredPreferences 
+  createNewSession 
 } from '@/lib/storage/clientChatStore';
+
+type ChatMessageItemData = ChatSession['messages'][0];
 
 export const ChatInterface: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sessions, setSessions] = useState<ChatSession[]>([]);
-  const [activeSessionId, setActiveSessionIdState] = useState<string | null>(null);
-  
-  // Active session state
-  const [selectedModel, setSelectedModel] = useState('iportal-ai');
-  const [systemPrompt, setSystemPrompt] = useState('');
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [selectedModel, setSelectedModel] = useState<string>('iportal-ai');
   const [isStreaming, setIsStreaming] = useState(false);
+  const [systemPrompt, setSystemPrompt] = useState('');
   const [abortController, setAbortController] = useState<AbortController | null>(null);
+
+  // Modals
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [apiKeysModalOpen, setApiKeysModalOpen] = useState(false);
+  const [docsModalOpen, setDocsModalOpen] = useState(false);
 
   // User auth state
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [authToken, setAuthToken] = useState<string>('');
-  const [authModalOpen, setAuthModalOpen] = useState(false);
-
-  // Modals state
-  const [apiKeysModalOpen, setApiKeysModalOpen] = useState(false);
-  const [docsModalOpen, setDocsModalOpen] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Load sessions and check user authentication
+  // 1. Initial load from localStorage
   useEffect(() => {
-    const prefs = getStoredPreferences();
-    setSelectedModel(prefs.defaultModel || 'iportal-ai');
-    setSystemPrompt(prefs.systemPrompt);
-
-    const stored = getStoredSessions();
-    if (stored.length === 0) {
-      const initial = createNewSession('iportal-ai', prefs.systemPrompt);
-      setSessions([initial]);
-      setActiveSessionIdState(initial.id);
+    const loaded = getStoredSessions();
+    setSessions(loaded);
+    if (loaded.length > 0) {
+      setActiveSessionId(loaded[0].id);
     } else {
-      setSessions(stored);
-      const activeId = getActiveSessionId();
-      const found = stored.find(s => s.id === activeId);
-      if (found) {
-        setActiveSessionIdState(found.id);
-        setSelectedModel(found.model || 'iportal-ai');
-        if (found.systemPrompt) setSystemPrompt(found.systemPrompt);
-      } else {
-        setActiveSessionIdState(stored[0].id);
-        setSelectedModel(stored[0].model || 'iportal-ai');
-      }
+      const fresh = createNewSession();
+      setSessions([fresh]);
+      setActiveSessionId(fresh.id);
+      saveStoredSessions([fresh]);
     }
 
-    // Check user auth token
-    const token = localStorage.getItem('iportal_auth_token') || '';
-    if (token) {
-      setAuthToken(token);
-      fetch('/api/auth/me', { headers: { Authorization: `Bearer ${token}` } })
-        .then(res => res.json())
-        .then(data => {
-          if (data.success && data.user) {
-            setCurrentUser(data.user);
-          } else {
-            localStorage.removeItem('iportal_auth_token');
-          }
-        })
-        .catch(() => {});
+    const savedSysPrompt = localStorage.getItem('iportal_system_prompt') || '';
+    setSystemPrompt(savedSysPrompt);
+
+    const savedToken = localStorage.getItem('iportal_auth_token') || '';
+    if (savedToken) {
+      setAuthToken(savedToken);
+      fetchUserData(savedToken);
     }
   }, []);
 
-  const activeSession = sessions.find(s => s.id === activeSessionId) || sessions[0];
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [activeSession?.messages, isStreaming]);
-
-  const handleSelectSession = (id: string) => {
-    setActiveSessionIdState(id);
-    setActiveSessionId(id);
-    const target = sessions.find(s => s.id === id);
-    if (target) {
-      setSelectedModel(target.model || 'iportal-ai');
-      if (target.systemPrompt) setSystemPrompt(target.systemPrompt);
+  const fetchUserData = async (token: string) => {
+    try {
+      const res = await fetch('/api/auth/me', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.success && data.user) {
+        setCurrentUser(data.user);
+      } else {
+        localStorage.removeItem('iportal_auth_token');
+        setAuthToken('');
+        setCurrentUser(null);
+      }
+    } catch (e) {
+      console.error(e);
     }
   };
 
+  const handleAuthSuccess = (token: string, user: any) => {
+    setAuthToken(token);
+    setCurrentUser(user);
+    localStorage.setItem('iportal_auth_token', token);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('iportal_auth_token');
+    setAuthToken('');
+    setCurrentUser(null);
+  };
+
+  // Scroll to bottom on message change
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [sessions, activeSessionId, isStreaming]);
+
+  const activeSession = sessions.find(s => s.id === activeSessionId) || sessions[0];
+
   const handleNewChat = () => {
-    const newSession = createNewSession(selectedModel, systemPrompt);
-    setSessions([newSession, ...sessions]);
-    setActiveSessionIdState(newSession.id);
+    const fresh = createNewSession();
+    const updated = [fresh, ...sessions];
+    setSessions(updated);
+    setActiveSessionId(fresh.id);
+    saveStoredSessions(updated);
+  };
+
+  const handleSelectSession = (id: string) => {
+    setActiveSessionId(id);
   };
 
   const handleDeleteSession = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     const filtered = sessions.filter(s => s.id !== id);
     if (filtered.length === 0) {
-      const fresh = createNewSession(selectedModel, systemPrompt);
+      const fresh = createNewSession();
       setSessions([fresh]);
-      setActiveSessionIdState(fresh.id);
+      setActiveSessionId(fresh.id);
+      saveStoredSessions([fresh]);
     } else {
       setSessions(filtered);
-      saveStoredSessions(filtered);
       if (activeSessionId === id) {
-        setActiveSessionIdState(filtered[0].id);
         setActiveSessionId(filtered[0].id);
       }
+      saveStoredSessions(filtered);
     }
   };
 
   const handleSelectModel = (modelId: string) => {
     setSelectedModel(modelId);
-    saveStoredPreferences({ defaultModel: modelId });
-    if (activeSession) {
-      activeSession.model = modelId;
-      saveStoredSessions(sessions);
-    }
   };
 
   const handleUpdateSystemPrompt = (prompt: string) => {
     setSystemPrompt(prompt);
-    saveStoredPreferences({ systemPrompt: prompt });
-    if (activeSession) {
-      activeSession.systemPrompt = prompt;
-      saveStoredSessions(sessions);
-    }
+    localStorage.setItem('iportal_system_prompt', prompt);
   };
 
   const handleStopGeneration = () => {
     if (abortController) {
       abortController.abort();
       setAbortController(null);
+      setIsStreaming(false);
     }
-    setIsStreaming(false);
   };
 
-  const handleAuthSuccess = (userData: any, token: string) => {
-    setCurrentUser(userData);
-    setAuthToken(token);
-    localStorage.setItem('iportal_auth_token', token);
-  };
+  const handleSendMessage = async (text: string) => {
+    if (!text.trim() || isStreaming) return;
 
-  const handleLogout = () => {
-    localStorage.removeItem('iportal_auth_token');
-    setCurrentUser(null);
-    setAuthToken('');
-  };
+    if (!activeSession) return;
 
-  // Send Message with user token and streaming
-  const handleSendMessage = async (userPrompt: string) => {
-    if (!userPrompt.trim() || isStreaming || !activeSession) return;
-
-    const userMessageId = `msg-user-${Date.now()}`;
-    const assistantMessageId = `msg-assistant-${Date.now()}`;
-
-    const userMsg = {
-      id: userMessageId,
-      role: 'user' as const,
-      content: userPrompt,
+    // 1. Append User Message
+    const userMsg: ChatMessageItemData = {
+      id: `msg-${Date.now()}-u`,
+      role: 'user',
+      content: text,
       timestamp: Date.now(),
     };
 
-    const initialAssistantMsg = {
+    const isFirstMessage = activeSession.messages.length === 0;
+    if (isFirstMessage) {
+      activeSession.title = text.slice(0, 32) + (text.length > 32 ? '...' : '');
+    }
+
+    activeSession.messages.push(userMsg);
+    activeSession.updatedAt = Date.now();
+
+    // 2. Prepare Assistant placeholder
+    const assistantMessageId = `msg-${Date.now()}-a`;
+    const assistantMsg: ChatMessageItemData = {
       id: assistantMessageId,
-      role: 'assistant' as const,
+      role: 'assistant',
       content: '',
       timestamp: Date.now(),
-      provider: undefined as string | undefined,
-      node: undefined as string | undefined,
     };
+    activeSession.messages.push(assistantMsg);
 
-    if (activeSession.messages.length === 0) {
-      activeSession.title = userPrompt.slice(0, 30) + (userPrompt.length > 30 ? '...' : '');
-    }
-
-    activeSession.messages.push(userMsg, initialAssistantMsg);
-    activeSession.updatedAt = Date.now();
     setSessions([...sessions]);
     saveStoredSessions(sessions);
 
@@ -218,22 +197,34 @@ export const ChatInterface: React.FC = () => {
     setAbortController(controller);
 
     try {
-      const messagesPayload = [];
+      // Build messages payload for OpenAI standard endpoint
+      const messagesPayload: { role: string; content: string }[] = [];
+
+      // User custom prompt if set in UI
       if (systemPrompt.trim()) {
-        messagesPayload.push({ role: 'system', content: systemPrompt.trim() });
+        messagesPayload.push({
+          role: 'system',
+          content: systemPrompt.trim(),
+        });
       }
 
-      for (const m of activeSession.messages) {
-        if (m.id === assistantMessageId) continue;
-        messagesPayload.push({ role: m.role, content: m.content });
-      }
+      // Add recent chat context (up to 12 messages)
+      const contextMessages = activeSession.messages
+        .filter(m => m.id !== assistantMessageId)
+        .slice(-12)
+        .map(m => ({
+          role: m.role,
+          content: m.content,
+        }));
+
+      messagesPayload.push(...contextMessages);
 
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
-        'x-client': 'web-chat',
       };
+
       if (authToken) {
-        headers['x-user-token'] = authToken;
+        headers['X-User-Token'] = authToken;
       }
 
       const response = await fetch('/api/v1/chat/completions', {
@@ -251,15 +242,6 @@ export const ChatInterface: React.FC = () => {
       if (!response.ok) {
         const errJson = await response.json().catch(() => ({}));
         throw new Error(errJson.error?.message || `HTTP xatolik ${response.status}`);
-      }
-
-      const usedProvider = response.headers.get('x-used-provider') || '';
-      const usedNode = response.headers.get('x-used-node') || '';
-
-      const targetAssistantMsg = activeSession.messages.find(m => m.id === assistantMessageId);
-      if (targetAssistantMsg) {
-        targetAssistantMsg.provider = usedProvider;
-        targetAssistantMsg.node = usedNode;
       }
 
       const reader = response.body?.getReader();
@@ -313,8 +295,9 @@ export const ChatInterface: React.FC = () => {
               accumulatedText += dataStr;
             }
 
-            if (targetAssistantMsg) {
-              targetAssistantMsg.content = accumulatedText;
+            const target = activeSession.messages.find(m => m.id === assistantMessageId);
+            if (target) {
+              target.content = accumulatedText;
               setSessions([...sessions]);
             }
           }
@@ -327,15 +310,16 @@ export const ChatInterface: React.FC = () => {
       if (authToken) {
         fetch('/api/auth/me', { headers: { Authorization: `Bearer ${authToken}` } })
           .then(res => res.json())
-          .then(d => { if (d.success) setCurrentUser(d.user); });
+          .then(data => {
+            if (data.success && data.user) setCurrentUser(data.user);
+          })
+          .catch(() => {});
       }
     } catch (err: any) {
-      if (err.name === 'AbortError') {
-        console.log('Stream to\'xtatildi');
-      } else {
-        const targetAssistantMsg = activeSession.messages.find(m => m.id === assistantMessageId);
-        if (targetAssistantMsg) {
-          targetAssistantMsg.content = `⚠️ Xatolik yuz berdi: ${err.message || 'Noma\'lum xatolik'}`;
+      if (err.name !== 'AbortError') {
+        const target = activeSession.messages.find(m => m.id === assistantMessageId);
+        if (target) {
+          target.content = `⚠️ Xatolik yuz berdi: ${err.message}`;
           setSessions([...sessions]);
           saveStoredSessions(sessions);
         }
@@ -348,33 +332,33 @@ export const ChatInterface: React.FC = () => {
 
   const promptSuggestions = [
     {
-      title: 'Python REST API tuzish',
-      desc: 'FastAPI va SQLite bilan tezkor REST API loyihasini yaratib ber',
+      title: 'Dasturlash va REST API',
+      desc: 'FastAPI va SQLite bilan xavfsiz REST API loyihasini yaratib ber',
       model: 'iportal-ai-coder',
       icon: <Code className="w-4 h-4 text-emerald-400" />,
     },
     {
-      title: 'Chuqur mantiqiy tahlil',
-      desc: 'Kvant kompyuterlari va an\'anaviy kompyuterlar farqini tahlil qil',
+      title: 'Mantiqiy va Ilmiy Tahlil',
+      desc: 'Kvant hisoblash va sun\'iy intellektning kelajakdagi integratsiyasi haqida tahlil',
       model: 'iportal-ai-reasoning',
       icon: <Brain className="w-4 h-4 text-purple-400" />,
     },
     {
-      title: 'Ultra tezkor savol-javob',
-      desc: 'O\'zbekiston IT ekotizimining eng so\'nggi yutuqlari nimalar?',
+      title: 'Tezkor Savol-Javob',
+      desc: 'O\'zbekiston IT ekotizimining eng so\'nggi yutuqlari va startap imkoniyatlari',
       model: 'iportal-ai-fast',
       icon: <Zap className="w-4 h-4 text-amber-400" />,
     },
     {
-      title: 'Katta hujjat tahlili',
-      desc: 'Biznes reja tuzishning asosiy 7 ta bosqichini batafsil yoritib ber',
+      title: 'Chuqur Tadqiqot va Biznes',
+      desc: 'Zamonaviy SaaS loyihasi uchun biznes model va arxitektura rejasini tuzib ber',
       model: 'iportal-ai-pro',
-      icon: <Sparkles className="w-4 h-4 text-blue-400" />,
+      icon: <Sparkles className="w-4 h-4 text-cyan-400" />,
     },
   ];
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-[#090b10] text-gray-100 font-sans">
+    <div className="flex h-screen w-screen overflow-hidden bg-[#06090e] text-slate-100 font-sans">
       {/* Sidebar */}
       <Sidebar
         isOpen={sidebarOpen}
@@ -392,13 +376,13 @@ export const ChatInterface: React.FC = () => {
       />
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-[#090b10]">
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-[#06090e]">
         {/* Top Navbar */}
-        <header className="h-14 border-b border-[#182030] bg-[#0c101a]/80 backdrop-blur-md px-3 md:px-6 flex items-center justify-between z-10 shrink-0">
+        <header className="h-16 border-b border-[#141b2c] bg-[#080c14]/85 backdrop-blur-md px-3 md:px-6 flex items-center justify-between z-10 shrink-0">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setSidebarOpen(true)}
-              className="md:hidden p-2 text-gray-400 hover:text-white rounded-lg hover:bg-[#192236]"
+              className="md:hidden p-2 text-slate-400 hover:text-white rounded-xl hover:bg-[#111726] transition-colors"
             >
               <Menu className="w-5 h-5" />
             </button>
@@ -416,7 +400,7 @@ export const ChatInterface: React.FC = () => {
             {currentUser ? (
               <button
                 onClick={() => setApiKeysModalOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-950/40 border border-emerald-500/40 text-emerald-400 text-xs font-mono font-bold hover:bg-emerald-900/40 transition-all cursor-pointer"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-950/40 border border-emerald-500/30 text-emerald-400 text-xs font-mono font-bold hover:bg-emerald-900/40 transition-all cursor-pointer shadow-sm"
                 title="Sizning balansingiz"
               >
                 <DollarSign className="w-3.5 h-3.5" />
@@ -425,10 +409,10 @@ export const ChatInterface: React.FC = () => {
             ) : (
               <button
                 onClick={() => setAuthModalOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-blue-600 hover:from-emerald-500 hover:to-blue-500 text-white text-xs font-semibold shadow-md transition-all cursor-pointer"
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white text-xs font-semibold shadow-md shadow-blue-500/20 transition-all cursor-pointer"
               >
                 <Gift className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">$5 Bepul Balans</span>
+                <span className="hidden sm:inline">$5.00 Bepul Balans</span>
                 <span className="sm:hidden">Kirish</span>
               </button>
             )}
@@ -437,7 +421,7 @@ export const ChatInterface: React.FC = () => {
             {currentUser?.role === 'admin' && (
               <Link
                 href="/admin"
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-purple-950/40 border border-purple-500/40 text-purple-300 text-xs font-semibold hover:bg-purple-900/40 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-950/40 border border-purple-500/40 text-purple-300 text-xs font-semibold hover:bg-purple-900/40 transition-colors"
                 title="Admin Boshqaruv Markazi"
               >
                 <ShieldAlert className="w-3.5 h-3.5 text-purple-400" />
@@ -448,7 +432,7 @@ export const ChatInterface: React.FC = () => {
             {/* API Keys quick button */}
             <button
               onClick={() => setApiKeysModalOpen(true)}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#141926] hover:bg-[#1c2436] border border-[#232d42] text-xs text-amber-300 hover:text-white transition-all cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#0e1422] hover:bg-[#141c2c] border border-[#1b253b] text-xs text-amber-300 hover:text-white transition-all cursor-pointer"
               title="API Kalitlar"
             >
               <Key className="w-3.5 h-3.5 text-amber-400" />
@@ -458,10 +442,10 @@ export const ChatInterface: React.FC = () => {
             {/* Docs quick button */}
             <button
               onClick={() => setDocsModalOpen(true)}
-              className="p-1.5 rounded-lg bg-[#141926] hover:bg-[#1c2436] border border-[#232d42] text-gray-400 hover:text-white transition-all cursor-pointer"
+              className="p-2 rounded-xl bg-[#0e1422] hover:bg-[#141c2c] border border-[#1b253b] text-slate-400 hover:text-white transition-all cursor-pointer"
               title="Qo'llanma"
             >
-              <BookOpen className="w-4 h-4 text-purple-400" />
+              <BookOpen className="w-4 h-4 text-cyan-400" />
             </button>
           </div>
         </header>
@@ -475,8 +459,6 @@ export const ChatInterface: React.FC = () => {
                   key={msg.id || index}
                   role={msg.role}
                   content={msg.content}
-                  provider={msg.provider}
-                  node={msg.node}
                   isStreaming={isStreaming && index === activeSession.messages.length - 1}
                   onRetry={() => {
                     const lastUser = activeSession.messages.slice(0, index).reverse().find(m => m.role === 'user');
@@ -488,29 +470,31 @@ export const ChatInterface: React.FC = () => {
             </div>
           ) : (
             /* Welcome Hero Screen */
-            <div className="max-w-4xl mx-auto px-4 py-8 md:py-16 flex flex-col items-center justify-center text-center space-y-6">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-purple-600 flex items-center justify-center shadow-2xl shadow-blue-500/30 animate-pulse-glow">
-                <Bot className="w-9 h-9 text-white" />
+            <div className="max-w-4xl mx-auto px-4 py-10 md:py-20 flex flex-col items-center justify-center text-center space-y-6">
+              <div className="relative">
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-500 flex items-center justify-center shadow-2xl shadow-blue-500/25 border border-blue-400/30">
+                  <Sparkles className="w-8 h-8 text-white" />
+                </div>
               </div>
 
-              <div>
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-xs font-semibold text-emerald-400 mb-3">
-                  <Gift className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Yangi foydalanuvchilar uchun $5.00 Bepul Balans beriladi</span>
+              <div className="space-y-3">
+                <div className="inline-flex items-center gap-2 px-3.5 py-1.2 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-xs font-semibold text-emerald-400">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>100% Xavfsiz, Qonuniy va Islomiy Axloq Qoidalariga Mos</span>
                 </div>
-                <h1 className="text-2xl md:text-4xl font-extrabold text-white tracking-tight">
-                  <span className="bg-gradient-to-r from-blue-400 via-indigo-300 to-purple-400 bg-clip-text text-transparent">
+                <h1 className="text-3xl md:text-5xl font-extrabold text-white tracking-tight leading-tight">
+                  <span className="bg-gradient-to-r from-blue-400 via-indigo-200 to-cyan-300 bg-clip-text text-transparent">
                     iportal-ai
                   </span>{' '}
-                  bilan cheksiz intellekt
+                  Neyron Platformasi
                 </h1>
-                <p className="text-xs md:text-sm text-gray-400 max-w-lg mx-auto mt-2 leading-relaxed">
-                  Llama 3.3 70B, Gemini 2.0, DeepSeek R1 70B va zamonaviy bepul AI provayderlar klasteri.
+                <p className="text-xs md:text-sm text-slate-400 max-w-lg mx-auto leading-relaxed">
+                  Dasturlash, tahlil, ilm-fan va kundalik vazifalar uchun yuksak intellektli milliy yordamchi.
                 </p>
               </div>
 
               {/* Suggestion Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-2xl mt-4 text-left">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 w-full max-w-2xl mt-4 text-left">
                 {promptSuggestions.map((item, idx) => (
                   <button
                     key={idx}
@@ -518,15 +502,17 @@ export const ChatInterface: React.FC = () => {
                       handleSelectModel(item.model);
                       handleSendMessage(item.desc);
                     }}
-                    className="p-3.5 rounded-xl bg-[#111624] hover:bg-[#171f33] border border-[#1e293f] hover:border-blue-500/40 transition-all text-left group cursor-pointer"
+                    className="p-4 rounded-2xl bg-[#0c101c] hover:bg-[#111728] border border-[#172138] hover:border-cyan-500/40 transition-all text-left group cursor-pointer shadow-lg shadow-black/30"
                   >
-                    <div className="flex items-center gap-2 mb-1.5">
-                      {item.icon}
-                      <span className="font-semibold text-xs text-white group-hover:text-blue-300 transition-colors">
+                    <div className="flex items-center gap-2.5 mb-1.5">
+                      <div className="p-1.5 rounded-lg bg-[#141b2c] border border-[#1f2a42]">
+                        {item.icon}
+                      </div>
+                      <span className="font-semibold text-xs text-white group-hover:text-cyan-300 transition-colors">
                         {item.title}
                       </span>
                     </div>
-                    <p className="text-[11px] text-gray-400 line-clamp-2 leading-relaxed">
+                    <p className="text-[11px] text-slate-400 line-clamp-2 leading-relaxed">
                       {item.desc}
                     </p>
                   </button>
