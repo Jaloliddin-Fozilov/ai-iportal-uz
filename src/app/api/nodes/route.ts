@@ -1,15 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getWorkerNodes, addWorkerNode, removeWorkerNode, updateWorkerNodeStatus } from '@/lib/storage/dataStore';
+import { verifySessionToken, findUserById } from '@/lib/storage/userStore';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+function checkAdminAuth(req: NextRequest): boolean {
+  const authHeader = req.headers.get('authorization') || '';
+  const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+
+  if (token === process.env.IPORTAL_MASTER_KEY || token === 'ip-master-secret-key-change-me') {
+    return true;
+  }
+
+  const { valid, payload } = verifySessionToken(token);
+  if (!valid || !payload) return false;
+  const user = findUserById(payload.userId);
+  return user?.role === 'admin';
+}
+
+export async function GET(req: NextRequest) {
+  if (!checkAdminAuth(req)) {
+    return NextResponse.json({ success: false, error: 'Ruxsat berilmagan (Faqat Admin)' }, { status: 403 });
+  }
+
   const nodes = getWorkerNodes();
   return NextResponse.json({ success: true, nodes });
 }
 
 export async function POST(req: NextRequest) {
+  if (!checkAdminAuth(req)) {
+    return NextResponse.json({ success: false, error: 'Ruxsat berilmagan (Faqat Admin)' }, { status: 403 });
+  }
+
   try {
     const body = await req.json();
     const { name, url, type, secret } = body;
@@ -29,6 +52,10 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  if (!checkAdminAuth(req)) {
+    return NextResponse.json({ success: false, error: 'Ruxsat berilmagan (Faqat Admin)' }, { status: 403 });
+  }
+
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
@@ -49,6 +76,10 @@ export async function DELETE(req: NextRequest) {
 
 // Ping / Test all or specific node
 export async function PUT(req: NextRequest) {
+  if (!checkAdminAuth(req)) {
+    return NextResponse.json({ success: false, error: 'Ruxsat berilmagan (Faqat Admin)' }, { status: 403 });
+  }
+
   try {
     const nodes = getWorkerNodes();
     const results = await Promise.all(

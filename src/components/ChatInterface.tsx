@@ -3,25 +3,28 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Menu, 
-  Sparkles, 
   Bot, 
   Key, 
-  Server, 
   BookOpen, 
   Code, 
   Zap, 
   Brain, 
-  Layers, 
-  MessageSquarePlus,
-  ShieldCheck
+  Sparkles, 
+  ShieldCheck,
+  User,
+  LogIn,
+  Gift,
+  DollarSign,
+  ShieldAlert
 } from 'lucide-react';
+import Link from 'next/link';
 import { Sidebar } from './Sidebar';
 import { ModelSelector } from './ModelSelector';
 import { ChatMessageItem } from './ChatMessageItem';
 import { ChatInput } from './ChatInput';
 import { ApiKeysModal } from './ApiKeysModal';
-import { ClusterMeshModal } from './ClusterMeshModal';
 import { DocsModal } from './DocsModal';
+import { AuthModal } from './AuthModal';
 import { 
   ChatSession, 
   getStoredSessions, 
@@ -44,21 +47,18 @@ export const ChatInterface: React.FC = () => {
   const [isStreaming, setIsStreaming] = useState(false);
   const [abortController, setAbortController] = useState<AbortController | null>(null);
 
+  // User auth state
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [authToken, setAuthToken] = useState<string>('');
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+
   // Modals state
   const [apiKeysModalOpen, setApiKeysModalOpen] = useState(false);
-  const [clusterMeshModalOpen, setClusterMeshModalOpen] = useState(false);
   const [docsModalOpen, setDocsModalOpen] = useState(false);
-
-  // System metrics state
-  const [clusterStatus, setClusterStatus] = useState<{ activeKeys: number; nodes: number; online: boolean }>({
-    activeKeys: 0,
-    nodes: 0,
-    online: true,
-  });
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Load sessions and preferences on mount
+  // Load sessions and check user authentication
   useEffect(() => {
     const prefs = getStoredPreferences();
     setSelectedModel(prefs.defaultModel || 'iportal-ai');
@@ -83,22 +83,25 @@ export const ChatInterface: React.FC = () => {
       }
     }
 
-    // Ping cluster health
-    fetch('/api/health')
-      .then(res => res.json())
-      .then(data => {
-        setClusterStatus({
-          activeKeys: data.providerKeysCount || 0,
-          nodes: data.workerNodesCount || 0,
-          online: data.status === 'online',
-        });
-      })
-      .catch(err => console.error('Health fetch error:', err));
+    // Check user auth token
+    const token = localStorage.getItem('iportal_auth_token') || '';
+    if (token) {
+      setAuthToken(token);
+      fetch('/api/auth/me', { headers: { Authorization: `Bearer ${token}` } })
+        .then(res => res.json())
+        .then(data => {
+          if (data.success && data.user) {
+            setCurrentUser(data.user);
+          } else {
+            localStorage.removeItem('iportal_auth_token');
+          }
+        })
+        .catch(() => {});
+    }
   }, []);
 
   const activeSession = sessions.find(s => s.id === activeSessionId) || sessions[0];
 
-  // Auto scroll to bottom
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -107,7 +110,6 @@ export const ChatInterface: React.FC = () => {
     scrollToBottom();
   }, [activeSession?.messages, isStreaming]);
 
-  // Session Handlers
   const handleSelectSession = (id: string) => {
     setActiveSessionIdState(id);
     setActiveSessionId(id);
@@ -159,7 +161,6 @@ export const ChatInterface: React.FC = () => {
     }
   };
 
-  // Stop Generation
   const handleStopGeneration = () => {
     if (abortController) {
       abortController.abort();
@@ -168,7 +169,19 @@ export const ChatInterface: React.FC = () => {
     setIsStreaming(false);
   };
 
-  // Send Message & Streaming Handler
+  const handleAuthSuccess = (userData: any, token: string) => {
+    setCurrentUser(userData);
+    setAuthToken(token);
+    localStorage.setItem('iportal_auth_token', token);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('iportal_auth_token');
+    setCurrentUser(null);
+    setAuthToken('');
+  };
+
+  // Send Message with user token and streaming
   const handleSendMessage = async (userPrompt: string) => {
     if (!userPrompt.trim() || isStreaming || !activeSession) return;
 
@@ -191,7 +204,6 @@ export const ChatInterface: React.FC = () => {
       node: undefined as string | undefined,
     };
 
-    // Auto rename chat title if it's the first message
     if (activeSession.messages.length === 0) {
       activeSession.title = userPrompt.slice(0, 30) + (userPrompt.length > 30 ? '...' : '');
     }
@@ -206,7 +218,6 @@ export const ChatInterface: React.FC = () => {
     setAbortController(controller);
 
     try {
-      // Build messages payload
       const messagesPayload = [];
       if (systemPrompt.trim()) {
         messagesPayload.push({ role: 'system', content: systemPrompt.trim() });
@@ -217,12 +228,17 @@ export const ChatInterface: React.FC = () => {
         messagesPayload.push({ role: m.role, content: m.content });
       }
 
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'x-client': 'web-chat',
+      };
+      if (authToken) {
+        headers['x-user-token'] = authToken;
+      }
+
       const response = await fetch('/api/v1/chat/completions', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-client': 'web-chat',
-        },
+        headers,
         body: JSON.stringify({
           model: selectedModel,
           messages: messagesPayload,
@@ -265,9 +281,7 @@ export const ChatInterface: React.FC = () => {
           const trimmed = line.trim();
           if (!trimmed || trimmed.startsWith(':')) continue;
 
-          if (trimmed === 'data: [DONE]') {
-            break;
-          }
+          if (trimmed === 'data: [DONE]') break;
 
           if (trimmed.startsWith('data: ')) {
             const dataStr = trimmed.slice(6);
@@ -282,7 +296,6 @@ export const ChatInterface: React.FC = () => {
                 }
               }
             } catch (e) {
-              // Raw chunk fallback
               accumulatedText += dataStr;
             }
 
@@ -294,16 +307,21 @@ export const ChatInterface: React.FC = () => {
         }
       }
 
-      // Finish streaming
       saveStoredSessions(sessions);
+
+      // Refresh balance after stream
+      if (authToken) {
+        fetch('/api/auth/me', { headers: { Authorization: `Bearer ${authToken}` } })
+          .then(res => res.json())
+          .then(d => { if (d.success) setCurrentUser(d.user); });
+      }
     } catch (err: any) {
       if (err.name === 'AbortError') {
-        console.log('Stream foydalanuvchi tomonidan to\'xtatildi');
+        console.log('Stream to\'xtatildi');
       } else {
-        console.error('Chat error:', err);
         const targetAssistantMsg = activeSession.messages.find(m => m.id === assistantMessageId);
         if (targetAssistantMsg) {
-          targetAssistantMsg.content = `⚠️ Xatolik yuz berdi: ${err.message || 'Noma\'lum xatolik'}\n\nIltimos, qayta urinib ko'ring yoki boshqa modelni tanlang.`;
+          targetAssistantMsg.content = `⚠️ Xatolik yuz berdi: ${err.message || 'Noma\'lum xatolik'}`;
           setSessions([...sessions]);
           saveStoredSessions(sessions);
         }
@@ -316,7 +334,7 @@ export const ChatInterface: React.FC = () => {
 
   const promptSuggestions = [
     {
-      title: 'Python kod yozish',
+      title: 'Python REST API tuzish',
       desc: 'FastAPI va SQLite bilan tezkor REST API loyihasini yaratib ber',
       model: 'iportal-ai-coder',
       icon: <Code className="w-4 h-4 text-emerald-400" />,
@@ -353,8 +371,10 @@ export const ChatInterface: React.FC = () => {
         onNewChat={handleNewChat}
         onDeleteSession={handleDeleteSession}
         onOpenApiKeys={() => setApiKeysModalOpen(true)}
-        onOpenClusterMesh={() => setClusterMeshModalOpen(true)}
         onOpenDocs={() => setDocsModalOpen(true)}
+        onOpenAuth={() => setAuthModalOpen(true)}
+        currentUser={currentUser}
+        onLogout={handleLogout}
       />
 
       {/* Main Content Area */}
@@ -365,7 +385,6 @@ export const ChatInterface: React.FC = () => {
             <button
               onClick={() => setSidebarOpen(true)}
               className="md:hidden p-2 text-gray-400 hover:text-white rounded-lg hover:bg-[#192236]"
-              title="Menyu"
             >
               <Menu className="w-5 h-5" />
             </button>
@@ -379,18 +398,38 @@ export const ChatInterface: React.FC = () => {
 
           {/* Right Header Controls */}
           <div className="flex items-center gap-2">
-            {/* Cluster Health indicator button */}
-            <button
-              onClick={() => setClusterMeshModalOpen(true)}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#141926] hover:bg-[#1c2436] border border-[#232d42] text-xs text-gray-300 transition-all cursor-pointer hidden sm:flex"
-              title="Hosting & AI Klaster holatini ko'rish"
-            >
-              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-              <Server className="w-3.5 h-3.5 text-cyan-400" />
-              <span className="font-mono text-[11px] text-gray-300">
-                Mesh: {clusterStatus.nodes} Nodes • {clusterStatus.activeKeys} Keys
-              </span>
-            </button>
+            {/* User Balance or Free $5 register banner */}
+            {currentUser ? (
+              <button
+                onClick={() => setApiKeysModalOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-950/40 border border-emerald-500/40 text-emerald-400 text-xs font-mono font-bold hover:bg-emerald-900/40 transition-all cursor-pointer"
+                title="Sizning balansingiz"
+              >
+                <DollarSign className="w-3.5 h-3.5" />
+                <span>${currentUser.balance?.toFixed(2) ?? '5.00'}</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => setAuthModalOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-blue-600 hover:from-emerald-500 hover:to-blue-500 text-white text-xs font-semibold shadow-md transition-all cursor-pointer"
+              >
+                <Gift className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">$5 Bepul Balans</span>
+                <span className="sm:hidden">Kirish</span>
+              </button>
+            )}
+
+            {/* Admin Panel quick button if admin */}
+            {currentUser?.role === 'admin' && (
+              <Link
+                href="/admin"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-purple-950/40 border border-purple-500/40 text-purple-300 text-xs font-semibold hover:bg-purple-900/40 transition-colors"
+                title="Admin Boshqaruv Markazi"
+              >
+                <ShieldAlert className="w-3.5 h-3.5 text-purple-400" />
+                <span className="hidden md:inline">Admin</span>
+              </Link>
+            )}
 
             {/* API Keys quick button */}
             <button
@@ -436,15 +475,14 @@ export const ChatInterface: React.FC = () => {
           ) : (
             /* Welcome Hero Screen */
             <div className="max-w-4xl mx-auto px-4 py-8 md:py-16 flex flex-col items-center justify-center text-center space-y-6">
-              {/* Logo icon */}
               <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-purple-600 flex items-center justify-center shadow-2xl shadow-blue-500/30 animate-pulse-glow">
                 <Bot className="w-9 h-9 text-white" />
               </div>
 
               <div>
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-xs font-semibold text-blue-400 mb-3">
-                  <ShieldCheck className="w-3.5 h-3.5 text-green-400" />
-                  <span>0$ Budjet • Cheksiz Taqsimlangan AI Platformasi</span>
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-xs font-semibold text-emerald-400 mb-3">
+                  <Gift className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Yangi foydalanuvchilar uchun $5.00 Bepul Balans beriladi</span>
                 </div>
                 <h1 className="text-2xl md:text-4xl font-extrabold text-white tracking-tight">
                   <span className="bg-gradient-to-r from-blue-400 via-indigo-300 to-purple-400 bg-clip-text text-transparent">
@@ -453,7 +491,7 @@ export const ChatInterface: React.FC = () => {
                   bilan cheksiz intellekt
                 </h1>
                 <p className="text-xs md:text-sm text-gray-400 max-w-lg mx-auto mt-2 leading-relaxed">
-                  Groq, Gemini 2.0, SambaNova, Cerebras va boshqa o'nlab bepul provayderlar hamda taqsimlangan hostinglar tarmog'i birlashmasi.
+                  Llama 3.3 70B, Gemini 2.0, DeepSeek R1 70B va zamonaviy bepul AI provayderlar klasteri.
                 </p>
               </div>
 
@@ -495,14 +533,17 @@ export const ChatInterface: React.FC = () => {
       </div>
 
       {/* Modals */}
+      <AuthModal
+        isOpen={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+        onSuccess={handleAuthSuccess}
+      />
+
       <ApiKeysModal
         isOpen={apiKeysModalOpen}
         onClose={() => setApiKeysModalOpen(false)}
-      />
-
-      <ClusterMeshModal
-        isOpen={clusterMeshModalOpen}
-        onClose={() => setClusterMeshModalOpen(false)}
+        currentUser={currentUser}
+        onOpenAuth={() => setAuthModalOpen(true)}
       />
 
       <DocsModal

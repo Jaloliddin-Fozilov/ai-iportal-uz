@@ -5,12 +5,17 @@ import {
   Plus, 
   MessageSquare, 
   Key, 
-  Server, 
   BookOpen, 
   Trash2, 
   X, 
-  Bot
+  Bot,
+  User,
+  LogIn,
+  LogOut,
+  Gift,
+  ShieldAlert
 } from 'lucide-react';
+import Link from 'next/link';
 import { ChatSession } from '@/lib/storage/clientChatStore';
 
 interface SidebarProps {
@@ -22,8 +27,10 @@ interface SidebarProps {
   onNewChat: () => void;
   onDeleteSession: (id: string, e: React.MouseEvent) => void;
   onOpenApiKeys: () => void;
-  onOpenClusterMesh: () => void;
   onOpenDocs: () => void;
+  onOpenAuth: () => void;
+  currentUser?: any;
+  onLogout: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -35,8 +42,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onNewChat,
   onDeleteSession,
   onOpenApiKeys,
-  onOpenClusterMesh,
   onOpenDocs,
+  onOpenAuth,
+  currentUser,
+  onLogout,
 }) => {
   return (
     <>
@@ -78,8 +87,27 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </button>
         </div>
 
+        {/* Free $5 Call to Action Banner if not logged in */}
+        {!currentUser && (
+          <div className="p-3">
+            <button
+              onClick={() => {
+                onOpenAuth();
+                if (window.innerWidth < 768) onClose();
+              }}
+              className="w-full p-2.5 rounded-xl bg-gradient-to-r from-emerald-950/60 to-blue-950/60 border border-emerald-500/30 text-left transition-all hover:border-emerald-400/50 cursor-pointer"
+            >
+              <div className="flex items-center gap-2 text-xs font-bold text-emerald-300">
+                <Gift className="w-4 h-4 text-emerald-400" />
+                <span>$5 Bepul Balans Oling!</span>
+              </div>
+              <p className="text-[10px] text-gray-300 mt-0.5">Ro'yxatdan o'ting va API kalitga ega bo'ling</p>
+            </button>
+          </div>
+        )}
+
         {/* New Chat Button */}
-        <div className="p-3">
+        <div className="px-3 py-2">
           <button
             onClick={() => {
               onNewChat();
@@ -134,8 +162,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
           )}
         </div>
 
-        {/* Bottom Navigation & Controls */}
-        <div className="p-3 border-t border-[#1a2336] space-y-1 bg-[#090d17]">
+        {/* Bottom Navigation & User Profile */}
+        <div className="p-3 border-t border-[#1a2336] space-y-1.5 bg-[#090d17]">
           {/* API Keys Button */}
           <button
             onClick={() => {
@@ -145,23 +173,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
             className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs text-gray-300 hover:bg-[#141c2c] hover:text-white transition-colors cursor-pointer"
           >
             <Key className="w-4 h-4 text-amber-400" />
-            <span>API Kalitlar Boshqaruvi</span>
+            <span>API Kalitlar & Balans</span>
           </button>
 
-          {/* Node & Provider Cluster Mesh */}
-          <button
-            onClick={() => {
-              onOpenClusterMesh();
-              if (window.innerWidth < 768) onClose();
-            }}
-            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs text-gray-300 hover:bg-[#141c2c] hover:text-white transition-colors cursor-pointer"
-          >
-            <Server className="w-4 h-4 text-cyan-400" />
-            <div className="flex-1 flex items-center justify-between">
-              <span>Hosting & AI Klaster</span>
-              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-            </div>
-          </button>
+          {/* Admin link (if admin) */}
+          {currentUser?.role === 'admin' && (
+            <Link
+              href="/admin"
+              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs text-purple-300 hover:bg-[#141c2c] hover:text-white transition-colors"
+            >
+              <ShieldAlert className="w-4 h-4 text-purple-400" />
+              <span>Admin Boshqaruv Paneli</span>
+            </Link>
+          )}
 
           {/* Documentation */}
           <button
@@ -174,6 +198,43 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <BookOpen className="w-4 h-4 text-purple-400" />
             <span>Qo'llanma & Integratsiya</span>
           </button>
+
+          {/* User Account / Login pill */}
+          <div className="pt-2 border-t border-[#1a2336]">
+            {currentUser ? (
+              <div className="flex items-center justify-between p-2 rounded-xl bg-[#121726] border border-[#1e293f]">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
+                    {currentUser.name?.[0]?.toUpperCase() || 'U'}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-xs font-bold text-white truncate">{currentUser.name}</div>
+                    <div className="text-[11px] text-emerald-400 font-mono font-semibold">
+                      ${currentUser.balance?.toFixed(2) ?? '5.00'}
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={onLogout}
+                  className="p-1.5 text-gray-400 hover:text-red-400 rounded-lg hover:bg-[#1a2233] transition-colors"
+                  title="Chiqish"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => {
+                  onOpenAuth();
+                  if (window.innerWidth < 768) onClose();
+                }}
+                className="w-full flex items-center justify-center gap-2 py-2 rounded-xl bg-[#182136] hover:bg-[#222d48] text-blue-300 text-xs font-semibold border border-[#2b3a58] transition-colors cursor-pointer"
+              >
+                <LogIn className="w-3.5 h-3.5" />
+                <span>Kirish / Ro'yxatdan o'tish</span>
+              </button>
+            )}
+          </div>
         </div>
       </aside>
     </>

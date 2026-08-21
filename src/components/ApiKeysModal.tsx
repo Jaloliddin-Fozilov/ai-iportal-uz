@@ -1,29 +1,43 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, Key, Plus, Copy, Check, Trash2, Shield, Terminal, Code2, Sparkles } from 'lucide-react';
+import { X, Key, Plus, Copy, Check, Trash2, Shield, Terminal, Code2, DollarSign, LogIn, Gift } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { ApiKeyItem } from '@/lib/core/types';
 
 interface ApiKeysModalProps {
   isOpen: boolean;
   onClose: () => void;
+  currentUser?: any;
+  onOpenAuth?: () => void;
 }
 
-export const ApiKeysModal: React.FC<ApiKeysModalProps> = ({ isOpen, onClose }) => {
+export const ApiKeysModal: React.FC<ApiKeysModalProps> = ({ 
+  isOpen, 
+  onClose, 
+  currentUser,
+  onOpenAuth 
+}) => {
   const [keys, setKeys] = useState<ApiKeyItem[]>([]);
+  const [balance, setBalance] = useState<number>(5.00);
   const [loading, setLoading] = useState(false);
   const [newKeyName, setNewKeyName] = useState('');
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'python' | 'node' | 'curl' | 'cursor'>('curl');
 
+  const token = typeof window !== 'undefined' ? localStorage.getItem('iportal_auth_token') || '' : '';
+
   const fetchKeys = async () => {
+    if (!token) return;
     setLoading(true);
     try {
-      const res = await fetch('/api/keys');
+      const res = await fetch('/api/user/keys', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       const data = await res.json();
       if (data.success) {
         setKeys(data.keys || []);
+        if (data.balance !== undefined) setBalance(data.balance);
       }
     } catch (e) {
       console.error(e);
@@ -36,23 +50,25 @@ export const ApiKeysModal: React.FC<ApiKeysModalProps> = ({ isOpen, onClose }) =
     if (isOpen) {
       fetchKeys();
     }
-  }, [isOpen]);
+  }, [isOpen, token]);
 
   const handleCreateKey = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newKeyName.trim()) return;
+    if (!newKeyName.trim() || !token) return;
 
     try {
-      const res = await fetch('/api/keys', {
+      const res = await fetch('/api/user/keys', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({ name: newKeyName.trim() }),
       });
       const data = await res.json();
       if (data.success) {
         setKeys([data.key, ...keys]);
         setNewKeyName('');
-        // Confetti celebration!
         confetti({
           particleCount: 50,
           spread: 60,
@@ -67,7 +83,10 @@ export const ApiKeysModal: React.FC<ApiKeysModalProps> = ({ isOpen, onClose }) =
   const handleDeleteKey = async (id: string) => {
     if (!confirm('Ushbu API kalitni o\'chirishni tasdiqlaysizmi?')) return;
     try {
-      const res = await fetch(`/api/keys?id=${id}&action=delete`, { method: 'DELETE' });
+      const res = await fetch(`/api/user/keys?id=${id}`, { 
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
       const data = await res.json();
       if (data.success) {
         setKeys(keys.filter(k => k.id !== id));
@@ -150,8 +169,8 @@ main();`,
               <Key className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-white">API Kalitlar Boshqaruvi</h2>
-              <p className="text-xs text-gray-400">OpenAI-mos API orqali ai.iportal.uz ga ulanish kalitlari</p>
+              <h2 className="text-base font-bold text-white">Shaxsiy API Kalitlar & Balans</h2>
+              <p className="text-xs text-gray-400">OpenAI-mos formatdagi shaxsiy API kalitlaringiz</p>
             </div>
           </div>
           <button
@@ -164,84 +183,117 @@ main();`,
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-5 space-y-6">
-          {/* Create Key Form */}
-          <form onSubmit={handleCreateKey} className="flex gap-2">
-            <input
-              type="text"
-              value={newKeyName}
-              onChange={(e) => setNewKeyName(e.target.value)}
-              placeholder="Yangi kalit nomi (masalan: My Telegram Bot, Python App...)"
-              className="flex-1 px-4 py-2.5 rounded-xl bg-[#141a29] border border-[#232f48] text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:border-blue-500"
-            />
-            <button
-              type="submit"
-              disabled={!newKeyName.trim()}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white font-medium text-xs shadow-md transition-all disabled:opacity-50 cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Kalit Yaratish</span>
-            </button>
-          </form>
-
-          {/* Keys List */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-xs text-gray-400 font-medium">
-              <span>Mavjud Kalitlar ({keys.length})</span>
-              <span>So'rovlar Soni</span>
+          {/* If NOT logged in banner */}
+          {!currentUser ? (
+            <div className="p-4 rounded-xl bg-gradient-to-r from-blue-950/60 to-purple-950/60 border border-blue-500/30 text-center space-y-2">
+              <Gift className="w-8 h-8 mx-auto text-emerald-400 animate-bounce" />
+              <h3 className="text-sm font-bold text-white">API Kalit olish uchun ro'yxatdan o'ting</h3>
+              <p className="text-xs text-gray-300 max-w-md mx-auto">
+                Barcha yangi ro'yxatdan o'tgan foydalanuvchilarga bepul <strong>$5.00 balans</strong> va shaxsiy API kalit beriladi!
+              </p>
+              <button
+                onClick={() => { onClose(); if (onOpenAuth) onOpenAuth(); }}
+                className="mt-2 inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs shadow-lg cursor-pointer"
+              >
+                <LogIn className="w-4 h-4" />
+                <span>Ro'yxatdan o'tish / Kirish (Free $5)</span>
+              </button>
             </div>
-
-            {loading ? (
-              <div className="p-6 text-center text-xs text-gray-500">Yuklanmoqda...</div>
-            ) : keys.length === 0 ? (
-              <div className="p-6 text-center text-xs text-gray-500 bg-[#121726] rounded-xl border border-[#1e293f]">
-                Hozircha kalitlar yaratilmagan. Yuqoridagi formadan yangi kalit yarating.
-              </div>
-            ) : (
-              keys.map((k) => (
-                <div
-                  key={k.id}
-                  className="flex items-center justify-between p-3.5 rounded-xl bg-[#121726] border border-[#1e293f] hover:border-[#2b3a58] transition-all"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <Shield className="w-4 h-4 text-emerald-400 shrink-0" />
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-xs text-white">{k.name}</span>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                          {k.status}
-                        </span>
-                      </div>
-                      <div className="font-mono text-xs text-gray-400 mt-0.5 truncate select-all">
-                        {k.key}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="font-mono text-xs text-blue-400 bg-[#1a2236] px-2 py-1 rounded-lg">
-                      {k.requestsCount} req
-                    </span>
-                    <button
-                      onClick={() => copyToClipboard(k.key, k.id)}
-                      className="p-1.5 rounded-lg bg-[#1a2236] hover:bg-[#25314d] text-gray-300 hover:text-white transition-colors cursor-pointer"
-                      title="Nusxa olish"
-                    >
-                      {copiedKey === k.id ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
-                    </button>
-                    {k.id !== 'default-master-key' && (
-                      <button
-                        onClick={() => handleDeleteKey(k.id)}
-                        className="p-1.5 rounded-lg bg-[#1a2236] hover:bg-red-950/50 text-gray-400 hover:text-red-400 transition-colors cursor-pointer"
-                        title="O'chirish"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
+          ) : (
+            /* Logged in view */
+            <>
+              {/* Balance Card */}
+              <div className="p-4 rounded-xl bg-[#121726] border border-[#1e293f] flex items-center justify-between">
+                <div>
+                  <span className="text-xs text-gray-400">Joriy Balansingiz</span>
+                  <div className="text-2xl font-bold text-emerald-400 font-mono">
+                    ${balance.toFixed(2)} USD
                   </div>
                 </div>
-              ))
-            )}
-          </div>
+                <div className="text-right text-[11px] text-gray-400">
+                  <span>Hisob egasi:</span>
+                  <div className="font-semibold text-white">{currentUser.name} ({currentUser.email})</div>
+                </div>
+              </div>
+
+              {/* Create Key Form */}
+              <form onSubmit={handleCreateKey} className="flex gap-2">
+                <input
+                  type="text"
+                  value={newKeyName}
+                  onChange={(e) => setNewKeyName(e.target.value)}
+                  placeholder="Yangi kalit nomi (masalan: My Telegram Bot, Python App...)"
+                  className="flex-1 px-4 py-2.5 rounded-xl bg-[#141a29] border border-[#232f48] text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:border-blue-500"
+                />
+                <button
+                  type="submit"
+                  disabled={!newKeyName.trim()}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white font-medium text-xs shadow-md transition-all disabled:opacity-50 cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Kalit Yaratish</span>
+                </button>
+              </form>
+
+              {/* Keys List */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-xs text-gray-400 font-medium">
+                  <span>Sizning Kalitlaringiz ({keys.length})</span>
+                  <span>So'rovlar Soni</span>
+                </div>
+
+                {loading ? (
+                  <div className="p-6 text-center text-xs text-gray-500">Yuklanmoqda...</div>
+                ) : keys.length === 0 ? (
+                  <div className="p-6 text-center text-xs text-gray-500 bg-[#121726] rounded-xl border border-[#1e293f]">
+                    Hozircha kalitlar yaratilmagan. Yuqoridagi formadan yangi kalit yarating.
+                  </div>
+                ) : (
+                  keys.map((k) => (
+                    <div
+                      key={k.id}
+                      className="flex items-center justify-between p-3.5 rounded-xl bg-[#121726] border border-[#1e293f] hover:border-[#2b3a58] transition-all"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <Shield className="w-4 h-4 text-emerald-400 shrink-0" />
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-xs text-white">{k.name}</span>
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                              {k.status}
+                            </span>
+                          </div>
+                          <div className="font-mono text-xs text-gray-400 mt-0.5 truncate select-all">
+                            {k.key}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="font-mono text-xs text-blue-400 bg-[#1a2236] px-2 py-1 rounded-lg">
+                          {k.requestsCount} req
+                        </span>
+                        <button
+                          onClick={() => copyToClipboard(k.key, k.id)}
+                          className="p-1.5 rounded-lg bg-[#1a2236] hover:bg-[#25314d] text-gray-300 hover:text-white transition-colors cursor-pointer"
+                          title="Nusxa olish"
+                        >
+                          {copiedKey === k.id ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
+                        </button>
+                        <button
+                          onClick={() => handleDeleteKey(k.id)}
+                          className="p-1.5 rounded-lg bg-[#1a2236] hover:bg-red-950/50 text-gray-400 hover:text-red-400 transition-colors cursor-pointer"
+                          title="O'chirish"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </>
+          )}
 
           {/* Quick Integration Examples */}
           <div className="pt-2 border-t border-[#1e293f]">
