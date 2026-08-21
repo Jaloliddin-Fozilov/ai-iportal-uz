@@ -1,12 +1,40 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
+import { verifySessionToken, findUserById } from '@/lib/storage/userStore';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 const MAIL_BASE_DIR = '/var/www/iportal_uz_usr/data/email/iportal.uz';
 const ACCOUNTS = ['ai1', 'ai2', 'ai3', 'ai4', 'ai5', 'gmail', 'otp', 'tech', 'mail'];
+const MAIL_PASSWORDS = ['20020210FjX!'];
+
+function checkMailAuth(req: NextRequest): boolean {
+  const authHeader = req.headers.get('authorization') || '';
+  const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+
+  if (!token) return false;
+
+  // 1. Direct password auth token
+  if (MAIL_PASSWORDS.includes(token) || token === process.env.ADMIN_PASSWORD) {
+    return true;
+  }
+
+  // 2. Master Key check
+  if (token === process.env.IPORTAL_MASTER_KEY || token === 'ip-master-secret-key-change-me') {
+    return true;
+  }
+
+  // 3. User JWT session check (Admin only)
+  const { valid, payload } = verifySessionToken(token);
+  if (valid && payload) {
+    const user = findUserById(payload.userId);
+    if (user && user.role === 'admin') return true;
+  }
+
+  return false;
+}
 
 interface ParsedEmail {
   id: string;
@@ -72,6 +100,13 @@ function parseEmailFile(account: string, filePath: string): ParsedEmail | null {
 }
 
 export async function GET(req: NextRequest) {
+  if (!checkMailAuth(req)) {
+    return NextResponse.json(
+      { success: false, error: 'Webmail uchun avtorizatsiyadan o\'tilmagan (Faqat Admin / Pochta egasi)' },
+      { status: 401 }
+    );
+  }
+
   try {
     const { searchParams } = new URL(req.url);
     const account = searchParams.get('account') || 'all';
@@ -113,6 +148,10 @@ export async function GET(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  if (!checkMailAuth(req)) {
+    return NextResponse.json({ success: false, error: 'Ruxsat berilmagan' }, { status: 401 });
+  }
+
   try {
     const { searchParams } = new URL(req.url);
     const account = searchParams.get('account');

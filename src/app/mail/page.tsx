@@ -9,11 +9,11 @@ import {
   ArrowLeft, 
   Copy, 
   Check, 
-  ExternalLink, 
   ShieldCheck, 
   Lock, 
-  Sparkles,
-  Key
+  Key,
+  LogOut,
+  ShieldAlert
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -38,6 +38,12 @@ export default function WebmailPage() {
   const [copiedText, setCopiedText] = useState<string | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(true);
 
+  // Authentication State
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [mailPassword, setMailPassword] = useState<string>('');
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const [authToken, setAuthToken] = useState<string>('');
+
   const accounts = [
     { name: 'Barcha Pochtalarga Kelganlar', id: 'all' },
     { name: 'ai1@iportal.uz', id: 'ai1' },
@@ -47,12 +53,27 @@ export default function WebmailPage() {
     { name: 'ai5@iportal.uz', id: 'ai5' },
   ];
 
-  const fetchEmails = async () => {
+  useEffect(() => {
+    const savedToken = localStorage.getItem('iportal_mail_token') || localStorage.getItem('iportal_auth_token') || '';
+    if (savedToken) {
+      setAuthToken(savedToken);
+      fetchEmailsWithToken(savedToken, selectedAccount);
+    }
+  }, []);
+
+  const fetchEmailsWithToken = async (token: string, account = selectedAccount) => {
+    if (!token) {
+      setIsAuthenticated(false);
+      return;
+    }
     setLoading(true);
     try {
-      const res = await fetch(`/api/mail?account=${selectedAccount}`);
+      const res = await fetch(`/api/mail?account=${account}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       const data = await res.json();
       if (data.success) {
+        setIsAuthenticated(true);
         setEmails(data.emails || []);
         if (selectedEmail) {
           const updated = data.emails?.find((e: EmailItem) => e.id === selectedEmail.id);
@@ -60,23 +81,64 @@ export default function WebmailPage() {
         } else if (data.emails?.length > 0 && !selectedEmail) {
           setSelectedEmail(data.emails[0]);
         }
+      } else {
+        setIsAuthenticated(false);
       }
     } catch (e) {
-      console.error(e);
+      setIsAuthenticated(false);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchEmails();
-  }, [selectedAccount]);
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginError(null);
 
-  // Auto refresh every 6 seconds
+    const tokenToTry = mailPassword.trim();
+
+    try {
+      const res = await fetch(`/api/mail?account=all`, {
+        headers: { Authorization: `Bearer ${tokenToTry}` },
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        localStorage.setItem('iportal_mail_token', tokenToTry);
+        setAuthToken(tokenToTry);
+        setIsAuthenticated(true);
+        setEmails(data.emails || []);
+        if (data.emails?.length > 0) setSelectedEmail(data.emails[0]);
+      } else {
+        setLoginError('Parol noto\'g\'ri! Iltimos, to\'g\'ri parolni kiriting.');
+      }
+    } catch (err: any) {
+      setLoginError(err.message || 'Xatolik yuz berdi');
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('iportal_mail_token');
+    setAuthToken('');
+    setIsAuthenticated(false);
+    setEmails([]);
+    setSelectedEmail(null);
+  };
+
+  const handleAccountChange = (accId: string) => {
+    setSelectedAccount(accId);
+    if (authToken) {
+      fetchEmailsWithToken(authToken, accId);
+    }
+  };
+
+  // Auto refresh every 6 seconds if authenticated
   useEffect(() => {
-    if (!autoRefresh) return;
+    if (!autoRefresh || !isAuthenticated || !authToken) return;
     const timer = setInterval(() => {
-      fetch(`/api/mail?account=${selectedAccount}`)
+      fetch(`/api/mail?account=${selectedAccount}`, {
+        headers: { Authorization: `Bearer ${authToken}` },
+      })
         .then(r => r.json())
         .then(data => {
           if (data.success && data.emails) {
@@ -86,7 +148,7 @@ export default function WebmailPage() {
         .catch(() => {});
     }, 6000);
     return () => clearInterval(timer);
-  }, [autoRefresh, selectedAccount]);
+  }, [autoRefresh, isAuthenticated, authToken, selectedAccount]);
 
   const copyToClipboard = async (text: string, id: string) => {
     try {
@@ -101,7 +163,10 @@ export default function WebmailPage() {
   const handleDeleteEmail = async (email: EmailItem, e: React.MouseEvent) => {
     e.stopPropagation();
     try {
-      const res = await fetch(`/api/mail?account=${email.account}&id=${email.id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/mail?account=${email.account}&id=${email.id}`, { 
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
       const data = await res.json();
       if (data.success) {
         setEmails(emails.filter(m => m.id !== email.id));
@@ -117,6 +182,60 @@ export default function WebmailPage() {
   // Extract OTP/digits if present in text
   const otpMatch = selectedEmail?.body.match(/\b\d{4,8}\b/);
 
+  // 1. Render Login Screen if NOT authenticated
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen w-screen bg-[#080b12] text-gray-100 flex items-center justify-center p-4 font-sans">
+        <div className="w-full max-w-sm p-6 rounded-2xl bg-[#0f1422] border border-[#1e293f] shadow-2xl space-y-4">
+          <div className="text-center space-y-2">
+            <div className="w-12 h-12 mx-auto rounded-2xl bg-gradient-to-tr from-cyan-600 to-blue-600 flex items-center justify-center text-white shadow-lg">
+              <Lock className="w-6 h-6" />
+            </div>
+            <h1 className="text-base font-bold text-white">iportal.uz Webmail Markazi</h1>
+            <p className="text-xs text-gray-400">Pochtalarni va kelgan xatlarni ko'rish uchun parolni kiriting</p>
+          </div>
+
+          <form onSubmit={handleLogin} className="space-y-3 pt-2">
+            {loginError && (
+              <div className="p-2.5 rounded-lg bg-red-950/50 border border-red-800/40 text-xs text-red-300">
+                {loginError}
+              </div>
+            )}
+            <div>
+              <label className="block text-[11px] font-medium text-gray-300 mb-1">Webmail Paroli</label>
+              <div className="relative">
+                <Key className="w-4 h-4 text-gray-500 absolute left-3 top-3" />
+                <input
+                  type="password"
+                  required
+                  value={mailPassword}
+                  onChange={(e) => setMailPassword(e.target.value)}
+                  placeholder="Pochta yoki Admin paroli"
+                  className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-[#141a29] border border-[#232f48] text-xs text-gray-100 placeholder-gray-500 focus:outline-none focus:border-cyan-500"
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              className="w-full py-2.5 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-semibold text-xs transition-all shadow-md cursor-pointer"
+            >
+              Webmailga Kirish
+            </button>
+          </form>
+
+          <div className="text-center pt-2">
+            <Link href="/" className="text-xs text-gray-400 hover:text-cyan-400 flex items-center justify-center gap-1">
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Bosh sahifaga qaytish</span>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 2. Render Authenticated Webmail Screen
   return (
     <div className="h-screen w-screen bg-[#080b12] text-gray-100 font-sans flex flex-col overflow-hidden">
       {/* Top Navbar */}
@@ -133,7 +252,7 @@ export default function WebmailPage() {
               <div className="flex items-center gap-2">
                 <h1 className="font-bold text-sm text-white">iportal.uz Webmail Markazi</h1>
                 <span className="text-[10px] px-2 py-0.2 rounded bg-green-500/10 text-green-400 border border-green-500/20 font-mono">
-                  Jonli Qabul Qiluvchi
+                  Himoyalangan
                 </span>
               </div>
               <p className="text-[11px] text-gray-400">Tasdiqlash kodlari va xatlarni real vaqtda ko'rish</p>
@@ -156,12 +275,21 @@ export default function WebmailPage() {
           </button>
 
           <button
-            onClick={fetchEmails}
+            onClick={() => fetchEmailsWithToken(authToken)}
             disabled={loading}
             className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#141a29] hover:bg-[#1f283d] border border-[#232f48] text-xs text-gray-200 transition-colors cursor-pointer"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
             <span>Yangilash</span>
+          </button>
+
+          {/* Logout button */}
+          <button
+            onClick={handleLogout}
+            className="p-1.5 rounded-lg bg-[#182136] hover:bg-red-950 text-gray-400 hover:text-red-400 transition-colors"
+            title="Webmaildan chiqish"
+          >
+            <LogOut className="w-4 h-4" />
           </button>
         </div>
       </header>
@@ -184,7 +312,7 @@ export default function WebmailPage() {
               return (
                 <button
                   key={acc.id}
-                  onClick={() => setSelectedAccount(acc.id)}
+                  onClick={() => handleAccountChange(acc.id)}
                   className={`w-full flex items-center justify-between p-2.5 rounded-xl text-xs transition-all cursor-pointer ${
                     isSelected
                       ? 'bg-blue-600 text-white font-semibold shadow-md'
@@ -231,7 +359,7 @@ export default function WebmailPage() {
           <div className="p-3 border-b border-[#1a2336] md:hidden">
             <select
               value={selectedAccount}
-              onChange={(e) => setSelectedAccount(e.target.value)}
+              onChange={(e) => handleAccountChange(e.target.value)}
               className="w-full px-3 py-2 rounded-xl bg-[#121726] border border-[#1e293f] text-xs text-white"
             >
               {accounts.map(a => (
