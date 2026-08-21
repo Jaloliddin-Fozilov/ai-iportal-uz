@@ -11,7 +11,13 @@ import {
   Check, 
   Lock, 
   Key,
-  LogOut
+  LogOut,
+  ExternalLink,
+  ShieldCheck,
+  Eye,
+  EyeOff,
+  Sparkles,
+  Link as LinkIcon
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -23,9 +29,13 @@ interface EmailItem {
   subject: string;
   date: string;
   timestamp: number;
+  htmlBody: string;
+  textBody: string;
   body: string;
   preview: string;
   isHtml: boolean;
+  actionLinks?: { text: string; url: string }[];
+  otpCode?: string | null;
 }
 
 export default function WebmailPage() {
@@ -35,6 +45,10 @@ export default function WebmailPage() {
   const [loading, setLoading] = useState(false);
   const [copiedText, setCopiedText] = useState<string | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(true);
+
+  // View preferences
+  const [viewMode, setViewMode] = useState<'html' | 'text'>('html');
+  const [showExternalImages, setShowExternalImages] = useState(false);
 
   // Authentication State
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
@@ -161,6 +175,7 @@ export default function WebmailPage() {
 
   const handleDeleteEmail = async (email: EmailItem, e: React.MouseEvent) => {
     e.stopPropagation();
+    if (!confirm('Ushbu xabarni o\'chirishni tasdiqlaysizmi?')) return;
     try {
       const res = await fetch(`/api/mail?account=${email.account}&id=${email.id}`, { 
         method: 'DELETE',
@@ -178,8 +193,25 @@ export default function WebmailPage() {
     }
   };
 
-  // Extract OTP/digits if present in text
-  const otpMatch = selectedEmail?.body.match(/\b\d{4,8}\b/);
+  // Process HTML body for rendering (image blocking & link security)
+  const getProcessedHtml = (rawHtml: string) => {
+    if (!rawHtml) return '';
+    let processed = rawHtml;
+
+    if (!showExternalImages) {
+      // Block external image sources
+      processed = processed.replace(/<img\s+([^>]*?)src=["'](https?:\/\/[^"']+)["']([^>]*?)>/gi, (match, before, src, after) => {
+        return `<div class="blocked-image-badge" title="Rasm yuklanmadi: ${src}">[🖼 Rasm yashirilgan]</div>`;
+      });
+    }
+
+    // Ensure all links open in a new tab safely
+    processed = processed.replace(/<a\s+([^>]*?)href=["']([^"']+)["']([^>]*?)>/gi, (match, before, href, after) => {
+      return `<a ${before} href="${href}" target="_blank" rel="noopener noreferrer" class="mail-link" ${after}>`;
+    });
+
+    return processed;
+  };
 
   // 1. Render Login Screen if NOT authenticated
   if (!isAuthenticated) {
@@ -251,7 +283,7 @@ export default function WebmailPage() {
               <div className="flex items-center gap-2">
                 <h1 className="font-bold text-sm text-white">iportal.uz Webmail Markazi</h1>
                 <span className="text-[10px] px-2 py-0.2 rounded bg-green-500/10 text-green-400 border border-green-500/20 font-mono">
-                  Himoyalangan
+                  Jonli Qabul
                 </span>
               </div>
               <p className="text-[11px] text-gray-400">Tasdiqlash kodlari va xatlarni real vaqtda ko'rish</p>
@@ -423,7 +455,7 @@ export default function WebmailPage() {
                       <span className="font-bold text-xs text-white truncate max-w-[160px]">
                         {item.from}
                       </span>
-                      <span className="text-[10px] text-gray-400 font-mono">
+                      <span className="text-[10px] text-cyan-400 font-mono bg-cyan-950/40 px-1.5 py-0.2 rounded border border-cyan-800/30">
                         {item.account}@iportal.uz
                       </span>
                     </div>
@@ -485,17 +517,49 @@ export default function WebmailPage() {
                   </div>
                 </div>
 
+                {/* Prominent Magic Link Buttons (e.g. Groq Login link, Verification URL) */}
+                {selectedEmail.actionLinks && selectedEmail.actionLinks.length > 0 && (
+                  <div className="p-3.5 rounded-xl bg-gradient-to-r from-blue-950/80 via-indigo-950/80 to-purple-950/80 border border-blue-500/40 space-y-2">
+                    <div className="flex items-center gap-2 text-xs font-bold text-blue-300">
+                      <LinkIcon className="w-4 h-4 text-cyan-400" />
+                      <span>Tasdiqlash & Kirish Havolasi (Magic Link):</span>
+                    </div>
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      {selectedEmail.actionLinks.map((link, idx) => (
+                        <div key={idx} className="flex items-center gap-1.5 bg-[#0e1424] p-1.5 rounded-xl border border-blue-500/30">
+                          <a
+                            href={link.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs shadow-lg shadow-blue-500/25 transition-all"
+                          >
+                            <span>{link.text || 'Kirish / Tasdiqlash'}</span>
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </a>
+                          <button
+                            onClick={() => copyToClipboard(link.url, `link-${idx}`)}
+                            className="p-2 rounded-lg bg-[#182136] hover:bg-[#222e4c] text-gray-300 hover:text-white transition-colors"
+                            title="Havoladan nusxa olish"
+                          >
+                            {copiedText === `link-${idx}` ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5" />}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* OTP Quick Copy helper */}
-                {otpMatch && (
+                {selectedEmail.otpCode && (
                   <div className="p-3 rounded-xl bg-gradient-to-r from-emerald-950/60 to-blue-950/60 border border-emerald-500/40 flex items-center justify-between">
                     <div>
                       <span className="text-[11px] text-emerald-300 font-semibold">Topilgan Tasdiqlash Kodi (OTP):</span>
                       <div className="text-xl font-bold font-mono text-white tracking-widest">
-                        {otpMatch[0]}
+                        {selectedEmail.otpCode}
                       </div>
                     </div>
                     <button
-                      onClick={() => copyToClipboard(otpMatch[0], 'otp')}
+                      onClick={() => copyToClipboard(selectedEmail.otpCode || '', 'otp')}
                       className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-md cursor-pointer"
                     >
                       {copiedText === 'otp' ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
@@ -505,16 +569,58 @@ export default function WebmailPage() {
                 )}
               </div>
 
-              {/* Message Body */}
-              <div className="p-5 rounded-2xl bg-[#121726] border border-[#1e293f] text-xs md:text-sm text-gray-200 leading-relaxed overflow-x-auto">
-                {selectedEmail.isHtml ? (
+              {/* View Mode & Image Toggle Toolbar */}
+              <div className="flex items-center justify-between px-2 text-xs">
+                <div className="flex items-center gap-1.5 p-1 bg-[#121726] rounded-xl border border-[#1e293f]">
+                  <button
+                    onClick={() => setViewMode('html')}
+                    className={`px-3 py-1 rounded-lg font-medium transition-all ${
+                      viewMode === 'html' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    Formatlangan (HTML)
+                  </button>
+                  <button
+                    onClick={() => setViewMode('text')}
+                    className={`px-3 py-1 rounded-lg font-medium transition-all ${
+                      viewMode === 'text' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    Oddiy Matn (Text)
+                  </button>
+                </div>
+
+                {/* External Images Toggle Button */}
+                {viewMode === 'html' && selectedEmail.isHtml && (
+                  <button
+                    onClick={() => setShowExternalImages(!showExternalImages)}
+                    className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-[#121726] hover:bg-[#182136] border border-[#1e293f] text-gray-300 text-xs transition-colors cursor-pointer"
+                  >
+                    {showExternalImages ? (
+                      <>
+                        <EyeOff className="w-3.5 h-3.5 text-amber-400" />
+                        <span>Rasmlarni Yashirish</span>
+                      </>
+                    ) : (
+                      <>
+                        <Eye className="w-3.5 h-3.5 text-cyan-400" />
+                        <span>Rasmlarni Ko'rsatish</span>
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
+
+              {/* Message Body Card (Clean White/Dark Paper frame) */}
+              <div className="p-6 rounded-2xl bg-[#0f1424] border border-[#1e293f] text-gray-200 leading-relaxed overflow-x-auto shadow-xl">
+                {viewMode === 'html' && selectedEmail.htmlBody ? (
                   <div
-                    dangerouslySetInnerHTML={{ __html: selectedEmail.body }}
-                    className="prose prose-invert max-w-none"
+                    dangerouslySetInnerHTML={{ __html: getProcessedHtml(selectedEmail.htmlBody) }}
+                    className="mail-content-frame"
                   />
                 ) : (
-                  <pre className="whitespace-pre-wrap font-sans text-xs md:text-sm">
-                    {selectedEmail.body}
+                  <pre className="whitespace-pre-wrap font-sans text-xs md:text-sm text-gray-200 leading-relaxed">
+                    {selectedEmail.textBody || selectedEmail.body}
                   </pre>
                 )}
               </div>

@@ -149,3 +149,48 @@ body {
 .animate-pulse-glow {
   animation: pulse-glow 3s infinite ease-in-out;
 }
+
+/* Webmail Message Rendering */
+.mail-content-frame {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  color: #e2e8f0;
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+
+.mail-content-frame a {
+  color: #38bdf8 !important;
+  text-decoration: underline;
+  word-break: break-all;
+  font-weight: 500;
+}
+
+.mail-content-frame a:hover {
+  color: #7dd3fc !important;
+}
+
+.mail-content-frame table {
+  color: inherit !important;
+}
+
+.mail-content-frame h1, 
+.mail-content-frame h2, 
+.mail-content-frame h3 {
+  color: #ffffff !important;
+  font-weight: 700;
+  margin-top: 0.8em;
+  margin-bottom: 0.4em;
+}
+
+.blocked-image-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  margin: 4px 0;
+  font-size: 11px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  color: #94a3b8;
+  font-family: monospace;
+}
+
