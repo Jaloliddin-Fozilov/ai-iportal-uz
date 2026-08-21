@@ -9,11 +9,9 @@ import {
   ArrowLeft, 
   Copy, 
   Check, 
-  ShieldCheck, 
   Lock, 
   Key,
-  LogOut,
-  ShieldAlert
+  LogOut
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -45,12 +43,12 @@ export default function WebmailPage() {
   const [authToken, setAuthToken] = useState<string>('');
 
   const accounts = [
-    { name: 'Barcha Pochtalarga Kelganlar', id: 'all' },
-    { name: 'ai1@iportal.uz', id: 'ai1' },
-    { name: 'ai2@iportal.uz', id: 'ai2' },
-    { name: 'ai3@iportal.uz', id: 'ai3' },
-    { name: 'ai4@iportal.uz', id: 'ai4' },
-    { name: 'ai5@iportal.uz', id: 'ai5' },
+    { name: 'Barcha Xabarlar (All)', email: '', id: 'all' },
+    { name: 'ai1@iportal.uz', email: 'ai1@iportal.uz', id: 'ai1' },
+    { name: 'ai2@iportal.uz', email: 'ai2@iportal.uz', id: 'ai2' },
+    { name: 'ai3@iportal.uz', email: 'ai3@iportal.uz', id: 'ai3' },
+    { name: 'ai4@iportal.uz', email: 'ai4@iportal.uz', id: 'ai4' },
+    { name: 'ai5@iportal.uz', email: 'ai5@iportal.uz', id: 'ai5' },
   ];
 
   useEffect(() => {
@@ -150,7 +148,8 @@ export default function WebmailPage() {
     return () => clearInterval(timer);
   }, [autoRefresh, isAuthenticated, authToken, selectedAccount]);
 
-  const copyToClipboard = async (text: string, id: string) => {
+  const copyToClipboard = async (text: string, id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     try {
       await navigator.clipboard.writeText(text);
       setCopiedText(id);
@@ -297,12 +296,13 @@ export default function WebmailPage() {
       {/* Main Mail Grid */}
       <div className="flex-1 flex overflow-hidden">
         {/* Left Accounts Sidebar */}
-        <div className="w-64 border-r border-[#1a2336] bg-[#0c101c] flex flex-col p-3 space-y-3 shrink-0 hidden md:flex">
-          <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider px-2">
-            Mavjud 5 ta Pochta
+        <div className="w-72 border-r border-[#1a2336] bg-[#0c101c] flex flex-col p-3 space-y-3 shrink-0 hidden md:flex">
+          <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider px-2 flex items-center justify-between">
+            <span>Mavjud 5 ta Pochta</span>
+            <span className="text-[10px] text-gray-500 font-normal">Nusxalash</span>
           </div>
 
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             {accounts.map((acc) => {
               const isSelected = selectedAccount === acc.id;
               const count = acc.id === 'all' 
@@ -310,27 +310,49 @@ export default function WebmailPage() {
                 : emails.filter(e => e.account === acc.id).length;
 
               return (
-                <button
+                <div
                   key={acc.id}
                   onClick={() => handleAccountChange(acc.id)}
-                  className={`w-full flex items-center justify-between p-2.5 rounded-xl text-xs transition-all cursor-pointer ${
+                  className={`group w-full flex items-center justify-between p-2 rounded-xl text-xs transition-all cursor-pointer ${
                     isSelected
                       ? 'bg-blue-600 text-white font-semibold shadow-md'
-                      : 'text-gray-300 hover:bg-[#151c2c] hover:text-white'
+                      : 'text-gray-300 bg-[#101524] hover:bg-[#151c2c] hover:text-white border border-[#1c2438]'
                   }`}
                 >
-                  <div className="flex items-center gap-2 truncate">
+                  <div className="flex items-center gap-2 truncate min-w-0">
                     <Inbox className={`w-4 h-4 shrink-0 ${isSelected ? 'text-white' : 'text-gray-400'}`} />
-                    <span className="truncate">{acc.name}</span>
+                    <span className="truncate font-mono">{acc.name}</span>
                   </div>
-                  {count > 0 && (
-                    <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
-                      isSelected ? 'bg-white text-blue-700' : 'bg-[#1e293f] text-cyan-400'
-                    }`}>
-                      {count}
-                    </span>
-                  )}
-                </button>
+
+                  <div className="flex items-center gap-1 shrink-0 ml-1">
+                    {count > 0 && (
+                      <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+                        isSelected ? 'bg-white text-blue-700' : 'bg-[#1e293f] text-cyan-400'
+                      }`}>
+                        {count}
+                      </span>
+                    )}
+
+                    {/* Copy email button */}
+                    {acc.email && (
+                      <button
+                        onClick={(e) => copyToClipboard(acc.email, `acc-${acc.id}`, e)}
+                        className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                          isSelected 
+                            ? 'bg-blue-700/80 hover:bg-blue-800 text-white' 
+                            : 'bg-[#161f33] hover:bg-blue-600 text-gray-300 hover:text-white'
+                        }`}
+                        title="Pochta manzilidan nusxa olish"
+                      >
+                        {copiedText === `acc-${acc.id}` ? (
+                          <Check className="w-3.5 h-3.5 text-emerald-300" />
+                        ) : (
+                          <Copy className="w-3.5 h-3.5" />
+                        )}
+                      </button>
+                    )}
+                  </div>
+                </div>
               );
             })}
           </div>
@@ -345,7 +367,8 @@ export default function WebmailPage() {
               <span>20020210FjX!</span>
               <button
                 onClick={() => copyToClipboard('20020210FjX!', 'pwd')}
-                className="text-gray-400 hover:text-white"
+                className="p-1 rounded text-gray-400 hover:text-white hover:bg-[#1a2336]"
+                title="Paroldan nusxa olish"
               >
                 {copiedText === 'pwd' ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5" />}
               </button>
@@ -356,16 +379,26 @@ export default function WebmailPage() {
         {/* Middle: Email List */}
         <div className="w-full md:w-80 lg:w-96 border-r border-[#1a2336] bg-[#090d17] flex flex-col shrink-0 overflow-y-auto">
           {/* Mobile Accounts Selector */}
-          <div className="p-3 border-b border-[#1a2336] md:hidden">
+          <div className="p-3 border-b border-[#1a2336] md:hidden flex gap-2">
             <select
               value={selectedAccount}
               onChange={(e) => handleAccountChange(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl bg-[#121726] border border-[#1e293f] text-xs text-white"
+              className="flex-1 px-3 py-2 rounded-xl bg-[#121726] border border-[#1e293f] text-xs text-white"
             >
               {accounts.map(a => (
                 <option key={a.id} value={a.id}>{a.name}</option>
               ))}
             </select>
+            {selectedAccount !== 'all' && (
+              <button
+                onClick={() => copyToClipboard(`${selectedAccount}@iportal.uz`, 'mob-copy')}
+                className="px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold flex items-center gap-1"
+                title="Tanlangan pochtani nusxalash"
+              >
+                {copiedText === 'mob-copy' ? <Check className="w-3.5 h-3.5 text-green-300" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>Nusxa</span>
+              </button>
+            )}
           </div>
 
           {emails.length === 0 ? (
@@ -433,13 +466,22 @@ export default function WebmailPage() {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-1 border-t border-[#1e293f]/80">
-                  <div>
-                    <span className="text-gray-400">Yuboruvchi:</span>{' '}
-                    <span className="font-semibold text-white font-mono">{selectedEmail.from}</span>
+                  <div className="flex items-center gap-1.5 truncate">
+                    <span className="text-gray-400 shrink-0">Yuboruvchi:</span>
+                    <span className="font-semibold text-white font-mono truncate">{selectedEmail.from}</span>
                   </div>
-                  <div>
-                    <span className="text-gray-400">Qabul qiluvchi:</span>{' '}
-                    <span className="font-semibold text-cyan-400 font-mono">{selectedEmail.to}</span>
+                  <div className="flex items-center justify-between gap-1.5">
+                    <div className="flex items-center gap-1 truncate">
+                      <span className="text-gray-400 shrink-0">Qabul qiluvchi:</span>
+                      <span className="font-semibold text-cyan-400 font-mono truncate">{selectedEmail.to}</span>
+                    </div>
+                    <button
+                      onClick={() => copyToClipboard(selectedEmail.to, 'copy-to')}
+                      className="p-1 rounded bg-[#161f33] hover:bg-blue-600 text-gray-300 hover:text-white transition-colors"
+                      title="Qabul qiluvchi pochtadan nusxa olish"
+                    >
+                      {copiedText === 'copy-to' ? <Check className="w-3 h-3 text-green-300" /> : <Copy className="w-3 h-3" />}
+                    </button>
                   </div>
                 </div>
 
