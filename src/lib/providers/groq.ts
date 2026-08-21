@@ -8,14 +8,19 @@ export class GroqProvider extends BaseProvider {
 
   resolveModel(requestedModel: string): string {
     const map: Record<string, string> = {
-      'iportal-ai': 'llama-3.3-70b-versatile',
-      'iportal-ai-fast': 'llama-3.1-8b-instant',
-      'iportal-ai-pro': 'llama-3.3-70b-versatile',
-      'iportal-ai-coder': 'llama-3.3-70b-versatile',
-      'groq/llama-3.3-70b': 'llama-3.3-70b-versatile',
-      'groq/llama-3.1-8b': 'llama-3.1-8b-instant',
+      'iportal-ai': 'openai/gpt-oss-120b',
+      'iportal-ai-fast': 'openai/gpt-oss-20b',
+      'iportal-ai-pro': 'openai/gpt-oss-120b',
+      'iportal-ai-coder': 'openai/gpt-oss-120b',
+      'iportal-ai-reasoning': 'qwen/qwen3.6-27b',
+      'groq/gpt-oss-120b': 'openai/gpt-oss-120b',
+      'groq/gpt-oss-20b': 'openai/gpt-oss-20b',
+      'groq/qwen3.6-27b': 'qwen/qwen3.6-27b',
+      'groq/compound': 'groq/compound',
+      'groq/llama-3.3-70b': 'openai/gpt-oss-120b',
+      'groq/llama-3.1-8b': 'openai/gpt-oss-20b',
     };
-    return map[requestedModel] || requestedModel || 'llama-3.3-70b-versatile';
+    return map[requestedModel] || requestedModel || 'openai/gpt-oss-120b';
   }
 
   async chat(

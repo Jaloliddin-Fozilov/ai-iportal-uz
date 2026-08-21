@@ -267,6 +267,7 @@ export const ChatInterface: React.FC = () => {
 
       const decoder = new TextDecoder();
       let accumulatedText = '';
+      let isThinking = false;
       let buffer = '';
 
       while (true) {
@@ -289,10 +290,23 @@ export const ChatInterface: React.FC = () => {
               const parsed = JSON.parse(dataStr);
               const delta = parsed.choices?.[0]?.delta;
               if (delta) {
-                if (delta.reasoning_content) {
-                  accumulatedText += delta.reasoning_content;
-                } else if (delta.content) {
-                  accumulatedText += delta.content;
+                const reasoning = delta.reasoning_content || delta.reasoning;
+                const content = delta.content;
+
+                if (reasoning) {
+                  if (!isThinking) {
+                    isThinking = true;
+                    accumulatedText += '<think>' + reasoning;
+                  } else {
+                    accumulatedText += reasoning;
+                  }
+                } else if (content) {
+                  if (isThinking) {
+                    isThinking = false;
+                    accumulatedText += '</think>\n\n' + content;
+                  } else {
+                    accumulatedText += content;
+                  }
                 }
               }
             } catch (e) {
