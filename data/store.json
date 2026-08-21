@@ -1,0 +1,44 @@
+{
+  "apiKeys": [
+    {
+      "id": "default-master-key",
+      "key": "ip-master-secret-key-change-me",
+      "name": "Master Admin Key",
+      "createdAt": 1787335505111,
+      "requestsCount": 0,
+      "status": "active"
+    },
+    {
+      "id": "demo-public-key",
+      "key": "ip-live-iportal-ai-public-free",
+      "name": "Public Free Client Key",
+      "createdAt": 1787335505111,
+      "requestsCount": 0,
+      "status": "active",
+      "rateLimitPerMin": 60
+    },
+    {
+      "id": "key-1787335509133-ry3y",
+      "key": "ip-live-zsyuen740crmn1j7",
+      "name": "Telegram Bot Key",
+      "createdAt": 1787335509133,
+      "requestsCount": 1,
+      "status": "active",
+      "rateLimitPerMin": 120,
+      "lastUsedAt": 1787335518348
+    }
+  ],
+  "providerKeys": [],
+  "workerNodes": [
+    {
+      "id": "node-1787335520119-0c1l",
+      "name": "Deno Node 1",
+      "type": "deno",
+      "url": "https://iportal-proxy.deno.dev",
+      "secret": "iportal-proxy-secret-token",
+      "status": "online",
+      "failureCount": 0
+    }
+  ],
+  "masterKey": "ip-master-secret-key-change-me"
+}
