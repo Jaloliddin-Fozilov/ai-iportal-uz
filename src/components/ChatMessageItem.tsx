@@ -5,12 +5,28 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
-import { User, Copy, Check, ChevronDown, ChevronRight, BrainCircuit, Sparkles, RefreshCw, Download, Image as ImageIcon, Wand2 } from 'lucide-react';
+import { 
+  User, 
+  Copy, 
+  Check, 
+  ChevronDown, 
+  ChevronRight, 
+  BrainCircuit, 
+  Sparkles, 
+  RefreshCw, 
+  Download, 
+  Image as ImageIcon, 
+  FileText, 
+  FileCode, 
+  File as FileIcon 
+} from 'lucide-react';
 import { CodeBlock } from './CodeBlock';
+import { ChatAttachment } from '@/lib/core/types';
 
 interface ChatMessageProps {
   role: 'user' | 'assistant' | 'system' | 'tool';
   content: string;
+  attachments?: ChatAttachment[];
   provider?: string;
   node?: string;
   isStreaming?: boolean;
@@ -20,6 +36,7 @@ interface ChatMessageProps {
 export const ChatMessageItem: React.FC<ChatMessageProps> = ({
   role,
   content,
+  attachments = [],
   isStreaming,
   onRetry,
 }) => {
@@ -76,6 +93,12 @@ export const ChatMessageItem: React.FC<ChatMessageProps> = ({
     } catch {
       window.open(src, '_blank');
     }
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
   return (
@@ -164,8 +187,42 @@ export const ChatMessageItem: React.FC<ChatMessageProps> = ({
 
           {/* Main Message Text / Markdown */}
           {isUser ? (
-            <div className="text-sm text-slate-800 whitespace-pre-wrap leading-relaxed font-normal bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-xs inline-block max-w-3xl">
-              {content}
+            <div className="space-y-2 inline-block max-w-3xl">
+              {/* Render Attached Files / Images in User Message */}
+              {attachments && attachments.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-1.5">
+                  {attachments.map((att) => (
+                    <div key={att.id}>
+                      {att.type === 'image' && att.dataUrl ? (
+                        <div 
+                          onClick={() => setPreviewImage(att.dataUrl!)}
+                          className="relative rounded-xl overflow-hidden border border-slate-300 max-w-[200px] max-h-[160px] cursor-pointer hover:opacity-90 shadow-xs"
+                        >
+                          <img src={att.dataUrl} alt={att.name} className="w-full h-full object-cover" />
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-100 border border-slate-200 text-slate-800 text-xs shadow-2xs">
+                          {att.type === 'code' ? (
+                            <FileCode className="w-4 h-4 text-blue-600 shrink-0" />
+                          ) : (
+                            <FileText className="w-4 h-4 text-emerald-600 shrink-0" />
+                          )}
+                          <div className="flex flex-col min-w-0">
+                            <span className="font-bold truncate text-[11px] max-w-[180px]">{att.name}</span>
+                            <span className="text-[9px] text-slate-400 font-mono">{formatFileSize(att.size)}</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {content && (
+                <div className="text-sm text-slate-800 whitespace-pre-wrap leading-relaxed font-normal bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-xs">
+                  {content}
+                </div>
+              )}
             </div>
           ) : isImageGenerating ? (
             /* High-Fidelity Animated Image Generation Skeleton */

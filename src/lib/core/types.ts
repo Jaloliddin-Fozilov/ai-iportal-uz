@@ -1,9 +1,20 @@
 export type Role = 'system' | 'user' | 'assistant' | 'tool';
 
+export interface ChatAttachment {
+  id: string;
+  name: string;
+  type: 'image' | 'document' | 'code';
+  mimeType: string;
+  size: number;
+  dataUrl?: string;
+  content?: string;
+}
+
 export interface ChatMessage {
   role: Role;
   content: string;
   name?: string;
+  attachments?: ChatAttachment[];
 }
 
 export interface ChatCompletionRequest {

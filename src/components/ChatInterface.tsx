@@ -33,6 +33,7 @@ import {
   saveStoredSessions, 
   createNewSession 
 } from '@/lib/storage/clientChatStore';
+import { ChatAttachment } from '@/lib/core/types';
 import { addImageToGallery } from '@/lib/storage/clientGalleryStore';
 
 type ChatMessageItemData = ChatSession['messages'][0];
@@ -174,21 +175,23 @@ export const ChatInterface: React.FC = () => {
     }
   };
 
-  const handleSendMessage = async (text: string) => {
-    if (!text.trim() || isStreaming) return;
+  const handleSendMessage = async (text: string, attachments?: ChatAttachment[]) => {
+    if ((!text.trim() && (!attachments || attachments.length === 0)) || isStreaming) return;
     if (!activeSession) return;
 
-    // 1. Append User Message
+    // 1. Append User Message with Attachments
     const userMsg: ChatMessageItemData = {
       id: `msg-${Date.now()}-u`,
       role: 'user',
       content: text,
+      attachments: attachments && attachments.length > 0 ? attachments : undefined,
       timestamp: Date.now(),
     };
 
     const isFirstMessage = activeSession.messages.length === 0;
     if (isFirstMessage) {
-      activeSession.title = text.slice(0, 32) + (text.length > 32 ? '...' : '');
+      const titleCandidate = text.trim() || (attachments?.[0]?.name ? `File: ${attachments[0].name}` : 'New Conversation');
+      activeSession.title = titleCandidate.slice(0, 32) + (titleCandidate.length > 32 ? '...' : '');
     }
 
     activeSession.messages.push(userMsg);
@@ -204,7 +207,8 @@ export const ChatInterface: React.FC = () => {
       trimmedText.toLowerCase().startsWith('generate image ') ||
       trimmedText.toLowerCase().startsWith('create image ') ||
       trimmedText.toLowerCase().startsWith('rasm chiz ') ||
-      trimmedText.toLowerCase().startsWith('rasm yarat ');
+      trimmedText.toLowerCase().startsWith('rasm yarat ') ||
+      (attachments && attachments.some(a => a.type === 'image') && (trimmedText.toLowerCase().includes('edit') || trimmedText.toLowerCase().includes('o\'zgartir') || trimmedText.toLowerCase().includes('generate') || trimmedText.toLowerCase().includes('chiz')));
 
     const cleanImagePrompt = trimmedText
       .replace(/^\/image\s*/i, '')
@@ -241,7 +245,7 @@ export const ChatInterface: React.FC = () => {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            prompt: cleanImagePrompt || trimmedText,
+            prompt: cleanImagePrompt || trimmedText || 'Generate image inspired by attached reference',
             messages: contextMessages,
             width: 1024,
             height: 1024,
@@ -294,10 +298,26 @@ export const ChatInterface: React.FC = () => {
       const contextMessages = activeSession.messages
         .filter(m => m.id !== assistantMessageId)
         .slice(-12)
-        .map(m => ({
-          role: m.role,
-          content: m.content,
-        }));
+        .map(m => {
+          let fullContent = m.content || '';
+          if (m.attachments && m.attachments.length > 0) {
+            const attachedDocs = m.attachments
+              .filter(a => a.content)
+              .map(a => `\n\n--- [Attached Document: ${a.name}] ---\n${a.content}\n--- [End of ${a.name}] ---`)
+              .join('\n');
+
+            const attachedImages = m.attachments
+              .filter(a => a.type === 'image')
+              .map(a => `\n[Attached Image: ${a.name}]`)
+              .join('');
+
+            fullContent = `${fullContent}${attachedDocs}${attachedImages}`.trim();
+          }
+          return {
+            role: m.role,
+            content: fullContent,
+          };
+        });
 
       messagesPayload.push(...contextMessages);
 
@@ -568,10 +588,11 @@ export const ChatInterface: React.FC = () => {
                     key={msg.id || index}
                     role={msg.role}
                     content={msg.content}
+                    attachments={msg.attachments}
                     isStreaming={isStreaming && index === activeSession.messages.length - 1}
                     onRetry={() => {
                       const lastUser = activeSession.messages.slice(0, index).reverse().find(m => m.role === 'user');
-                      if (lastUser) handleSendMessage(lastUser.content);
+                      if (lastUser) handleSendMessage(lastUser.content, lastUser.attachments);
                     }}
                   />
                 ))}
