@@ -34,6 +34,7 @@ interface SidebarProps {
   onOpenAuth: () => void;
   currentUser?: any;
   onLogout: () => void;
+  selectedModel?: string;
   onSelectModelPreset?: (modelId: string) => void;
 }
 
@@ -50,6 +51,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenAuth,
   currentUser,
   onLogout,
+  selectedModel,
   onSelectModelPreset,
 }) => {
   const modelPresets = [
@@ -110,19 +112,29 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div className="px-2 py-1 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
             Menu
           </div>
-          {modelPresets.map(preset => (
-            <button
-              key={preset.id}
-              onClick={() => {
-                if (onSelectModelPreset) onSelectModelPreset(preset.id);
-                if (window.innerWidth < 768) onClose();
-              }}
-              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-white hover:shadow-xs transition-all text-left cursor-pointer"
-            >
-              {preset.icon}
-              <span className="truncate">{preset.label}</span>
-            </button>
-          ))}
+          {modelPresets.map(preset => {
+            const isSelected = selectedModel === preset.id;
+            return (
+              <button
+                key={preset.id}
+                onClick={() => {
+                  if (onSelectModelPreset) onSelectModelPreset(preset.id);
+                  if (window.innerWidth < 768) onClose();
+                }}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all text-left cursor-pointer ${
+                  isSelected
+                    ? 'bg-white text-slate-900 font-bold border border-emerald-300 shadow-xs'
+                    : 'text-slate-700 hover:bg-white hover:shadow-xs font-semibold'
+                }`}
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  {preset.icon}
+                  <span className="truncate">{preset.label}</span>
+                </div>
+                {isSelected && <span className="w-2 h-2 rounded-full bg-[#00d68f]" />}
+              </button>
+            );
+          })}
         </div>
 
         {/* Chat History List */}

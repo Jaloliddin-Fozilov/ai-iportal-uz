@@ -392,9 +392,9 @@ export const ChatInterface: React.FC = () => {
           onOpenAuth={() => setAuthModalOpen(true)}
           currentUser={currentUser}
           onLogout={handleLogout}
+          selectedModel={selectedModel}
           onSelectModelPreset={(m) => {
             handleSelectModel(m);
-            handleNewChat();
           }}
         />
 
