@@ -14,15 +14,14 @@ export const AIOrb: React.FC<AIOrbProps> = ({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   const dimensionMap = {
-    sm: { width: 36, height: 36, isSmall: true },
-    md: { width: 52, height: 52, isSmall: false },
-    lg: { width: 130, height: 130, isSmall: false },
-    xl: { width: 160, height: 160, isSmall: false },
+    sm: { width: 36, height: 36, isSmall: true, particles: 18 },
+    md: { width: 56, height: 56, isSmall: false, particles: 32 },
+    lg: { width: 140, height: 140, isSmall: false, particles: 64 },
+    xl: { width: 170, height: 170, isSmall: false, particles: 80 },
   };
 
-  const { width, height, isSmall } = dimensionMap[size];
+  const { width, height, isSmall, particles: particleCount } = dimensionMap[size];
 
-  // Canvas animated fluid plasma & 3D holographic rendering
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -32,7 +31,6 @@ export const AIOrb: React.FC<AIOrbProps> = ({
     let animationFrameId: number;
     let time = 0;
 
-    // Retina display scaling
     const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
     canvas.width = width * dpr;
     canvas.height = height * dpr;
@@ -40,148 +38,202 @@ export const AIOrb: React.FC<AIOrbProps> = ({
 
     const cx = width / 2;
     const cy = height / 2;
-    const radius = isSmall ? width * 0.44 : width * 0.38;
+    const maxRadius = width * 0.44;
+
+    // Initialize quantum vortex particles
+    const particleList: Array<{
+      angle: number;
+      distance: number;
+      speed: number;
+      radius: number;
+      color: string;
+      trailLength: number;
+      z: number;
+    }> = [];
+
+    const colors = ['#00d68f', '#00f0ff', '#8b5cf6', '#10b981', '#38bdf8', '#ffffff'];
+
+    for (let i = 0; i < particleCount; i++) {
+      particleList.push({
+        angle: Math.random() * Math.PI * 2,
+        distance: Math.random() * maxRadius * 0.85 + maxRadius * 0.15,
+        speed: (0.015 + Math.random() * 0.02) * (Math.random() > 0.5 ? 1 : -1),
+        radius: isSmall ? 0.8 + Math.random() * 0.8 : 1.2 + Math.random() * 1.6,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        trailLength: 0.15 + Math.random() * 0.25,
+        z: Math.random() * Math.PI * 2,
+      });
+    }
 
     const render = () => {
-      time += 0.022;
+      time += 0.025;
       ctx.clearRect(0, 0, width, height);
 
-      // --- 1. Ambient Outer Glow (Atmospheric dispersion) ---
-      if (!isSmall) {
-        const ambientGlow = ctx.createRadialGradient(cx, cy, radius * 0.7, cx, cy, radius * 1.35);
-        ambientGlow.addColorStop(0, 'rgba(0, 214, 143, 0.28)');
-        ambientGlow.addColorStop(0.5, 'rgba(6, 182, 212, 0.18)');
-        ambientGlow.addColorStop(0.8, 'rgba(139, 92, 246, 0.12)');
-        ambientGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
-        ctx.fillStyle = ambientGlow;
-        ctx.beginPath();
-        ctx.arc(cx, cy, radius * 1.35, 0, Math.PI * 2);
-        ctx.fill();
-      }
+      // --- 1. Ambient Background Dark Gateway Portal Backdrop ---
+      const bgGlow = ctx.createRadialGradient(cx, cy, 0, cx, cy, maxRadius * 1.15);
+      bgGlow.addColorStop(0, 'rgba(3, 15, 23, 0.95)');
+      bgGlow.addColorStop(0.55, 'rgba(4, 20, 20, 0.75)');
+      bgGlow.addColorStop(0.85, 'rgba(0, 214, 143, 0.12)');
+      bgGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
 
-      // --- 2. 3D Sphere Deep Shadow & Velvet Body ---
-      ctx.save();
+      ctx.fillStyle = bgGlow;
       ctx.beginPath();
-      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-      ctx.clip();
+      ctx.arc(cx, cy, maxRadius * 1.15, 0, Math.PI * 2);
+      ctx.fill();
 
-      // Deep 3D base gradient (Spherical shading)
-      const baseGrad = ctx.createRadialGradient(
-        cx - radius * 0.3,
-        cy - radius * 0.35,
-        radius * 0.05,
-        cx,
-        cy,
-        radius
-      );
-      baseGrad.addColorStop(0, '#0a2318');
-      baseGrad.addColorStop(0.35, '#061a29');
-      baseGrad.addColorStop(0.7, '#130c2c');
-      baseGrad.addColorStop(1, '#020617');
-      ctx.fillStyle = baseGrad;
-      ctx.fillRect(0, 0, width, height);
+      // --- 2. Outer Cybernetic HUD Ticks & Precision Ring ---
+      if (!isSmall) {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(time * 0.15);
 
-      // --- 3. Fluid 3D Harmonic Plasma Waves (Apple Intelligence / Siri style) ---
-      const waveCount = isSmall ? 3 : 5;
-      for (let i = 0; i < waveCount; i++) {
-        const offset = i * (Math.PI / 2.5);
-        const wX = cx + Math.cos(time + offset) * (radius * 0.32);
-        const wY = cy + Math.sin(time * 1.2 + offset) * (radius * 0.32);
-        const wRadius = radius * (0.55 + Math.sin(time * 0.8 + i) * 0.15);
+        // Outer Ring
+        ctx.strokeStyle = 'rgba(0, 214, 143, 0.25)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(0, 0, maxRadius * 0.96, 0, Math.PI * 2);
+        ctx.stroke();
 
-        const waveGrad = ctx.createRadialGradient(wX, wY, 0, wX, wY, wRadius);
-        if (i % 3 === 0) {
-          waveGrad.addColorStop(0, 'rgba(0, 214, 143, 0.85)');
-          waveGrad.addColorStop(0.6, 'rgba(5, 150, 105, 0.45)');
-          waveGrad.addColorStop(1, 'rgba(0, 214, 143, 0)');
-        } else if (i % 3 === 1) {
-          waveGrad.addColorStop(0, 'rgba(6, 182, 212, 0.8)');
-          waveGrad.addColorStop(0.6, 'rgba(37, 99, 235, 0.4)');
-          waveGrad.addColorStop(1, 'rgba(6, 182, 212, 0)');
-        } else {
-          waveGrad.addColorStop(0, 'rgba(168, 85, 247, 0.85)');
-          waveGrad.addColorStop(0.6, 'rgba(236, 72, 153, 0.45)');
-          waveGrad.addColorStop(1, 'rgba(168, 85, 247, 0)');
+        // 12 Orbital Cyber Tick Marks
+        for (let i = 0; i < 12; i++) {
+          const tickAngle = (i * Math.PI) / 6;
+          const isMajor = i % 3 === 0;
+          const innerR = maxRadius * (isMajor ? 0.91 : 0.94);
+          const outerR = maxRadius * 0.96;
+
+          ctx.strokeStyle = isMajor ? 'rgba(0, 240, 255, 0.85)' : 'rgba(0, 214, 143, 0.4)';
+          ctx.lineWidth = isMajor ? 1.8 : 1;
+          ctx.beginPath();
+          ctx.moveTo(Math.cos(tickAngle) * innerR, Math.sin(tickAngle) * innerR);
+          ctx.lineTo(Math.cos(tickAngle) * outerR, Math.sin(tickAngle) * outerR);
+          ctx.stroke();
         }
 
-        ctx.globalCompositeOperation = 'screen';
-        ctx.fillStyle = waveGrad;
-        ctx.beginPath();
-        ctx.arc(wX, wY, wRadius, 0, Math.PI * 2);
-        ctx.fill();
+        // 3 Glowing Orbit Data Nodes
+        for (let i = 0; i < 3; i++) {
+          const nodeAngle = (i * Math.PI * 2) / 3 + time * 0.4;
+          const nx = Math.cos(nodeAngle) * (maxRadius * 0.96);
+          const ny = Math.sin(nodeAngle) * (maxRadius * 0.96);
+
+          ctx.fillStyle = '#00f0ff';
+          ctx.shadowColor = '#00f0ff';
+          ctx.shadowBlur = 6;
+          ctx.beginPath();
+          ctx.arc(nx, ny, 2.2, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.shadowBlur = 0;
+        }
+
+        ctx.restore();
       }
 
-      // --- 4. Central Energy Core (Pulsating Fusion Light) ---
-      const corePulse = 1 + Math.sin(time * 2.5) * 0.12;
-      const coreX = cx + Math.cos(time * 0.7) * (radius * 0.1);
-      const coreY = cy + Math.sin(time * 0.9) * (radius * 0.1);
-      const coreGrad = ctx.createRadialGradient(coreX, coreY, 0, coreX, coreY, radius * 0.38 * corePulse);
-      coreGrad.addColorStop(0, '#ffffff');
-      coreGrad.addColorStop(0.3, 'rgba(167, 243, 208, 0.9)');
-      coreGrad.addColorStop(0.7, 'rgba(6, 182, 212, 0.4)');
-      coreGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      // --- 3. Hexagonal / Dimensional Neural Aperture (iportal Iris) ---
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(-time * 0.25);
 
-      ctx.fillStyle = coreGrad;
+      const hexRadius = maxRadius * (isSmall ? 0.88 : 0.76);
+      const sides = 6;
+
       ctx.beginPath();
-      ctx.arc(coreX, coreY, radius * 0.38 * corePulse, 0, Math.PI * 2);
+      for (let i = 0; i <= sides; i++) {
+        const a = (i * Math.PI * 2) / sides;
+        const hx = Math.cos(a) * hexRadius;
+        const hy = Math.sin(a) * hexRadius;
+        if (i === 0) ctx.moveTo(hx, hy);
+        else ctx.lineTo(hx, hy);
+      }
+      ctx.closePath();
+
+      // Cyber Hex Stroke with Multi-color Neon Gradient
+      const hexGrad = ctx.createLinearGradient(-hexRadius, -hexRadius, hexRadius, hexRadius);
+      hexGrad.addColorStop(0, '#00d68f');
+      hexGrad.addColorStop(0.5, '#00f0ff');
+      hexGrad.addColorStop(1, '#8b5cf6');
+
+      ctx.strokeStyle = hexGrad;
+      ctx.lineWidth = isSmall ? 1.5 : 2;
+      ctx.shadowColor = 'rgba(0, 214, 143, 0.6)';
+      ctx.shadowBlur = isSmall ? 4 : 8;
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      // Fill Dark Singularity Inside Hexagon
+      ctx.fillStyle = 'rgba(3, 10, 20, 0.85)';
+      ctx.fill();
+      ctx.restore();
+
+      // --- 4. 3D Swirling Quantum Vortex Particle Stream ---
+      ctx.save();
+      ctx.globalCompositeOperation = 'screen';
+
+      particleList.forEach((p) => {
+        p.angle += p.speed;
+        p.z += 0.02;
+
+        // 3D Perspective Projection
+        const depth = 0.7 + Math.sin(p.z) * 0.3;
+        const currentDistance = p.distance * (0.9 + Math.sin(time + p.angle * 2) * 0.1);
+        const px = cx + Math.cos(p.angle) * currentDistance;
+        const py = cy + Math.sin(p.angle) * currentDistance * 0.72; // Elliptical 3D tilt
+
+        // Particle Glow Trail
+        const trailX = cx + Math.cos(p.angle - p.trailLength * Math.sign(p.speed)) * currentDistance;
+        const trailY = cy + Math.sin(p.angle - p.trailLength * Math.sign(p.speed)) * currentDistance * 0.72;
+
+        const trailGrad = ctx.createLinearGradient(trailX, trailY, px, py);
+        trailGrad.addColorStop(0, 'rgba(0, 0, 0, 0)');
+        trailGrad.addColorStop(1, p.color);
+
+        ctx.strokeStyle = trailGrad;
+        ctx.lineWidth = p.radius * depth;
+        ctx.beginPath();
+        ctx.moveTo(trailX, trailY);
+        ctx.lineTo(px, py);
+        ctx.stroke();
+
+        // Particle Head
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(px, py, p.radius * depth, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      ctx.restore();
+
+      // --- 5. Central Neural Gateway Singularity Core (The iportal Portal) ---
+      const corePulse = 1 + Math.sin(time * 3) * 0.18;
+      const coreRadius = maxRadius * (isSmall ? 0.32 : 0.28) * corePulse;
+
+      // Inner Event Horizon
+      const eventHorizon = ctx.createRadialGradient(cx, cy, 0, cx, cy, coreRadius * 1.4);
+      eventHorizon.addColorStop(0, '#ffffff');
+      eventHorizon.addColorStop(0.35, '#00f0ff');
+      eventHorizon.addColorStop(0.7, '#00d68f');
+      eventHorizon.addColorStop(1, 'rgba(139, 92, 246, 0)');
+
+      ctx.fillStyle = eventHorizon;
+      ctx.beginPath();
+      ctx.arc(cx, cy, coreRadius * 1.4, 0, Math.PI * 2);
       ctx.fill();
 
-      // --- 5. 3D Glass Fresnel Rim Light & Chromatic Refraction ---
-      ctx.globalCompositeOperation = 'source-over';
-      const rimGrad = ctx.createRadialGradient(cx, cy, radius * 0.78, cx, cy, radius);
-      rimGrad.addColorStop(0, 'rgba(255, 255, 255, 0)');
-      rimGrad.addColorStop(0.6, 'rgba(6, 182, 212, 0.35)');
-      rimGrad.addColorStop(0.88, 'rgba(0, 214, 143, 0.75)');
-      rimGrad.addColorStop(1, 'rgba(255, 255, 255, 0.95)');
+      // Central Diamond Singularity Crystal
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(time * 0.8);
 
-      ctx.fillStyle = rimGrad;
+      const dSize = coreRadius * 0.65;
+      ctx.fillStyle = '#ffffff';
+      ctx.shadowColor = '#00f0ff';
+      ctx.shadowBlur = 10;
       ctx.beginPath();
-      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+      ctx.moveTo(0, -dSize);
+      ctx.lineTo(dSize, 0);
+      ctx.lineTo(0, dSize);
+      ctx.lineTo(-dSize, 0);
+      ctx.closePath();
       ctx.fill();
-
-      // --- 6. Curved 3D Glass Specular Glint (Gloss Highlight) ---
-      const glintGrad = ctx.createRadialGradient(
-        cx - radius * 0.42,
-        cy - radius * 0.45,
-        1,
-        cx - radius * 0.42,
-        cy - radius * 0.45,
-        radius * 0.52
-      );
-      glintGrad.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
-      glintGrad.addColorStop(0.3, 'rgba(255, 255, 255, 0.55)');
-      glintGrad.addColorStop(0.7, 'rgba(255, 255, 255, 0.1)');
-      glintGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
-
-      ctx.fillStyle = glintGrad;
-      ctx.beginPath();
-      ctx.ellipse(
-        cx - radius * 0.38,
-        cy - radius * 0.42,
-        radius * 0.4,
-        radius * 0.25,
-        -Math.PI / 4,
-        0,
-        Math.PI * 2
-      );
-      ctx.fill();
-
-      // Bottom-right secondary bounce reflection
-      const bounceGrad = ctx.createRadialGradient(
-        cx + radius * 0.35,
-        cy + radius * 0.4,
-        1,
-        cx + radius * 0.35,
-        cy + radius * 0.4,
-        radius * 0.35
-      );
-      bounceGrad.addColorStop(0, 'rgba(6, 182, 212, 0.45)');
-      bounceGrad.addColorStop(1, 'rgba(6, 182, 212, 0)');
-      ctx.fillStyle = bounceGrad;
-      ctx.beginPath();
-      ctx.arc(cx + radius * 0.35, cy + radius * 0.4, radius * 0.35, 0, Math.PI * 2);
-      ctx.fill();
-
+      ctx.shadowBlur = 0;
       ctx.restore();
 
       animationFrameId = requestAnimationFrame(render);
@@ -192,56 +244,26 @@ export const AIOrb: React.FC<AIOrbProps> = ({
     return () => {
       cancelAnimationFrame(animationFrameId);
     };
-  }, [width, height, isSmall]);
+  }, [width, height, isSmall, particleCount]);
 
   return (
     <div 
-      className={`relative inline-flex items-center justify-center select-none group ${className}`}
+      className={`relative inline-flex items-center justify-center select-none group cursor-pointer ${className}`}
       style={{ width: `${width}px`, height: `${height}px` }}
     >
-      {/* 1. Ambient Background Neon Glow */}
+      {/* 1. Ambient Cyber Aura Glow (Mint & Electric Cyan) */}
       {!isSmall && (
         <>
-          <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-[#00d68f]/40 via-[#06b6d4]/30 to-[#8b5cf6]/35 blur-2xl animate-hologram-pulse pointer-events-none" />
-          <div className="absolute -inset-3 rounded-full bg-[#00d68f]/20 blur-3xl pointer-events-none" />
+          <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-[#00d68f]/30 via-[#00f0ff]/25 to-[#8b5cf6]/20 blur-2xl animate-hologram-pulse pointer-events-none" />
+          <div className="absolute -inset-2 rounded-full bg-[#00d68f]/15 blur-3xl pointer-events-none" />
         </>
       )}
 
-      {/* 2. 3D Holographic Gyroscope Orbit Ring 1 (Tilted 3D neon ellipse) */}
-      {!isSmall && (
-        <div 
-          className="absolute inset-[-14px] rounded-full pointer-events-none"
-          style={{
-            perspective: '800px',
-            transformStyle: 'preserve-3d',
-          }}
-        >
-          <div 
-            className="w-full h-full rounded-full border-[1.5px] border-emerald-400/40 border-t-[#00d68f] border-r-cyan-400 shadow-[0_0_12px_rgba(0,214,143,0.4)] animate-gyro-1"
-          />
-        </div>
-      )}
-
-      {/* 3. 3D Holographic Gyroscope Orbit Ring 2 (Counter-rotated ellipse) */}
-      {!isSmall && (
-        <div 
-          className="absolute inset-[-10px] rounded-full pointer-events-none"
-          style={{
-            perspective: '800px',
-            transformStyle: 'preserve-3d',
-          }}
-        >
-          <div 
-            className="w-full h-full rounded-full border-[1.5px] border-purple-400/35 border-b-violet-400 border-l-cyan-300 shadow-[0_0_10px_rgba(168,85,247,0.35)] animate-gyro-2"
-          />
-        </div>
-      )}
-
-      {/* 4. Canvas Renderer */}
+      {/* 2. Cyber Canvas */}
       <canvas
         ref={canvasRef}
         style={{ width: `${width}px`, height: `${height}px` }}
-        className="relative z-10 drop-shadow-[0_12px_24px_rgba(0,214,143,0.25)] rounded-full transition-transform duration-300 group-hover:scale-105"
+        className="relative z-10 drop-shadow-[0_10px_30px_rgba(0,214,143,0.3)] rounded-full transition-transform duration-300 group-hover:scale-108 active:scale-95"
       />
     </div>
   );
