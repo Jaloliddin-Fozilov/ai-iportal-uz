@@ -16,49 +16,55 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    let finalPrompt = prompt.trim();
+    const rawInput = prompt.trim();
+    let finalPrompt = rawInput;
     let wasModifiedFromContext = false;
 
-    // If previous conversation context exists (image iteration/editing), synthesize the prompt
-    if (Array.isArray(messages) && messages.length > 0) {
-      try {
-        const lastFewMessages = messages.slice(-6);
-        const promptSynthesizerPayload = [
-          {
-            role: 'system' as const,
-            content: `You are an expert AI image prompt synthesizer. The user is in a chat conversation iteratively generating and modifying images.
-Analyze the conversation history and the user's latest modification instruction.
-Synthesize a single, detailed, standalone image prompt in English that combines previous visual elements with the newly requested edits/changes.
-Output ONLY the resulting prompt string. Do not include quotes, explanations, or conversational filler.`,
-          },
-          ...lastFewMessages.map((m: any) => ({
-            role: (m.role === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
-            // Clean markdown images from past assistant messages to keep only textual prompts
-            content: typeof m.content === 'string' ? m.content.replace(/!\[.*?\]\(.*?\)/g, '').trim() : '',
-          })),
-          {
-            role: 'user' as const,
-            content: `Latest modification/request: "${finalPrompt}". Output the updated complete image prompt in English:`,
-          },
-        ];
+    // Use LLM to accurately translate non-English prompts (Uzbek, Russian, etc.)
+    // and synthesize context if editing an existing scene, strictly preserving the user's subject!
+    try {
+      const hasHistory = Array.isArray(messages) && messages.length > 0;
+      const historyContext = hasHistory
+        ? messages.slice(-4).map((m: any) => `${m.role === 'user' ? 'User' : 'Scene'}: ${typeof m.content === 'string' ? m.content.replace(/!\[.*?\]\(.*?\)/g, '').slice(0, 200) : ''}`).join('\n')
+        : '';
 
-        const result = await masterRouter.executeChat({
-          model: 'iportal-ai-fast',
-          messages: promptSynthesizerPayload,
-          temperature: 0.3,
-          max_tokens: 200,
-        });
+      const promptSynthesizerPayload = [
+        {
+          role: 'system' as const,
+          content: `You are an expert AI prompt engineer.
+Your task:
+1. Translate the user's request into clear, detailed English image prompt.
+2. STRICTLY preserve the user's exact subject (e.g. if they say car/mashina, output a car; if they say nature/tabiat, output nature; if animal/hayvon, output that animal; if cyber/tech, output cyber/tech). NEVER substitute the subject with a girl, person, or portrait unless the user explicitly requested a girl or woman.
+3. If the user is modifying a previous scene (e.g., "now red", "add rain", "orqa fonga tog' qo'sh"), incorporate the previous scene elements with the new change.
+4. Output ONLY the English prompt text. No explanations, no quotes.`,
+        },
+        {
+          role: 'user' as const,
+          content: hasHistory 
+            ? `Previous Conversation Context:\n${historyContext}\n\nUser's latest request: "${rawInput}"\n\nGenerate the complete standalone English prompt:`
+            : `User prompt: "${rawInput}". Output detailed English prompt:`,
+        },
+      ];
 
-        if (result && result.response) {
-          const synthesized = result.response.choices?.[0]?.message?.content?.trim();
-          if (synthesized && synthesized.length > 5) {
-            finalPrompt = synthesized.replace(/^["']|["']$/g, '');
+      const result = await masterRouter.executeChat({
+        model: 'iportal-ai-fast',
+        messages: promptSynthesizerPayload,
+        temperature: 0.2,
+        max_tokens: 150,
+      });
+
+      if (result && result.response) {
+        const synthesized = result.response.choices?.[0]?.message?.content?.trim();
+        if (synthesized && synthesized.length > 4) {
+          finalPrompt = synthesized.replace(/^["']|["']$/g, '').trim();
+          if (hasHistory && (rawInput.length < 20 || rawInput.includes('endi') || rawInput.includes('now') || rawInput.includes('add') || rawInput.includes('qo\'sh'))) {
             wasModifiedFromContext = true;
           }
         }
-      } catch (synthErr) {
-        console.warn('[ImageGenerate] Context prompt synthesis skipped, using direct prompt:', synthErr);
       }
+    } catch (synthErr) {
+      console.warn('[ImageGenerate] Prompt expansion skipped, using direct input:', synthErr);
+      finalPrompt = rawInput;
     }
 
     const randomSeed = seed || Math.floor(Math.random() * 1000000);
@@ -73,7 +79,7 @@ Output ONLY the resulting prompt string. Do not include quotes, explanations, or
       imageUrl: proxyUrl,
       rawUrl: rawCdnUrl,
       prompt: finalPrompt,
-      originalPrompt: prompt.trim(),
+      originalPrompt: rawInput,
       wasModifiedFromContext,
       seed: randomSeed,
       width,

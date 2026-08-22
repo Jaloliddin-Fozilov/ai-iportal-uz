@@ -13,7 +13,9 @@ import {
   X, 
   FileText, 
   FileCode, 
-  File as FileIcon 
+  UploadCloud, 
+  CheckCircle2, 
+  Loader2 
 } from 'lucide-react';
 import { ModelSelector } from './ModelSelector';
 import { ChatAttachment } from '@/lib/core/types';
@@ -41,6 +43,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const [showSystemSettings, setShowSystemSettings] = useState(false);
   const [attachments, setAttachments] = useState<ChatAttachment[]>([]);
   const [isDragging, setIsDragging] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -54,6 +57,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   }, [input]);
 
   const processFiles = async (files: FileList | File[]) => {
+    setIsUploading(true);
     const newAttachments: ChatAttachment[] = [];
 
     for (let i = 0; i < files.length; i++) {
@@ -99,9 +103,13 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       }
     }
 
-    if (newAttachments.length > 0) {
-      setAttachments(prev => [...prev, ...newAttachments]);
-    }
+    // Brief realistic scanning animation pause
+    setTimeout(() => {
+      if (newAttachments.length > 0) {
+        setAttachments(prev => [...prev, ...newAttachments]);
+      }
+      setIsUploading(false);
+    }, 350);
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -131,7 +139,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
   const handleSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if ((!input.trim() && attachments.length === 0) || isStreaming) return;
+    if ((!input.trim() && attachments.length === 0) || isStreaming || isUploading) return;
 
     onSendMessage(input.trim(), attachments.length > 0 ? attachments : undefined);
     setInput('');
@@ -205,17 +213,30 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             : 'border-[#bfeade] mint-input-glow'
         }`}
       >
-        {/* Attached Files Preview Bar */}
-        {attachments.length > 0 && (
+        {/* Full Dropzone Overlay while Dragging */}
+        {isDragging && (
+          <div className="absolute inset-0 z-30 rounded-3xl bg-emerald-900/80 backdrop-blur-xs flex flex-col items-center justify-center text-white space-y-2 animate-in fade-in">
+            <div className="p-3 rounded-2xl bg-white/10 border border-white/20 animate-bounce">
+              <UploadCloud className="w-8 h-8 text-[#00d68f]" />
+            </div>
+            <p className="text-sm font-bold tracking-tight">Drop files or images here</p>
+            <p className="text-xs text-emerald-200">Will be attached and indexed instantly</p>
+          </div>
+        )}
+
+        {/* Attached Files Preview Bar with Upload Scan Animation */}
+        {(attachments.length > 0 || isUploading) && (
           <div className="flex items-center gap-2 pb-2.5 mb-2 border-b border-slate-100 overflow-x-auto flex-wrap animate-in fade-in">
             {attachments.map((att) => (
               <div 
                 key={att.id}
-                className="relative group flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-slate-100/90 border border-slate-200 text-slate-800 text-xs shadow-2xs shrink-0"
+                className="relative group flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-slate-100/90 border border-emerald-300/80 text-slate-800 text-xs shadow-2xs shrink-0 animate-in zoom-in-95 duration-200"
               >
                 {att.type === 'image' && att.dataUrl ? (
-                  <div className="w-8 h-8 rounded-lg overflow-hidden border border-slate-300 shrink-0 bg-slate-900">
+                  <div className="relative w-9 h-9 rounded-lg overflow-hidden border border-slate-300 shrink-0 bg-slate-950">
                     <img src={att.dataUrl} alt={att.name} className="w-full h-full object-cover" />
+                    {/* Laser scan line sweep effect */}
+                    <div className="absolute inset-x-0 h-0.5 bg-gradient-to-r from-transparent via-[#00d68f] to-transparent shadow-[0_0_8px_#00d68f] animate-laser-scan pointer-events-none" />
                   </div>
                 ) : att.type === 'code' ? (
                   <FileCode className="w-4 h-4 text-blue-600 shrink-0" />
@@ -238,6 +259,14 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                 </button>
               </div>
             ))}
+
+            {/* Live Uploading Shimmer Tag */}
+            {isUploading && (
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-800 text-xs font-semibold animate-pulse">
+                <Loader2 className="w-3.5 h-3.5 text-emerald-600 animate-spin" />
+                <span>Uploading & scanning asset...</span>
+              </div>
+            )}
           </div>
         )}
 
@@ -312,9 +341,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
               <button
                 type="button"
                 onClick={() => handleSubmit()}
-                disabled={!input.trim() && attachments.length === 0}
+                disabled={(!input.trim() && attachments.length === 0) || isUploading}
                 className={`flex items-center gap-1.5 px-4 sm:px-5 py-2 rounded-full text-xs font-bold transition-all shadow-md cursor-pointer ${
-                  input.trim() || attachments.length > 0
+                  (input.trim() || attachments.length > 0) && !isUploading
                     ? isImageMode 
                       ? 'bg-purple-600 hover:bg-purple-700 text-white shadow-purple-500/25 active:scale-95'
                       : 'bg-[#00d68f] hover:bg-[#00bf80] text-slate-950 shadow-emerald-500/25 active:scale-95'
