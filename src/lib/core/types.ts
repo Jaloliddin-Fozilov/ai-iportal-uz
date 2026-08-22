@@ -114,6 +114,22 @@ export interface ApiKeyItem {
   rateLimitPerMin?: number;
 }
 
+export interface RealQuotaData {
+  remainingRequests?: number;
+  limitRequests?: number;
+  remainingTokens?: number;
+  limitTokens?: number;
+  resetRequests?: string;
+  resetTokens?: string;
+  isRateLimited?: boolean;
+  rateLimitType?: 'minute_tpm' | 'minute_rpm' | 'daily_rpd' | 'general';
+  retryAfterSeconds?: number;
+  lastChecked?: number;
+  latencyMs?: number;
+  httpStatus?: number;
+  errorMessage?: string;
+}
+
 export interface ProviderKeyItem {
   id: string;
   provider: ProviderId;
@@ -125,4 +141,5 @@ export interface ProviderKeyItem {
   successCount: number;
   failCount: number;
   lastUsedAt?: number;
+  realQuota?: RealQuotaData;
 }

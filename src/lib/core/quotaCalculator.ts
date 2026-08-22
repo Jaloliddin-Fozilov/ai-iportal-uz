@@ -1,4 +1,4 @@
-import { ProviderId } from './types';
+import { ProviderId, RealQuotaData } from './types';
 
 export interface ProviderQuotaInfo {
   provider: ProviderId;
@@ -6,6 +6,7 @@ export interface ProviderQuotaInfo {
   dailyRequestsLimit: number;
   dailyTokensLimit: number;
   rateLimitPerMin: number;
+  tokensPerMin: number;
   resetInterval: string;
   notes: string;
 }
@@ -14,11 +15,12 @@ export const PROVIDER_FREE_QUOTAS: Record<string, ProviderQuotaInfo> = {
   groq: {
     provider: 'groq',
     name: 'Groq Cloud LPU',
-    dailyRequestsLimit: 14400,
-    dailyTokensLimit: 1000000,
+    dailyRequestsLimit: 1000, // Real Groq 70B free tier limit
+    dailyTokensLimit: 500000,
     rateLimitPerMin: 30,
+    tokensPerMin: 6000,
     resetInterval: 'Har 24 soatda (00:00 UTC)',
-    notes: 'Kunlik 14,400 ta so\'rov / 1M token bepul',
+    notes: 'Kunlik 1 000 ta so\'rov / 30 RPM / 6 000 TPM',
   },
   gemini: {
     provider: 'gemini',
@@ -26,26 +28,29 @@ export const PROVIDER_FREE_QUOTAS: Record<string, ProviderQuotaInfo> = {
     dailyRequestsLimit: 1500,
     dailyTokensLimit: 1000000,
     rateLimitPerMin: 15,
+    tokensPerMin: 1000000,
     resetInterval: 'Har 24 soatda (00:00 UTC)',
-    notes: 'Kunlik 1,500 ta so\'rov bepul',
+    notes: 'Kunlik 1 500 ta so\'rov / 15 RPM',
   },
   sambanova: {
     provider: 'sambanova',
     name: 'SambaNova SN40L',
-    dailyRequestsLimit: 10000,
+    dailyRequestsLimit: 1000,
     dailyTokensLimit: 500000,
     rateLimitPerMin: 20,
+    tokensPerMin: 100000,
     resetInterval: 'Har 24 soatda (00:00 UTC)',
-    notes: 'Kunlik 10,000 ta so\'rov bepul (DeepSeek R1)',
+    notes: 'Kunlik 1 000 ta so\'rov (DeepSeek R1)',
   },
   cerebras: {
     provider: 'cerebras',
     name: 'Cerebras Wafer-Scale',
-    dailyRequestsLimit: 14400,
+    dailyRequestsLimit: 1000,
     dailyTokensLimit: 1000000,
     rateLimitPerMin: 30,
+    tokensPerMin: 60000,
     resetInterval: 'Har 24 soatda (00:00 UTC)',
-    notes: 'Kunlik 14,400 ta so\'rov (1000 tok/s)',
+    notes: 'Kunlik 1 000 ta so\'rov (1000 tok/s)',
   },
   openrouter: {
     provider: 'openrouter',
@@ -53,8 +58,9 @@ export const PROVIDER_FREE_QUOTAS: Record<string, ProviderQuotaInfo> = {
     dailyRequestsLimit: 200,
     dailyTokensLimit: 200000,
     rateLimitPerMin: 20,
+    tokensPerMin: 50000,
     resetInterval: 'Har 24 soatda (00:00 UTC)',
-    notes: 'Bepul modellar uchun kunlik 200 ta so\'rov',
+    notes: 'Kunlik 200 ta bepul so\'rov',
   },
   mistral: {
     provider: 'mistral',
@@ -62,8 +68,9 @@ export const PROVIDER_FREE_QUOTAS: Record<string, ProviderQuotaInfo> = {
     dailyRequestsLimit: 1000,
     dailyTokensLimit: 500000,
     rateLimitPerMin: 10,
+    tokensPerMin: 50000,
     resetInterval: 'Har 24 soatda (00:00 UTC)',
-    notes: 'Kunlik 1,000 ta bepul so\'rov',
+    notes: 'Kunlik 1 000 ta bepul so\'rov',
   },
   cloudflare: {
     provider: 'cloudflare',
@@ -71,8 +78,9 @@ export const PROVIDER_FREE_QUOTAS: Record<string, ProviderQuotaInfo> = {
     dailyRequestsLimit: 10000,
     dailyTokensLimit: 100000,
     rateLimitPerMin: 50,
+    tokensPerMin: 50000,
     resetInterval: 'Har 24 soatda (00:00 UTC)',
-    notes: 'Kunlik 10,000 ta bepul neyron amaliyot',
+    notes: 'Kunlik 10 000 ta bepul neyron amaliyot',
   },
   huggingface: {
     provider: 'huggingface',
@@ -80,6 +88,7 @@ export const PROVIDER_FREE_QUOTAS: Record<string, ProviderQuotaInfo> = {
     dailyRequestsLimit: 1000,
     dailyTokensLimit: 200000,
     rateLimitPerMin: 10,
+    tokensPerMin: 30000,
     resetInterval: 'Har 24 soatda (00:00 UTC)',
     notes: 'Serverless Inference API',
   },
@@ -100,6 +109,10 @@ export interface CalculatedKeyQuota {
   percentRemaining: number;
   healthStatus: 'healthy' | 'warning' | 'exhausted' | 'error';
   resetInfo: string;
+  isRealData: boolean;
+  rateLimitType?: string;
+  latencyMs?: number;
+  lastChecked?: number;
 }
 
 export function calculateKeyQuota(
@@ -108,30 +121,60 @@ export function calculateKeyQuota(
   maskedKey: string,
   status: string,
   usedRequests: number,
-  usedTokens: number
+  usedTokens: number,
+  realQuota?: RealQuotaData
 ): CalculatedKeyQuota {
   const provKey = provider.toLowerCase();
   const info = PROVIDER_FREE_QUOTAS[provKey] || {
     provider: provKey as ProviderId,
     name: provider.toUpperCase(),
-    dailyRequestsLimit: 5000,
+    dailyRequestsLimit: 1000,
     dailyTokensLimit: 500000,
     rateLimitPerMin: 20,
+    tokensPerMin: 50000,
     resetInterval: 'Har 24 soatda',
     notes: 'Standart bepul rejim',
   };
 
-  const remainingRequests = Math.max(0, info.dailyRequestsLimit - usedRequests);
-  const remainingTokens = Math.max(0, info.dailyTokensLimit - usedTokens);
-  const percentRemaining = Math.max(0, Math.min(100, Math.round((remainingRequests / info.dailyRequestsLimit) * 100)));
+  // Determine Real or Estimated values
+  const hasRealRemaining = realQuota && realQuota.remainingRequests !== undefined;
+  const hasRealTokens = realQuota && realQuota.remainingTokens !== undefined;
+
+  const dailyRequestsLimit = (realQuota && realQuota.limitRequests) || info.dailyRequestsLimit;
+  const dailyTokensLimit = (realQuota && realQuota.limitTokens) || info.dailyTokensLimit;
+
+  let remainingRequests = hasRealRemaining 
+    ? (realQuota!.remainingRequests as number)
+    : Math.max(0, dailyRequestsLimit - usedRequests);
+
+  let remainingTokens = hasRealTokens
+    ? (realQuota!.remainingTokens as number)
+    : Math.max(0, dailyTokensLimit - usedTokens);
+
+  if (realQuota?.isRateLimited) {
+    remainingRequests = 0;
+  }
+
+  const percentRemaining = dailyRequestsLimit > 0 
+    ? Math.max(0, Math.min(100, Math.round((remainingRequests / dailyRequestsLimit) * 100)))
+    : 100;
 
   let healthStatus: CalculatedKeyQuota['healthStatus'] = 'healthy';
-  if (status === 'error' || status === 'cooling_down') {
+  if (status === 'error') {
     healthStatus = 'error';
-  } else if (percentRemaining <= 5) {
+  } else if (realQuota?.isRateLimited || remainingRequests <= 0) {
     healthStatus = 'exhausted';
-  } else if (percentRemaining <= 20) {
+  } else if (percentRemaining < 20 || status === 'cooling_down') {
     healthStatus = 'warning';
+  }
+
+  let resetInfo = info.resetInterval;
+  if (realQuota?.resetRequests) {
+    resetInfo = `Tiklanadi: ${realQuota.resetRequests}`;
+  } else if (realQuota?.isRateLimited) {
+    if (realQuota.rateLimitType === 'minute_tpm') resetInfo = 'Minutlik Token (TPM) limitida (~1 daqiqa)';
+    else if (realQuota.rateLimitType === 'minute_rpm') resetInfo = 'Minutlik So\'rov (RPM) limitida (~1 daqiqa)';
+    else resetInfo = 'Kunlik limit tugagan (24s da tiklanadi)';
   }
 
   return {
@@ -142,12 +185,16 @@ export function calculateKeyQuota(
     status,
     usedRequests,
     usedTokens,
-    dailyRequestsLimit: info.dailyRequestsLimit,
+    dailyRequestsLimit,
     remainingRequests,
-    dailyTokensLimit: info.dailyTokensLimit,
+    dailyTokensLimit,
     remainingTokens,
     percentRemaining,
     healthStatus,
-    resetInfo: info.resetInterval,
+    resetInfo,
+    isRealData: Boolean(hasRealRemaining || realQuota?.lastChecked),
+    rateLimitType: realQuota?.rateLimitType,
+    latencyMs: realQuota?.latencyMs,
+    lastChecked: realQuota?.lastChecked,
   };
 }

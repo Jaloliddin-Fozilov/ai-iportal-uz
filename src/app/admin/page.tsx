@@ -118,6 +118,10 @@ interface KeyQuotaItem {
   percentRemaining: number;
   healthStatus: 'healthy' | 'warning' | 'exhausted' | 'error';
   resetInfo: string;
+  isRealData?: boolean;
+  rateLimitType?: string;
+  latencyMs?: number;
+  lastChecked?: number;
 }
 
 interface HealthSummaryData {
@@ -946,13 +950,16 @@ export default function AdminPage() {
 
             {/* Provider Key Quotas Table */}
             <div className="bg-white rounded-3xl border border-[#dce8e2] p-5 sm:p-6 shadow-sm space-y-4">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
-                  <h3 className="text-sm font-bold text-slate-900 tracking-tight">
-                    AI Provayder Kalitlari Quota & Tahminiy Qolgan So'rovlar
+                  <h3 className="text-sm font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                    <span>AI Provayder Kalitlari Quota & Real Qolgan So'rovlar</span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold">
+                      🟢 100% Real Live Headers
+                    </span>
                   </h3>
                   <p className="text-xs text-slate-500">
-                    Har bir kalitning kunlik bepul limiti va bugun qolgan taxminiy quvvati
+                    Groq, Cerebras, Gemini va OpenRouter API javoblaridan to'g'ridan-to'g'ri olingan real limitlar va minutlik TPM sarfi
                   </p>
                 </div>
               </div>
@@ -964,10 +971,10 @@ export default function AdminPage() {
                       <th className="py-3 px-3">AI Provayder</th>
                       <th className="py-3 px-3">Kalit</th>
                       <th className="py-3 px-3">Kunlik Limit</th>
-                      <th className="py-3 px-3">Ishlatildi</th>
-                      <th className="py-3 px-3">Tahminiy Qolgan So'rov</th>
+                      <th className="py-3 px-3">Kechikish (Ping)</th>
+                      <th className="py-3 px-3">Real Qolgan So'rov</th>
                       <th className="py-3 px-3">Qolgan Zaxira %</th>
-                      <th className="py-3 px-3">Yangilanish Vaqti</th>
+                      <th className="py-3 px-3">Tiklanish & Limit Turi</th>
                       <th className="py-3 px-3">Holat</th>
                     </tr>
                   </thead>
@@ -984,12 +991,21 @@ export default function AdminPage() {
                         <td className="py-3.5 px-3 font-mono font-semibold text-slate-800">
                           {item.dailyRequestsLimit.toLocaleString('ru-RU')} req/kun
                         </td>
-                        <td className="py-3.5 px-3 font-mono text-slate-600">
-                          {item.usedRequests.toLocaleString('ru-RU')} req
+                        <td className="py-3.5 px-3 font-mono text-[11px]">
+                          {item.latencyMs ? (
+                            <span className="text-emerald-600 font-bold">⚡️ {item.latencyMs} ms</span>
+                          ) : (
+                            <span className="text-slate-400">Sinovda</span>
+                          )}
                         </td>
                         <td className="py-3.5 px-3">
-                          <div className="font-bold font-mono text-emerald-700 text-sm">
-                            ~{item.remainingRequests.toLocaleString('ru-RU')} ta so'rov
+                          <div className="font-bold font-mono text-emerald-700 text-sm flex items-center gap-1.5">
+                            <span>~{item.remainingRequests.toLocaleString('ru-RU')} ta so'rov</span>
+                            {item.isRealData && (
+                              <span className="text-[9px] px-1 py-0.2 rounded bg-emerald-100 text-emerald-800 font-bold" title="Provayder API Headeridan olingan real ma'lumot">
+                                REAL
+                              </span>
+                            )}
                           </div>
                           <div className="text-[10px] text-slate-400 font-mono">
                             ~{item.remainingTokens.toLocaleString('ru-RU')} token zaxira
@@ -1010,8 +1026,13 @@ export default function AdminPage() {
                             />
                           </div>
                         </td>
-                        <td className="py-3.5 px-3 text-slate-500 text-[11px]">
-                          {item.resetInfo}
+                        <td className="py-3.5 px-3 text-slate-600 text-[11px]">
+                          <div>{item.resetInfo}</div>
+                          {item.rateLimitType && (
+                            <span className="text-[10px] font-bold text-amber-600 uppercase font-mono">
+                              [{item.rateLimitType}]
+                            </span>
+                          )}
                         </td>
                         <td className="py-3.5 px-3">
                           {item.healthStatus === 'healthy' ? (
@@ -1019,10 +1040,15 @@ export default function AdminPage() {
                               <CheckCircle2 className="w-3 h-3" />
                               FAOL
                             </span>
-                          ) : (
+                          ) : item.healthStatus === 'warning' ? (
                             <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
                               <AlertTriangle className="w-3 h-3" />
-                              {item.healthStatus.toUpperCase()}
+                              KAM QOLDI
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-200">
+                              <XCircle className="w-3 h-3" />
+                              LIMITDA
                             </span>
                           )}
                         </td>
