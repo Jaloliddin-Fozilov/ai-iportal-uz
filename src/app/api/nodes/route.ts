@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getWorkerNodes, addWorkerNode, removeWorkerNode, updateWorkerNodeStatus } from '@/lib/storage/dataStore';
+import { getWorkerNodes, addWorkerNode, removeWorkerNode, updateWorkerNodeStatus, addBulkWorkerNodes } from '@/lib/storage/dataStore';
 import { verifySessionToken, findUserById } from '@/lib/storage/userStore';
 
 export const runtime = 'nodejs';
@@ -35,14 +35,47 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { name, url, type, secret } = body;
+    const { name, url, type, secret, urls, bulkText } = body;
 
+    // 1. Handle Bulk Text (multiple hosting URLs)
+    if (bulkText && typeof bulkText === 'string') {
+      const rawLines = bulkText.split(/[\r\n,]+/).map(u => u.trim()).filter(Boolean);
+      const itemsToInsert = rawLines.map(u => ({ url: u, secret }));
+
+      const res = addBulkWorkerNodes(itemsToInsert);
+      return NextResponse.json({
+        success: true,
+        isBulk: true,
+        totalAdded: res.totalAdded,
+        totalSkipped: res.totalSkipped,
+        nodes: getWorkerNodes(),
+      });
+    }
+
+    // 2. Handle URLs Array
+    if (Array.isArray(urls) && urls.length > 0) {
+      const itemsToInsert = urls.map((u: any) => {
+        if (typeof u === 'string') return { url: u.trim(), secret };
+        return { url: u.url.trim(), name: u.name, type: u.type, secret: u.secret || secret };
+      }).filter(item => Boolean(item.url));
+
+      const res = addBulkWorkerNodes(itemsToInsert);
+      return NextResponse.json({
+        success: true,
+        isBulk: true,
+        totalAdded: res.totalAdded,
+        totalSkipped: res.totalSkipped,
+        nodes: getWorkerNodes(),
+      });
+    }
+
+    // 3. Single Node
     if (!url) {
       return NextResponse.json({ success: false, error: 'Worker Node URL manzili kiritilmadi' }, { status: 400 });
     }
 
     const newNode = addWorkerNode(name, url, type, secret);
-    return NextResponse.json({ success: true, node: newNode });
+    return NextResponse.json({ success: true, node: newNode, nodes: getWorkerNodes() });
   } catch (err: any) {
     return NextResponse.json(
       { success: false, error: err.message || 'Node qo\'shishda xatolik' },
@@ -65,7 +98,7 @@ export async function DELETE(req: NextRequest) {
     }
 
     const ok = removeWorkerNode(id);
-    return NextResponse.json({ success: ok });
+    return NextResponse.json({ success: ok, nodes: getWorkerNodes() });
   } catch (err: any) {
     return NextResponse.json(
       { success: false, error: err.message || 'O\'chirishda xatolik' },
@@ -91,7 +124,7 @@ export async function PUT(req: NextRequest) {
             headers: {
               'User-Agent': 'iportal-ai-pinger',
             },
-            signal: AbortSignal.timeout(5000),
+            signal: AbortSignal.timeout(6000),
           });
 
           const latency = Date.now() - start;

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getProviderKeys, addProviderKey, removeProviderKey } from '@/lib/storage/dataStore';
+import { getProviderKeys, addProviderKey, removeProviderKey, addBulkProviderKeys, detectProviderFromKey } from '@/lib/storage/dataStore';
 import { verifySessionToken, findUserById } from '@/lib/storage/userStore';
 import { masterRouter } from '@/lib/core/router';
 import { ProviderId } from '@/lib/core/types';
@@ -37,17 +37,56 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { provider, key } = body;
+    const { provider, key, keys, bulkText } = body;
 
-    if (!provider || !key) {
+    // 1. Handle Bulk Text (pasted list of keys)
+    if (bulkText && typeof bulkText === 'string') {
+      const rawLines = bulkText.split(/[\r\n,]+/).map(k => k.trim()).filter(Boolean);
+      const itemsToInsert = rawLines.map(k => ({
+        key: k,
+        provider: provider ? (provider as ProviderId) : detectProviderFromKey(k),
+      }));
+
+      const res = addBulkProviderKeys(itemsToInsert, (provider as ProviderId) || 'groq');
+      return NextResponse.json({
+        success: true,
+        isBulk: true,
+        totalAdded: res.totalAdded,
+        totalSkipped: res.totalSkipped,
+        keys: getProviderKeys(),
+      });
+    }
+
+    // 2. Handle Keys Array
+    if (Array.isArray(keys) && keys.length > 0) {
+      const itemsToInsert = keys.map((k: any) => {
+        if (typeof k === 'string') {
+          return { key: k.trim(), provider: provider ? (provider as ProviderId) : detectProviderFromKey(k) };
+        }
+        return { key: k.key.trim(), provider: (k.provider || provider || detectProviderFromKey(k.key)) as ProviderId };
+      }).filter(item => Boolean(item.key));
+
+      const res = addBulkProviderKeys(itemsToInsert, (provider as ProviderId) || 'groq');
+      return NextResponse.json({
+        success: true,
+        isBulk: true,
+        totalAdded: res.totalAdded,
+        totalSkipped: res.totalSkipped,
+        keys: getProviderKeys(),
+      });
+    }
+
+    // 3. Single Key
+    if (!key) {
       return NextResponse.json(
-        { success: false, error: 'Provayder nomi va API Kalit kiritilishi shart' },
+        { success: false, error: 'API Kalit kiritilishi shart' },
         { status: 400 }
       );
     }
 
-    const newKeyItem = addProviderKey(provider as ProviderId, key);
-    return NextResponse.json({ success: true, keyItem: newKeyItem });
+    const targetProvider = (provider as ProviderId) || detectProviderFromKey(key);
+    const newKeyItem = addProviderKey(targetProvider, key);
+    return NextResponse.json({ success: true, keyItem: newKeyItem, keys: getProviderKeys() });
   } catch (err: any) {
     return NextResponse.json(
       { success: false, error: err.message || 'Provayder kalitini qo\'shishda xatolik' },
@@ -70,7 +109,7 @@ export async function DELETE(req: NextRequest) {
     }
 
     const ok = removeProviderKey(id);
-    return NextResponse.json({ success: ok });
+    return NextResponse.json({ success: ok, keys: getProviderKeys() });
   } catch (err: any) {
     return NextResponse.json(
       { success: false, error: err.message || 'O\'chirishda xatolik' },

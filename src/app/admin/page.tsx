@@ -29,7 +29,13 @@ import {
   Stethoscope,
   AlertTriangle,
   HardDrive,
-  Radio
+  Radio,
+  Copy,
+  FileText,
+  Upload,
+  Sparkles,
+  Terminal,
+  Play
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -155,6 +161,18 @@ export default function AdminPage() {
   const [newNodeName, setNewNodeName] = useState('');
   const [newNodeUrl, setNewNodeUrl] = useState('');
   const [newNodeType, setNewNodeType] = useState('vercel');
+
+  // Bulk state
+  const [providerInputMode, setProviderInputMode] = useState<'single' | 'bulk'>('single');
+  const [bulkProviderKeysText, setBulkProviderKeysText] = useState('');
+  const [bulkProviderMessage, setBulkProviderMessage] = useState<string | null>(null);
+
+  const [nodeInputMode, setNodeInputMode] = useState<'single' | 'bulk'>('single');
+  const [bulkNodesText, setBulkNodesText] = useState('');
+  const [bulkNodeMessage, setBulkNodeMessage] = useState<string | null>(null);
+  const [activeCodeTab, setActiveCodeTab] = useState<'vercel' | 'cloudflare' | 'deno' | 'docker'>('vercel');
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const [pingingAllNodes, setPingingAllNodes] = useState(false);
 
   // Balance edit modal state
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
@@ -319,6 +337,35 @@ export default function AdminPage() {
     }
   };
 
+  const handleBulkAddProviderKeys = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!bulkProviderKeysText.trim()) return;
+    setBulkProviderMessage(null);
+    try {
+      const res = await fetch('/api/providers', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          provider: newProvider,
+          bulkText: bulkProviderKeysText,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setBulkProviderMessage(`✨ ${data.totalAdded} ta yangi kalit qo'shildi (${data.totalSkipped} ta dublikat o'tkazib yuborildi)`);
+        setBulkProviderKeysText('');
+        fetchAdminData(authToken);
+      } else {
+        setBulkProviderMessage(`❌ Xatolik: ${data.error}`);
+      }
+    } catch (e: any) {
+      setBulkProviderMessage(`❌ Xatolik: ${e.message}`);
+    }
+  };
+
   const handleDeleteProviderKey = async (id: string) => {
     if (!confirm('Ushbu provayder kalitini o\'chirishni tasdiqlaysizmi?')) return;
     try {
@@ -359,6 +406,34 @@ export default function AdminPage() {
     }
   };
 
+  const handleBulkAddNodes = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!bulkNodesText.trim()) return;
+    setBulkNodeMessage(null);
+    try {
+      const res = await fetch('/api/nodes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          bulkText: bulkNodesText,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setBulkNodeMessage(`✨ ${data.totalAdded} ta yangi edge hosting ulandi (${data.totalSkipped} ta dublikat o'tkazib yuborildi)`);
+        setBulkNodesText('');
+        fetchAdminData(authToken);
+      } else {
+        setBulkNodeMessage(`❌ Xatolik: ${data.error}`);
+      }
+    } catch (e: any) {
+      setBulkNodeMessage(`❌ Xatolik: ${e.message}`);
+    }
+  };
+
   const handleDeleteNode = async (id: string) => {
     if (!confirm('Ushbu hosting nodeni o\'chirishni tasdiqlaysizmi?')) return;
     try {
@@ -388,6 +463,30 @@ export default function AdminPage() {
     } catch (e) {
       alert('Node bilan bog\'lanib bo\'lmadi');
     }
+  };
+
+  const handlePingAllNodes = async () => {
+    setPingingAllNodes(true);
+    try {
+      const res = await fetch('/api/nodes', {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchAdminData(authToken);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setPingingAllNodes(false);
+    }
+  };
+
+  const handleCopyCodeSnippet = (code: string, id: string) => {
+    navigator.clipboard.writeText(code);
+    setCopiedCode(id);
+    setTimeout(() => setCopiedCode(null), 2500);
   };
 
   // Login Screen
@@ -979,65 +1078,336 @@ export default function AdminPage() {
         {/* TAB 3: EDGE HOSTING NODES */}
         {activeTab === 'nodes' && (
           <div className="space-y-6">
-            {/* Add Node Form */}
+            {/* Header / Mode Switcher */}
             <div className="bg-white rounded-3xl border border-[#dce8e2] p-5 sm:p-6 shadow-sm space-y-4">
-              <h2 className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
-                <Server className="w-5 h-5 text-[#00d68f]" />
-                <span>Yangi Edge Proxy Node Qo'shish</span>
-              </h2>
-              <p className="text-xs text-slate-500">
-                Tashqi bepul hostinglarda ishlovchi proxy workerlar (Vercel, Cloudflare, Deno Deploy, Netlify, Render).
-              </p>
-
-              <form onSubmit={handleAddNode} className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-600 mb-1">Hosting Turi</label>
-                  <select
-                    value={newNodeType}
-                    onChange={(e) => setNewNodeType(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-800"
-                  >
-                    <option value="vercel">Vercel Edge</option>
-                    <option value="cloudflare">Cloudflare Workers</option>
-                    <option value="deno">Deno Deploy</option>
-                    <option value="netlify">Netlify Functions</option>
-                    <option value="render">Render</option>
-                    <option value="koyeb">Koyeb</option>
-                    <option value="custom">Boshqa Custom</option>
-                  </select>
+                  <h2 className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                    <Server className="w-5 h-5 text-[#00d68f]" />
+                    <span>Edge Proxy & Worker Hostinglar</span>
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Tashqi bepul va pullik hostinglarda ishlovchi proxy workerlar (Vercel, Cloudflare, Deno Deploy, Netlify, Render, VPS).
+                  </p>
                 </div>
 
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-600 mb-1">Node Nomi</label>
-                  <input
-                    type="text"
-                    value={newNodeName}
-                    onChange={(e) => setNewNodeName(e.target.value)}
-                    placeholder="masalan: Vercel US-East"
-                    className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800"
-                  />
-                </div>
-
-                <div className="sm:col-span-2 flex gap-2 items-end">
-                  <div className="flex-1">
-                    <label className="block text-[11px] font-bold text-slate-600 mb-1">Proxy Endpoint URL</label>
-                    <input
-                      type="url"
-                      required
-                      value={newNodeUrl}
-                      onChange={(e) => setNewNodeUrl(e.target.value)}
-                      placeholder="https://my-proxy.vercel.app/api/proxy"
-                      className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 font-mono"
-                    />
-                  </div>
+                <div className="flex items-center gap-2">
                   <button
-                    type="submit"
-                    className="px-5 py-2.5 rounded-xl bg-[#00d68f] hover:bg-[#00bf80] text-slate-950 font-bold text-xs shadow-md transition-all cursor-pointer shrink-0"
+                    onClick={() => setNodeInputMode(nodeInputMode === 'single' ? 'bulk' : 'single')}
+                    className="px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5"
                   >
-                    Node Qo'shish
+                    <Upload className="w-3.5 h-3.5 text-[#00d68f]" />
+                    <span>{nodeInputMode === 'single' ? '⚡️ Ommaviy Yuklash (Bulk)' : 'Yakka Node Qo\'shish'}</span>
+                  </button>
+
+                  <button
+                    onClick={handlePingAllNodes}
+                    disabled={pingingAllNodes || nodes.length === 0}
+                    className="px-4 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold transition-all shadow-md cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${pingingAllNodes ? 'animate-spin' : ''}`} />
+                    <span>{pingingAllNodes ? 'Sinovda...' : '🩺 Barcha Nodelarni Ping Qilish'}</span>
                   </button>
                 </div>
-              </form>
+              </div>
+
+              {bulkNodeMessage && (
+                <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-semibold animate-in fade-in">
+                  {bulkNodeMessage}
+                </div>
+              )}
+
+              {/* Single Node Form */}
+              {nodeInputMode === 'single' && (
+                <form onSubmit={handleAddNode} className="grid grid-cols-1 sm:grid-cols-4 gap-3 pt-2">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 mb-1">Hosting Turi</label>
+                    <select
+                      value={newNodeType}
+                      onChange={(e) => setNewNodeType(e.target.value)}
+                      className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-800"
+                    >
+                      <option value="vercel">Vercel Edge</option>
+                      <option value="cloudflare">Cloudflare Workers</option>
+                      <option value="deno">Deno Deploy</option>
+                      <option value="netlify">Netlify Functions</option>
+                      <option value="render">Render</option>
+                      <option value="koyeb">Koyeb</option>
+                      <option value="railway">Railway</option>
+                      <option value="custom">Boshqa Custom VPS</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 mb-1">Node Nomi</label>
+                    <input
+                      type="text"
+                      value={newNodeName}
+                      onChange={(e) => setNewNodeName(e.target.value)}
+                      placeholder="masalan: Vercel US-East"
+                      className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2 flex gap-2 items-end">
+                    <div className="flex-1">
+                      <label className="block text-[11px] font-bold text-slate-600 mb-1">Proxy Endpoint URL</label>
+                      <input
+                        type="url"
+                        required
+                        value={newNodeUrl}
+                        onChange={(e) => setNewNodeUrl(e.target.value)}
+                        placeholder="https://my-proxy.vercel.app/api/proxy"
+                        className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 font-mono"
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      className="px-5 py-2.5 rounded-xl bg-[#00d68f] hover:bg-[#00bf80] text-slate-950 font-bold text-xs shadow-md transition-all cursor-pointer shrink-0"
+                    >
+                      Node Qo'shish
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {/* Bulk Nodes Form */}
+              {nodeInputMode === 'bulk' && (
+                <form onSubmit={handleBulkAddNodes} className="space-y-3 pt-2">
+                  <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+                    <label className="block text-xs font-bold text-slate-800">
+                      ⚡️ Bir nechta Proxy Node URL manzillarini tashlang (har bir qatorda bittadan):
+                    </label>
+                    <p className="text-[11px] text-slate-500">
+                      Hosting turi URL manzilidan avtomatik aniqlanadi (Vercel, Cloudflare, Deno, Render, Koyeb, Railway va h.k.).
+                    </p>
+                    <textarea
+                      rows={5}
+                      required
+                      value={bulkNodesText}
+                      onChange={(e) => setBulkNodesText(e.target.value)}
+                      placeholder={`https://my-node-1.vercel.app/api/proxy\nhttps://worker-node-2.yoursubdomain.workers.dev\nhttps://my-deno-proxy.deno.dev\nhttps://my-render-node.onrender.com`}
+                      className="w-full p-3 rounded-xl bg-white border border-slate-200 text-xs font-mono text-slate-900 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 resize-y"
+                    />
+                  </div>
+
+                  <div className="flex justify-end">
+                    <button
+                      type="submit"
+                      className="px-6 py-2.5 rounded-xl bg-[#00d68f] hover:bg-[#00bf80] text-slate-950 font-bold text-xs shadow-md transition-all cursor-pointer flex items-center gap-2"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Barcha Hostinglarni Ulash</span>
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+
+            {/* Ready-to-Deploy Code Snippets for Free Hostings */}
+            <div className="bg-white rounded-3xl border border-[#dce8e2] p-5 sm:p-6 shadow-sm space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                    <Code className="w-4 h-4 text-purple-600" />
+                    <span>🚀 Bepul Hostinglarga Yuklash Uchun Tayyor Proxy Kodlari</span>
+                  </h3>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Ushbu kodlarni Vercel, Cloudflare yoki Deno bepul akkauntlaringizga yuklab, URL manzilini tepada qo'shing.
+                  </p>
+                </div>
+              </div>
+
+              {/* Code Tabs */}
+              <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
+                {[
+                  { id: 'vercel', label: '▲ Vercel Edge (api/proxy.js)' },
+                  { id: 'cloudflare', label: '☁️ Cloudflare Worker (worker.js)' },
+                  { id: 'deno', label: '🦕 Deno Deploy (main.ts)' },
+                  { id: 'docker', label: '🐳 Docker / VPS Node.js' },
+                ].map((t) => (
+                  <button
+                    key={t.id}
+                    onClick={() => setActiveCodeTab(t.id as any)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      activeCodeTab === t.id
+                        ? 'bg-slate-900 text-white shadow-sm'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Code Snippet Box */}
+              <div className="relative rounded-2xl bg-slate-950 p-4 font-mono text-[11px] text-slate-200 overflow-x-auto">
+                <button
+                  onClick={() => {
+                    const snippets: Record<string, string> = {
+                      vercel: `// Vercel Edge Proxy for iportal-ai (api/proxy.js)\nexport const config = { runtime: 'edge' };\n\nexport default async function handler(req) {\n  if (req.method === 'OPTIONS') {\n    return new Response(null, { status: 200, headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', 'Access-Control-Allow-Headers': '*' } });\n  }\n  if (req.method === 'GET') {\n    return new Response(JSON.stringify({ status: 'online', node: 'vercel-edge', time: Date.now() }), { headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } });\n  }\n  try {\n    const targetUrl = req.headers.get('x-target-url');\n    if (!targetUrl) return new Response('Missing x-target-url header', { status: 400 });\n    const body = await req.arrayBuffer();\n    const forwardHeaders = new Headers();\n    for (const [k, v] of req.headers.entries()) {\n      if (!['host', 'connection', 'content-length', 'x-target-url'].includes(k.toLowerCase())) forwardHeaders.set(k, v);\n    }\n    const res = await fetch(targetUrl, { method: req.method, headers: forwardHeaders, body: body.byteLength > 0 ? body : undefined });\n    const outHeaders = new Headers(res.headers);\n    outHeaders.set('Access-Control-Allow-Origin', '*');\n    return new Response(res.body, { status: res.status, headers: outHeaders });\n  } catch (err) {\n    return new Response(JSON.stringify({ error: err.message }), { status: 500 });\n  }\n}`,
+                      cloudflare: `// Cloudflare Worker Proxy for iportal-ai (worker.js)\nexport default {\n  async fetch(request) {\n    if (request.method === 'OPTIONS') {\n      return new Response(null, { headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', 'Access-Control-Allow-Headers': '*' } });\n    }\n    if (request.method === 'GET') {\n      return new Response(JSON.stringify({ status: 'online', node: 'cloudflare-worker', time: Date.now() }), { headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } });\n    }\n    const targetUrl = request.headers.get('x-target-url');\n    if (!targetUrl) return new Response('Missing x-target-url', { status: 400 });\n    const newHeaders = new Headers(request.headers);\n    newHeaders.delete('x-target-url');\n    const res = await fetch(targetUrl, { method: request.method, headers: newHeaders, body: request.body });\n    const outHeaders = new Headers(res.headers);\n    outHeaders.set('Access-Control-Allow-Origin', '*');\n    return new Response(res.body, { status: res.status, headers: outHeaders });\n  }\n};`,
+                      deno: `// Deno Deploy Proxy for iportal-ai (main.ts)\nDeno.serve(async (req) => {\n  if (req.method === 'OPTIONS') {\n    return new Response(null, { headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*' } });\n  }\n  if (req.method === 'GET') {\n    return new Response(JSON.stringify({ status: 'online', node: 'deno-deploy', time: Date.now() }), { headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } });\n  }\n  const targetUrl = req.headers.get('x-target-url');\n  if (!targetUrl) return new Response('Missing x-target-url', { status: 400 });\n  const headers = new Headers(req.headers);\n  headers.delete('x-target-url');\n  const res = await fetch(targetUrl, { method: req.method, headers, body: req.body });\n  const outHeaders = new Headers(res.headers);\n  outHeaders.set('Access-Control-Allow-Origin', '*');\n  return new Response(res.body, { status: res.status, headers: outHeaders });\n});`,
+                      docker: `// Standalone Node.js Proxy for Docker / VPS (server.js)\nconst http = require('http');\nconst https = require('https');\n\nconst server = http.createServer((req, res) => {\n  res.setHeader('Access-Control-Allow-Origin', '*');\n  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');\n  res.setHeader('Access-Control-Allow-Headers', '*');\n  if (req.method === 'OPTIONS') { res.writeHead(200); return res.end(); }\n  if (req.method === 'GET') { res.writeHead(200, { 'Content-Type': 'application/json' }); return res.end(JSON.stringify({ status: 'online' })); }\n  const targetUrl = req.headers['x-target-url'];\n  if (!targetUrl) { res.writeHead(400); return res.end('Missing x-target-url'); }\n  const parsed = new URL(targetUrl);\n  const client = parsed.protocol === 'https:' ? https : http;\n  const opts = { method: req.method, headers: { ...req.headers } };\n  delete opts.headers['host'];\n  delete opts.headers['x-target-url'];\n  const proxyReq = client.request(targetUrl, opts, (proxyRes) => {\n    res.writeHead(proxyRes.statusCode, proxyRes.headers);\n    proxyRes.pipe(res, { end: true });\n  });\n  req.pipe(proxyReq, { end: true });\n});\nserver.listen(process.env.PORT || 8080);`,
+                    };
+                    handleCopyCodeSnippet(snippets[activeCodeTab], activeCodeTab);
+                  }}
+                  className="absolute top-3 right-3 px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-xs text-white flex items-center gap-1.5 transition-colors cursor-pointer border border-white/10"
+                >
+                  {copiedCode === activeCodeTab ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-emerald-400" />
+                      <span className="text-emerald-400">Nusxalandi!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5" />
+                      <span>Kodni Nusxalash</span>
+                    </>
+                  )}
+                </button>
+
+                <pre className="pr-28">
+                  {activeCodeTab === 'vercel' && `// Vercel Edge Proxy for iportal-ai (api/proxy.js)
+export const config = { runtime: 'edge' };
+
+export default async function handler(req) {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, {
+      status: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+        'Access-Control-Allow-Headers': '*',
+      },
+    });
+  }
+
+  if (req.method === 'GET') {
+    return new Response(JSON.stringify({ status: 'online', node: 'vercel-edge', time: Date.now() }), {
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+    });
+  }
+
+  try {
+    const targetUrl = req.headers.get('x-target-url');
+    if (!targetUrl) return new Response('Missing x-target-url header', { status: 400 });
+
+    const body = await req.arrayBuffer();
+    const forwardHeaders = new Headers();
+    for (const [k, v] of req.headers.entries()) {
+      if (!['host', 'connection', 'content-length', 'x-target-url'].includes(k.toLowerCase())) {
+        forwardHeaders.set(k, v);
+      }
+    }
+
+    const res = await fetch(targetUrl, {
+      method: req.method,
+      headers: forwardHeaders,
+      body: body.byteLength > 0 ? body : undefined,
+    });
+
+    const outHeaders = new Headers(res.headers);
+    outHeaders.set('Access-Control-Allow-Origin', '*');
+
+    return new Response(res.body, {
+      status: res.status,
+      headers: outHeaders,
+    });
+  } catch (err) {
+    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
+  }
+}`}
+
+                  {activeCodeTab === 'cloudflare' && `// Cloudflare Worker Proxy for iportal-ai (worker.js)
+export default {
+  async fetch(request) {
+    if (request.method === 'OPTIONS') {
+      return new Response(null, {
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+          'Access-Control-Allow-Headers': '*',
+        },
+      });
+    }
+
+    if (request.method === 'GET') {
+      return new Response(JSON.stringify({ status: 'online', node: 'cloudflare-worker', time: Date.now() }), {
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+      });
+    }
+
+    const targetUrl = request.headers.get('x-target-url');
+    if (!targetUrl) return new Response('Missing x-target-url', { status: 400 });
+
+    const newHeaders = new Headers(request.headers);
+    newHeaders.delete('x-target-url');
+
+    const res = await fetch(targetUrl, {
+      method: request.method,
+      headers: newHeaders,
+      body: request.body,
+    });
+
+    const outHeaders = new Headers(res.headers);
+    outHeaders.set('Access-Control-Allow-Origin', '*');
+
+    return new Response(res.body, {
+      status: res.status,
+      headers: outHeaders,
+    });
+  }
+};`}
+
+                  {activeCodeTab === 'deno' && `// Deno Deploy Proxy for iportal-ai (main.ts)
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, {
+      headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*' },
+    });
+  }
+  if (req.method === 'GET') {
+    return new Response(JSON.stringify({ status: 'online', node: 'deno-deploy', time: Date.now() }), {
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+    });
+  }
+  const targetUrl = req.headers.get('x-target-url');
+  if (!targetUrl) return new Response('Missing x-target-url', { status: 400 });
+  const headers = new Headers(req.headers);
+  headers.delete('x-target-url');
+  const res = await fetch(targetUrl, { method: req.method, headers, body: req.body });
+  const outHeaders = new Headers(res.headers);
+  outHeaders.set('Access-Control-Allow-Origin', '*');
+  return new Response(res.body, { status: res.status, headers: outHeaders });
+});`}
+
+                  {activeCodeTab === 'docker' && `// Standalone Node.js Proxy for Docker / VPS (server.js)
+const http = require('http');
+const https = require('https');
+
+const server = http.createServer((req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', '*');
+  if (req.method === 'OPTIONS') { res.writeHead(200); return res.end(); }
+  if (req.method === 'GET') { res.writeHead(200, { 'Content-Type': 'application/json' }); return res.end(JSON.stringify({ status: 'online' })); }
+  const targetUrl = req.headers['x-target-url'];
+  if (!targetUrl) { res.writeHead(400); return res.end('Missing x-target-url'); }
+  const parsed = new URL(targetUrl);
+  const client = parsed.protocol === 'https:' ? https : http;
+  const opts = { method: req.method, headers: { ...req.headers } };
+  delete opts.headers['host'];
+  delete opts.headers['x-target-url'];
+  const proxyReq = client.request(targetUrl, opts, (proxyRes) => {
+    res.writeHead(proxyRes.statusCode, proxyRes.headers);
+    proxyRes.pipe(res, { end: true });
+  });
+  req.pipe(proxyReq, { end: true });
+});
+server.listen(process.env.PORT || 8080);`}
+                </pre>
+              </div>
             </div>
 
             {/* Nodes List */}
@@ -1086,7 +1456,7 @@ export default function AdminPage() {
                     </div>
 
                     <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1">
-                      <span>Holat: <strong className="text-emerald-600">Online (Active)</strong></span>
+                      <span>Holat: <strong className={node.status === 'offline' ? 'text-red-500' : 'text-emerald-600'}>{node.status === 'offline' ? 'Offline' : 'Online (Active)'}</strong></span>
                       <span>Kechikish: <strong className="font-mono text-slate-900">{node.latencyMs ? `${node.latencyMs} ms` : 'Faol'}</strong></span>
                     </div>
                   </div>
@@ -1101,53 +1471,125 @@ export default function AdminPage() {
           <div className="space-y-6">
             {/* Add Provider Key Form */}
             <div className="bg-white rounded-3xl border border-[#dce8e2] p-5 sm:p-6 shadow-sm space-y-4">
-              <h2 className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
-                <Key className="w-5 h-5 text-amber-500" />
-                <span>Yangi AI Provayder Kaliti Qo'shish</span>
-              </h2>
-              <p className="text-xs text-slate-500">
-                AI provayderlardan olingan bepul API kalitlarni yuklang (Groq, Gemini, SambaNova, Cerebras, OpenRouter, Mistral, Cloudflare, HuggingFace).
-              </p>
-
-              <form onSubmit={handleAddProviderKey} className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-600 mb-1">AI Provayder</label>
-                  <select
-                    value={newProvider}
-                    onChange={(e) => setNewProvider(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-800"
-                  >
-                    <option value="groq">Groq Cloud (LPU 120B)</option>
-                    <option value="gemini">Google Gemini 2.0</option>
-                    <option value="sambanova">SambaNova (DeepSeek R1)</option>
-                    <option value="cerebras">Cerebras (CS-3 1000 tok/s)</option>
-                    <option value="openrouter">OpenRouter Mesh</option>
-                    <option value="mistral">Mistral AI</option>
-                    <option value="cloudflare">Cloudflare Workers AI</option>
-                    <option value="huggingface">HuggingFace Hub</option>
-                  </select>
+                  <h2 className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                    <Key className="w-5 h-5 text-amber-500" />
+                    <span>AI Provayder Kalitlari Boshqaruvi</span>
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Groq, Gemini, SambaNova, Cerebras, OpenRouter, Mistral, Cloudflare, HuggingFace bepul kalitlarini qo'shing.
+                  </p>
                 </div>
 
-                <div className="sm:col-span-3 flex gap-2 items-end">
-                  <div className="flex-1">
-                    <label className="block text-[11px] font-bold text-slate-600 mb-1">API Key</label>
-                    <input
-                      type="password"
+                <button
+                  onClick={() => setProviderInputMode(providerInputMode === 'single' ? 'bulk' : 'single')}
+                  className="px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 shrink-0"
+                >
+                  <Upload className="w-3.5 h-3.5 text-amber-500" />
+                  <span>{providerInputMode === 'single' ? '⚡️ Ommaviy Kalitlarni Yuklash (Bulk)' : 'Yakka Kalit Qo\'shish'}</span>
+                </button>
+              </div>
+
+              {bulkProviderMessage && (
+                <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-semibold animate-in fade-in">
+                  {bulkProviderMessage}
+                </div>
+              )}
+
+              {/* Single Key Form */}
+              {providerInputMode === 'single' && (
+                <form onSubmit={handleAddProviderKey} className="grid grid-cols-1 sm:grid-cols-4 gap-3 pt-2">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 mb-1">AI Provayder</label>
+                    <select
+                      value={newProvider}
+                      onChange={(e) => setNewProvider(e.target.value)}
+                      className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-800"
+                    >
+                      <option value="groq">Groq Cloud (LPU 120B)</option>
+                      <option value="gemini">Google Gemini 2.0</option>
+                      <option value="sambanova">SambaNova (DeepSeek R1)</option>
+                      <option value="cerebras">Cerebras (CS-3 1000 tok/s)</option>
+                      <option value="openrouter">OpenRouter Mesh</option>
+                      <option value="mistral">Mistral AI</option>
+                      <option value="cloudflare">Cloudflare Workers AI</option>
+                      <option value="huggingface">HuggingFace Hub</option>
+                    </select>
+                  </div>
+
+                  <div className="sm:col-span-3 flex gap-2 items-end">
+                    <div className="flex-1">
+                      <label className="block text-[11px] font-bold text-slate-600 mb-1">API Key</label>
+                      <input
+                        type="password"
+                        required
+                        value={newProviderKey}
+                        onChange={(e) => setNewProviderKey(e.target.value)}
+                        placeholder="gsk_... yoki AIzaSy... yoki sn_..."
+                        className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 font-mono"
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      className="px-5 py-2.5 rounded-xl bg-[#00d68f] hover:bg-[#00bf80] text-slate-950 font-bold text-xs shadow-md transition-all cursor-pointer shrink-0"
+                    >
+                      Kalit Qo'shish
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {/* Bulk Keys Form */}
+              {providerInputMode === 'bulk' && (
+                <form onSubmit={handleBulkAddProviderKeys} className="space-y-3 pt-2">
+                  <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <label className="block text-xs font-bold text-slate-800">
+                        ⚡️ Bir nechta API Kalitlarni tashlang (har bir qatorda bittadan yoki vergul bilan):
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] font-bold text-slate-500">Asosiy provayder:</span>
+                        <select
+                          value={newProvider}
+                          onChange={(e) => setNewProvider(e.target.value)}
+                          className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-[11px] font-bold text-slate-800"
+                        >
+                          <option value="groq">Groq (gsk_)</option>
+                          <option value="gemini">Gemini (AIzaSy)</option>
+                          <option value="sambanova">SambaNova</option>
+                          <option value="cerebras">Cerebras (csk-)</option>
+                          <option value="openrouter">OpenRouter (sk-or-)</option>
+                          <option value="mistral">Mistral</option>
+                          <option value="cloudflare">Cloudflare AI</option>
+                          <option value="huggingface">HuggingFace (hf_)</option>
+                        </select>
+                      </div>
+                    </div>
+                    <p className="text-[11px] text-slate-500">
+                      Kalit prefikslari (gsk_, AIzaSy, csk-, sk-or-, hf_) orqali provayder avtomatik aniqlanadi. Dublikatlar avtomatik o'tkazib yuboriladi.
+                    </p>
+                    <textarea
+                      rows={5}
                       required
-                      value={newProviderKey}
-                      onChange={(e) => setNewProviderKey(e.target.value)}
-                      placeholder="gsk_... yoki AIzaSy... yoki sn_..."
-                      className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 font-mono"
+                      value={bulkProviderKeysText}
+                      onChange={(e) => setBulkProviderKeysText(e.target.value)}
+                      placeholder={`gsk_xxxxxxx1\ngsk_xxxxxxx2\nAIzaSyxxxxxxx3\ncsk-xxxxxxx4\nsk-or-v1-xxxxxxx5`}
+                      className="w-full p-3 rounded-xl bg-white border border-slate-200 text-xs font-mono text-slate-900 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 resize-y"
                     />
                   </div>
-                  <button
-                    type="submit"
-                    className="px-5 py-2.5 rounded-xl bg-[#00d68f] hover:bg-[#00bf80] text-slate-950 font-bold text-xs shadow-md transition-all cursor-pointer shrink-0"
-                  >
-                    Kalit Qo'shish
-                  </button>
-                </div>
-              </form>
+
+                  <div className="flex justify-end">
+                    <button
+                      type="submit"
+                      className="px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs shadow-md transition-all cursor-pointer flex items-center gap-2"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Barcha Kalitlarni Qo'shish & Saqlash</span>
+                    </button>
+                  </div>
+                </form>
+              )}
             </div>
 
             {/* Provider Keys List */}

@@ -93,7 +93,7 @@ export interface AIModelMeta {
 export interface WorkerNode {
   id: string;
   name: string;
-  type: 'cloudflare' | 'deno' | 'vercel' | 'netlify' | 'render' | 'koyeb' | 'custom';
+  type: 'cloudflare' | 'deno' | 'vercel' | 'netlify' | 'render' | 'koyeb' | 'railway' | 'fly' | 'custom';
   url: string;
   secret?: string;
   status: 'online' | 'degraded' | 'offline';

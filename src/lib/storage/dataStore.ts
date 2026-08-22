@@ -306,6 +306,58 @@ export function removeProviderKey(id: string): boolean {
   return false;
 }
 
+export function detectProviderFromKey(key: string, fallback: ProviderId = 'groq'): ProviderId {
+  const k = key.trim();
+  if (k.startsWith('gsk_')) return 'groq';
+  if (k.startsWith('AIzaSy')) return 'gemini';
+  if (k.startsWith('csk-')) return 'cerebras';
+  if (k.startsWith('sk-or-')) return 'openrouter';
+  if (k.startsWith('hf_')) return 'huggingface';
+  if (k.startsWith('sn_') || k.length === 64) return 'sambanova';
+  return fallback;
+}
+
+export function addBulkProviderKeys(keysList: Array<{ key: string; provider?: ProviderId }>, defaultProvider: ProviderId = 'groq'): {
+  added: ProviderKeyItem[];
+  totalAdded: number;
+  totalSkipped: number;
+} {
+  const store = loadStore();
+  const added: ProviderKeyItem[] = [];
+  let skipped = 0;
+
+  for (const item of keysList) {
+    const cleanKey = item.key.trim();
+    if (!cleanKey) continue;
+
+    const existing = store.providerKeys.find(k => k.key === cleanKey);
+    if (existing) {
+      skipped++;
+      continue;
+    }
+
+    const provider = item.provider || detectProviderFromKey(cleanKey, defaultProvider);
+    const newItem: ProviderKeyItem = {
+      id: `${provider}-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      provider,
+      key: cleanKey,
+      maskedKey: maskKey(cleanKey),
+      status: 'active',
+      successCount: 0,
+      failCount: 0,
+    };
+
+    store.providerKeys.push(newItem);
+    added.push(newItem);
+  }
+
+  if (added.length > 0) {
+    saveStore(store);
+  }
+
+  return { added, totalAdded: added.length, totalSkipped: skipped };
+}
+
 // Helpers for Worker Nodes
 export function getWorkerNodes(): WorkerNode[] {
   return loadStore().workerNodes;
@@ -322,6 +374,7 @@ export function addWorkerNode(name: string, url: string, type?: WorkerNode['type
   else if (cleanUrl.includes('netlify.app')) detectedType = 'netlify';
   else if (cleanUrl.includes('onrender.com')) detectedType = 'render';
   else if (cleanUrl.includes('koyeb.app')) detectedType = 'koyeb';
+  else if (cleanUrl.includes('railway.app')) detectedType = 'railway';
 
   const newItem: WorkerNode = {
     id: `node-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
@@ -336,6 +389,55 @@ export function addWorkerNode(name: string, url: string, type?: WorkerNode['type
   store.workerNodes.push(newItem);
   saveStore(store);
   return newItem;
+}
+
+export function addBulkWorkerNodes(nodesList: Array<{ url: string; name?: string; type?: WorkerNode['type']; secret?: string }>): {
+  added: WorkerNode[];
+  totalAdded: number;
+  totalSkipped: number;
+} {
+  const store = loadStore();
+  const added: WorkerNode[] = [];
+  let skipped = 0;
+
+  for (const item of nodesList) {
+    const cleanUrl = item.url.trim().replace(/\/+$/, '');
+    if (!cleanUrl) continue;
+
+    const existing = store.workerNodes.find(n => n.url === cleanUrl);
+    if (existing) {
+      skipped++;
+      continue;
+    }
+
+    let detectedType: WorkerNode['type'] = item.type || 'custom';
+    if (cleanUrl.includes('workers.dev')) detectedType = 'cloudflare';
+    else if (cleanUrl.includes('deno.dev')) detectedType = 'deno';
+    else if (cleanUrl.includes('vercel.app')) detectedType = 'vercel';
+    else if (cleanUrl.includes('netlify.app')) detectedType = 'netlify';
+    else if (cleanUrl.includes('onrender.com')) detectedType = 'render';
+    else if (cleanUrl.includes('koyeb.app')) detectedType = 'koyeb';
+    else if (cleanUrl.includes('railway.app')) detectedType = 'railway';
+
+    const newItem: WorkerNode = {
+      id: `node-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      name: item.name || `Node (${detectedType})`,
+      type: detectedType,
+      url: cleanUrl,
+      secret: item.secret || process.env.PROXY_SECRET || 'iportal-proxy-secret-token',
+      status: 'online',
+      failureCount: 0,
+    };
+
+    store.workerNodes.push(newItem);
+    added.push(newItem);
+  }
+
+  if (added.length > 0) {
+    saveStore(store);
+  }
+
+  return { added, totalAdded: added.length, totalSkipped: skipped };
 }
 
 export function removeWorkerNode(id: string): boolean {
