@@ -32,7 +32,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
   }, []);
 
   const getCategoryIcon = (category: AIModelMeta['category'], modelId?: string) => {
-    if (modelId === 'image-flux') {
+    if (modelId === 'iportal-image' || modelId === 'image-flux') {
       return <ImageIcon className="w-3.5 h-3.5 text-purple-600" />;
     }
     switch (category) {

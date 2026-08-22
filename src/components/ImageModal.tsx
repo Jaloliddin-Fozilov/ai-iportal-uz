@@ -94,8 +94,8 @@ export const ImageModal: React.FC<ImageModalProps> = ({ isOpen, onClose }) => {
               <ImageIcon className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-slate-900 tracking-tight">iportal Image AI (Flux Studio)</h2>
-              <p className="text-xs text-slate-500">Matndan yuqori sifatli (8K Flux) AI rasmlar yaratish</p>
+              <h2 className="text-base font-bold text-slate-900 tracking-tight">iportal Image Studio</h2>
+              <p className="text-xs text-slate-500">Create high-resolution AI visuals from text descriptions</p>
             </div>
           </div>
           <button
@@ -212,7 +212,7 @@ export const ImageModal: React.FC<ImageModalProps> = ({ isOpen, onClose }) => {
               </div>
 
               <div className="flex items-center justify-between">
-                <span className="text-xs text-slate-500 font-medium">Model: <strong>Flux 8K AI</strong></span>
+                <span className="text-xs text-slate-500 font-medium">Model: <strong>iportal Image Core</strong></span>
                 <button
                   onClick={handleDownload}
                   className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-md transition-all cursor-pointer"

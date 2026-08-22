@@ -40,7 +40,7 @@ export function saveGalleryImages(images: GalleryImageItem[]): void {
   }
 }
 
-export function addImageToGallery(prompt: string, url: string, model = 'Flux 8K', aspectRatio = '1:1'): GalleryImageItem {
+export function addImageToGallery(prompt: string, url: string, model = 'iportal Image', aspectRatio = '1:1'): GalleryImageItem {
   const images = getGalleryImages();
   const newItem: GalleryImageItem = {
     id: `img-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,

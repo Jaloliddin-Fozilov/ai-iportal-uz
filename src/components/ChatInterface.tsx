@@ -157,7 +157,7 @@ export const ChatInterface: React.FC = () => {
   };
 
   const handleStartImageMode = () => {
-    setSelectedModel('image-flux');
+    setSelectedModel('iportal-image');
   };
 
   const handleUpdateSystemPrompt = (prompt: string) => {
@@ -195,12 +195,28 @@ export const ChatInterface: React.FC = () => {
 
     // 2. Prepare Assistant placeholder
     const assistantMessageId = `msg-${Date.now()}-a`;
-    const isImageGeneration = selectedModel === 'image-flux';
+    const trimmedText = text.trim();
+    const isImageGeneration = 
+      selectedModel === 'iportal-image' || 
+      selectedModel === 'image-flux' ||
+      trimmedText.toLowerCase().startsWith('/image') ||
+      trimmedText.toLowerCase().startsWith('generate image ') ||
+      trimmedText.toLowerCase().startsWith('create image ') ||
+      trimmedText.toLowerCase().startsWith('rasm chiz ') ||
+      trimmedText.toLowerCase().startsWith('rasm yarat ');
+
+    const cleanImagePrompt = trimmedText
+      .replace(/^\/image\s*/i, '')
+      .replace(/^generate image\s*/i, '')
+      .replace(/^create image\s*/i, '')
+      .replace(/^rasm chiz\s*/i, '')
+      .replace(/^rasm yarat\s*/i, '')
+      .trim();
 
     const assistantMsg: ChatMessageItemData = {
       id: assistantMessageId,
       role: 'assistant',
-      content: isImageGeneration ? '🎨 Generating high-resolution artwork with Flux AI...' : '',
+      content: isImageGeneration ? '🎨 Generating high-resolution image with iportal Neural Engine...' : '',
       timestamp: Date.now(),
     };
     activeSession.messages.push(assistantMsg);
@@ -216,21 +232,21 @@ export const ChatInterface: React.FC = () => {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            prompt: text.trim(),
+            prompt: cleanImagePrompt || trimmedText,
             width: 1024,
             height: 1024,
-            model: 'flux',
           }),
         });
 
         const imgData = await imgRes.json();
         if (imgData.success && imgData.imageUrl) {
+          const promptToSave = cleanImagePrompt || trimmedText;
           // Save to user's 30-day gallery automatically
-          addImageToGallery(text.trim(), imgData.imageUrl, 'Flux 8K', '1:1');
+          addImageToGallery(promptToSave, imgData.imageUrl, 'iportal Image', '1:1');
 
           const target = activeSession.messages.find(m => m.id === assistantMessageId);
           if (target) {
-            target.content = `![${text.trim()}](${imgData.imageUrl})\n\n**Prompt:** *${text.trim()}*\n**Engine:** Flux 8K Studio • Saved to Library (30 days)`;
+            target.content = `![${promptToSave}](${imgData.imageUrl})\n\n**Prompt:** *${promptToSave}*\n**Engine:** iportal Neural Image • Saved to Library (30 days)`;
             setSessions([...sessions]);
             saveStoredSessions(sessions);
           }
@@ -444,12 +460,12 @@ export const ChatInterface: React.FC = () => {
 
   // Interactive Official Bots & Neural Cluster
   const officialBots = [
-    { id: 'iportal-ai', name: 'Flagship 120B', type: 'Flagship Core', model: 'iportal-ai', icon: <Cpu className="w-4 h-4 text-emerald-600" /> },
-    { id: 'iportal-ai-coder', name: 'Coder 120B', type: 'Software Master', model: 'iportal-ai-coder', icon: <Code className="w-4 h-4 text-blue-600" /> },
-    { id: 'iportal-ai-reasoning', name: 'Logic 27B', type: 'Deep Reasoning', model: 'iportal-ai-reasoning', icon: <Brain className="w-4 h-4 text-purple-600" /> },
-    { id: 'iportal-ai-fast', name: 'Turbo 20B', type: 'High Speed', model: 'iportal-ai-fast', icon: <Zap className="w-4 h-4 text-amber-600" /> },
-    { id: 'iportal-ai-pro', name: 'Research Pro', type: 'Deep Knowledge', model: 'iportal-ai-pro', icon: <Sparkles className="w-4 h-4 text-cyan-600" /> },
-    { id: 'image-flux', name: 'Flux Studio', type: 'Image Generator', model: 'image-flux', icon: <ImageIcon className="w-4 h-4 text-purple-600" /> },
+    { id: 'iportal-ai', name: 'iportal Flagship', type: 'Flagship Core', model: 'iportal-ai', icon: <Cpu className="w-4 h-4 text-emerald-600" /> },
+    { id: 'iportal-ai-coder', name: 'iportal Code', type: 'Code Master', model: 'iportal-ai-coder', icon: <Code className="w-4 h-4 text-blue-600" /> },
+    { id: 'iportal-ai-reasoning', name: 'iportal Logic', type: 'Deep Reasoning', model: 'iportal-ai-reasoning', icon: <Brain className="w-4 h-4 text-purple-600" /> },
+    { id: 'iportal-ai-fast', name: 'iportal Turbo', type: 'High Speed', model: 'iportal-ai-fast', icon: <Zap className="w-4 h-4 text-amber-600" /> },
+    { id: 'iportal-ai-pro', name: 'iportal Pro', type: 'Deep Research', model: 'iportal-ai-pro', icon: <Sparkles className="w-4 h-4 text-cyan-600" /> },
+    { id: 'iportal-image', name: 'iportal Image', type: 'Image Studio', model: 'iportal-image', icon: <ImageIcon className="w-4 h-4 text-purple-600" /> },
   ];
 
   return (

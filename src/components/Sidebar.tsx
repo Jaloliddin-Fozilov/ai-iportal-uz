@@ -60,7 +60,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [showSearchInput, setShowSearchInput] = useState(false);
   const [showDevMenu, setShowDevMenu] = useState(false);
 
-  const isImageActive = selectedModel === 'image-flux';
+  const isImageActive = selectedModel === 'iportal-image' || selectedModel === 'image-flux';
 
   // Filter sessions by search query
   const filteredSessions = searchQuery.trim()
@@ -160,7 +160,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <ImageIcon className="w-4 h-4 text-purple-600 group-hover:scale-110 transition-transform" />
             <div className="flex items-center justify-between w-full">
               <span>Image Studio</span>
-              <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-purple-100 text-purple-700 font-bold">Flux 8K</span>
+              <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-purple-100 text-purple-700 font-bold">Vision</span>
             </div>
           </button>
 

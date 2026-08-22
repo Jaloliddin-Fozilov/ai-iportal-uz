@@ -3,7 +3,7 @@ import { AIModelMeta } from './types';
 export const IPORTAL_MODELS: AIModelMeta[] = [
   {
     id: 'iportal-ai',
-    name: 'iportal-ai 1.0 (Flagship)',
+    name: 'iportal 1.0 (Flagship)',
     provider: 'groq',
     realModelId: 'openai/gpt-oss-120b',
     category: 'smart',
@@ -14,7 +14,7 @@ export const IPORTAL_MODELS: AIModelMeta[] = [
   },
   {
     id: 'iportal-ai-coder',
-    name: 'iportal-ai Code Master',
+    name: 'iportal Code Master',
     provider: 'groq',
     realModelId: 'openai/gpt-oss-120b',
     category: 'code',
@@ -25,7 +25,7 @@ export const IPORTAL_MODELS: AIModelMeta[] = [
   },
   {
     id: 'iportal-ai-reasoning',
-    name: 'iportal-ai Logic & Math',
+    name: 'iportal Logic & Math',
     provider: 'groq',
     realModelId: 'qwen/qwen3.6-27b',
     category: 'reasoning',
@@ -36,7 +36,7 @@ export const IPORTAL_MODELS: AIModelMeta[] = [
   },
   {
     id: 'iportal-ai-fast',
-    name: 'iportal-ai Turbo',
+    name: 'iportal Turbo',
     provider: 'groq',
     realModelId: 'openai/gpt-oss-20b',
     category: 'fast',
@@ -47,7 +47,7 @@ export const IPORTAL_MODELS: AIModelMeta[] = [
   },
   {
     id: 'iportal-ai-pro',
-    name: 'iportal-ai Pro (Deep Research)',
+    name: 'iportal Pro (Deep Research)',
     provider: 'groq',
     realModelId: 'openai/gpt-oss-120b',
     category: 'smart',
@@ -57,12 +57,12 @@ export const IPORTAL_MODELS: AIModelMeta[] = [
     isFree: true,
   },
   {
-    id: 'image-flux',
-    name: 'iportal Image Studio (Flux 8K)',
+    id: 'iportal-image',
+    name: 'iportal Image Studio',
     provider: 'huggingface',
     realModelId: 'flux-1-schnell',
     category: 'general',
-    description: 'Text-to-Image creation model powered by Flux 8K AI. Generates ultra high-res visuals in chat.',
+    description: 'Neural image generation core. Generates high-resolution visuals directly in your chat.',
     contextWindow: 4096,
     speed: '~3 sec/img',
     isFree: true,
@@ -70,7 +70,11 @@ export const IPORTAL_MODELS: AIModelMeta[] = [
 ];
 
 export function findModel(modelId: string): AIModelMeta {
-  const found = IPORTAL_MODELS.find(m => m.id.toLowerCase() === modelId.toLowerCase());
+  const normalized = modelId.toLowerCase();
+  if (normalized === 'image-flux' || normalized === 'flux' || normalized === 'iportal-image') {
+    return IPORTAL_MODELS.find(m => m.id === 'iportal-image') || IPORTAL_MODELS[0];
+  }
+  const found = IPORTAL_MODELS.find(m => m.id.toLowerCase() === normalized);
   if (found) return found;
   return IPORTAL_MODELS[0];
 }

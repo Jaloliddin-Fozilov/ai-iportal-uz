@@ -206,7 +206,7 @@ export const ChatMessageItem: React.FC<ChatMessageProps> = ({
                             loading="lazy"
                           />
                           <div className="p-2.5 bg-slate-900 flex items-center justify-between text-xs text-white">
-                            <span className="text-[11px] text-slate-400 font-medium truncate max-w-xs">{alt || 'Flux 8K Image'}</span>
+                            <span className="text-[11px] text-slate-400 font-medium truncate max-w-xs">{alt || 'iportal Image'}</span>
                             <button
                               onClick={() => handleDownloadImage(src)}
                               className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-[#00d68f] text-slate-950 font-bold text-[11px] hover:bg-[#00bf80] transition-colors cursor-pointer"

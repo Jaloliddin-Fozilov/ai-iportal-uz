@@ -27,7 +27,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const [showSystemSettings, setShowSystemSettings] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const isImageMode = selectedModel === 'image-flux';
+  const isImageMode = selectedModel === 'iportal-image' || selectedModel === 'image-flux';
 
   useEffect(() => {
     if (textareaRef.current) {

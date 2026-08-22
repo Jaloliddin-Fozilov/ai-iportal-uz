@@ -150,7 +150,7 @@ export const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, onS
                         {img.prompt}
                       </p>
                       <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1 border-t border-slate-100">
-                        <span className="font-mono">{img.model || 'Flux AI'}</span>
+                        <span className="font-mono">{img.model || 'iportal Image'}</span>
                         <span className="flex items-center gap-1 text-amber-700 font-semibold bg-amber-50 px-1.5 py-0.5 rounded">
                           <Clock className="w-3 h-3" />
                           {daysLeft}d left
