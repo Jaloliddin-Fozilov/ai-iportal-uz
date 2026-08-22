@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { ChevronDown, Sparkles, Zap, Brain, Code, Check, Cpu } from 'lucide-react';
+import { ChevronDown, Sparkles, Zap, Brain, Code, Check, Cpu, Image as ImageIcon } from 'lucide-react';
 import { IPORTAL_MODELS } from '@/lib/core/models';
 import { AIModelMeta } from '@/lib/core/types';
 
@@ -31,7 +31,10 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const getCategoryIcon = (category: AIModelMeta['category']) => {
+  const getCategoryIcon = (category: AIModelMeta['category'], modelId?: string) => {
+    if (modelId === 'image-flux') {
+      return <ImageIcon className="w-3.5 h-3.5 text-purple-600" />;
+    }
     switch (category) {
       case 'fast':
         return <Zap className="w-3.5 h-3.5 text-amber-500" />;
@@ -53,7 +56,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
         className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100/90 hover:bg-slate-200/80 text-xs font-bold text-slate-800 transition-all shadow-2xs border border-slate-200/80 cursor-pointer"
       >
         <div className="p-0.5 rounded-full bg-white shadow-2xs">
-          <Cpu className="w-3.5 h-3.5 text-emerald-600" />
+          {getCategoryIcon(selectedModel.category, selectedModel.id)}
         </div>
         <span className="truncate max-w-[130px] sm:max-w-[180px]">
           {selectedModel.name}
@@ -62,11 +65,11 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
       </button>
 
       {isOpen && (
-        <div className="absolute left-0 bottom-full mb-2 w-72 sm:w-80 rounded-2xl bg-white border border-slate-200 shadow-2xl shadow-slate-900/15 z-50 overflow-hidden py-1">
+        <div className="absolute left-0 bottom-full mb-2 w-72 sm:w-84 rounded-2xl bg-white border border-slate-200 shadow-2xl shadow-slate-900/15 z-50 overflow-hidden py-1">
           {/* Header */}
           <div className="px-3.5 py-2.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
             <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-              Neyron Modellar Klasteri
+              Neural Models & Engines
             </span>
             <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-700 font-mono">
               v1.0
@@ -74,7 +77,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
           </div>
 
           {/* Model List */}
-          <div className="p-1.5 space-y-1 max-h-64 overflow-y-auto">
+          <div className="p-1.5 space-y-1 max-h-72 overflow-y-auto">
             {IPORTAL_MODELS.map(model => {
               const isSelected = model.id === selectedModel.id;
               return (
@@ -92,7 +95,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
                   }`}
                 >
                   <div className="mt-0.5 p-1.5 rounded-lg bg-white border border-slate-200 shrink-0 shadow-2xs">
-                    {getCategoryIcon(model.category)}
+                    {getCategoryIcon(model.category, model.id)}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">

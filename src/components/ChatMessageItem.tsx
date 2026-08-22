@@ -5,7 +5,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
-import { User, Copy, Check, ChevronDown, ChevronRight, BrainCircuit, Sparkles, RefreshCw } from 'lucide-react';
+import { User, Copy, Check, ChevronDown, ChevronRight, BrainCircuit, Sparkles, RefreshCw, Download, Image as ImageIcon } from 'lucide-react';
 import { CodeBlock } from './CodeBlock';
 
 interface ChatMessageProps {
@@ -25,6 +25,7 @@ export const ChatMessageItem: React.FC<ChatMessageProps> = ({
 }) => {
   const [copied, setCopied] = useState(false);
   const [showThinking, setShowThinking] = useState(false);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   const isUser = role === 'user';
 
@@ -54,9 +55,26 @@ export const ChatMessageItem: React.FC<ChatMessageProps> = ({
     }
   };
 
+  const handleDownloadImage = async (src: string) => {
+    try {
+      const response = await fetch(src);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `iportal-ai-${Date.now()}.jpg`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch {
+      window.open(src, '_blank');
+    }
+  };
+
   return (
     <div
-      className={`group w-full transition-colors duration-200 py-3 sm:py-4 ${
+      className={`group w-full transition-colors duration-200 py-3.5 sm:py-4.5 ${
         isUser
           ? 'bg-transparent'
           : 'bg-[#fafcfb] border-y border-[#eaf2ee]'
@@ -82,12 +100,12 @@ export const ChatMessageItem: React.FC<ChatMessageProps> = ({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="font-bold text-xs text-slate-900 tracking-tight">
-                {isUser ? 'Siz' : 'iportal-ai'}
+                {isUser ? 'You' : 'iportal-ai'}
               </span>
               {!isUser && (
                 <span className="inline-flex items-center gap-1 text-[10px] text-emerald-700 font-semibold px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200/60">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#00d68f] animate-pulse" />
-                  Neyron Intellekt
+                  Neural Assistant
                 </span>
               )}
             </div>
@@ -97,7 +115,7 @@ export const ChatMessageItem: React.FC<ChatMessageProps> = ({
               <button
                 onClick={handleCopy}
                 className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
-                title="Nusxa olish"
+                title="Copy text"
               >
                 {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
               </button>
@@ -105,7 +123,7 @@ export const ChatMessageItem: React.FC<ChatMessageProps> = ({
                 <button
                   onClick={onRetry}
                   className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
-                  title="Qayta generatsiya qilish"
+                  title="Regenerate response"
                 >
                   <RefreshCw className="w-3.5 h-3.5" />
                 </button>
@@ -124,7 +142,7 @@ export const ChatMessageItem: React.FC<ChatMessageProps> = ({
                 <div className="flex items-center gap-2">
                   <BrainCircuit className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                   <span className="font-semibold text-[11px]">
-                    Fikrlash jarayoni (Mulohaza)
+                    Thought Process & Reasoning Trace
                   </span>
                 </div>
                 {showThinking ? <ChevronDown className="w-3.5 h-3.5 text-emerald-600" /> : <ChevronRight className="w-3.5 h-3.5 text-emerald-600" />}
@@ -176,6 +194,30 @@ export const ChatMessageItem: React.FC<ChatMessageProps> = ({
                         </code>
                       );
                     },
+                    img({ src, alt, ...props }: any) {
+                      if (!src) return null;
+                      return (
+                        <div className="my-3 rounded-2xl overflow-hidden border border-slate-200 bg-slate-950 shadow-md max-w-lg">
+                          <img
+                            src={src}
+                            alt={alt || 'AI Artwork'}
+                            className="w-full h-auto object-contain max-h-96 cursor-pointer hover:opacity-95 transition-opacity"
+                            onClick={() => setPreviewImage(src)}
+                            loading="lazy"
+                          />
+                          <div className="p-2.5 bg-slate-900 flex items-center justify-between text-xs text-white">
+                            <span className="text-[11px] text-slate-400 font-medium truncate max-w-xs">{alt || 'Flux 8K Image'}</span>
+                            <button
+                              onClick={() => handleDownloadImage(src)}
+                              className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-[#00d68f] text-slate-950 font-bold text-[11px] hover:bg-[#00bf80] transition-colors cursor-pointer"
+                            >
+                              <Download className="w-3.5 h-3.5" />
+                              <span>Download</span>
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    }
                   }}
                 >
                   {mainContent}
@@ -183,13 +225,25 @@ export const ChatMessageItem: React.FC<ChatMessageProps> = ({
               ) : isStreaming ? (
                 <div className="flex items-center gap-2 py-1 text-xs text-emerald-600 font-semibold">
                   <span className="w-2 h-2 rounded-full bg-[#00d68f] animate-ping" />
-                  <span>Javob tayyorlanmoqda...</span>
+                  <span>Thinking & generating response...</span>
                 </div>
               ) : null}
             </div>
           )}
         </div>
       </div>
+
+      {/* Lightbox Modal */}
+      {previewImage && (
+        <div 
+          onClick={() => setPreviewImage(null)}
+          className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm cursor-pointer animate-in fade-in"
+        >
+          <div className="relative max-w-3xl max-h-[85vh] rounded-3xl overflow-hidden shadow-2xl">
+            <img src={previewImage} alt="Preview" className="max-h-[85vh] w-auto object-contain rounded-3xl" />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

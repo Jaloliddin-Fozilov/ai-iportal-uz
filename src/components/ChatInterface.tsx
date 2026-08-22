@@ -11,17 +11,12 @@ import {
   BookOpen, 
   ShieldAlert,
   Compass,
-  Terminal,
   Cpu,
-  Layers,
-  Activity,
   Globe,
-  Sliders,
-  DollarSign,
   Image as ImageIcon,
-  Library,
   RotateCw,
-  Check
+  User,
+  Settings
 } from 'lucide-react';
 import Link from 'next/link';
 import { Sidebar } from './Sidebar';
@@ -30,7 +25,6 @@ import { ChatInput } from './ChatInput';
 import { AuthModal } from './AuthModal';
 import { ApiKeysModal } from './ApiKeysModal';
 import { DocsModal } from './DocsModal';
-import { ImageModal } from './ImageModal';
 import { LibraryModal } from './LibraryModal';
 import { 
   ChatSession, 
@@ -38,6 +32,7 @@ import {
   saveStoredSessions, 
   createNewSession 
 } from '@/lib/storage/clientChatStore';
+import { addImageToGallery } from '@/lib/storage/clientGalleryStore';
 
 type ChatMessageItemData = ChatSession['messages'][0];
 
@@ -57,7 +52,6 @@ export const ChatInterface: React.FC = () => {
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [apiKeysModalOpen, setApiKeysModalOpen] = useState(false);
   const [docsModalOpen, setDocsModalOpen] = useState(false);
-  const [imageModalOpen, setImageModalOpen] = useState(false);
   const [libraryModalOpen, setLibraryModalOpen] = useState(false);
 
   // User auth state
@@ -162,6 +156,10 @@ export const ChatInterface: React.FC = () => {
     setSelectedModel(modelId);
   };
 
+  const handleStartImageMode = () => {
+    setSelectedModel('image-flux');
+  };
+
   const handleUpdateSystemPrompt = (prompt: string) => {
     setSystemPrompt(prompt);
     localStorage.setItem('iportal_system_prompt', prompt);
@@ -177,7 +175,6 @@ export const ChatInterface: React.FC = () => {
 
   const handleSendMessage = async (text: string) => {
     if (!text.trim() || isStreaming) return;
-
     if (!activeSession) return;
 
     // 1. Append User Message
@@ -198,18 +195,62 @@ export const ChatInterface: React.FC = () => {
 
     // 2. Prepare Assistant placeholder
     const assistantMessageId = `msg-${Date.now()}-a`;
+    const isImageGeneration = selectedModel === 'image-flux';
+
     const assistantMsg: ChatMessageItemData = {
       id: assistantMessageId,
       role: 'assistant',
-      content: '',
+      content: isImageGeneration ? '🎨 Generating high-resolution artwork with Flux AI...' : '',
       timestamp: Date.now(),
     };
     activeSession.messages.push(assistantMsg);
 
     setSessions([...sessions]);
     saveStoredSessions(sessions);
-
     setIsStreaming(true);
+
+    // If Image Generation mode is active, call image API directly in chat!
+    if (isImageGeneration) {
+      try {
+        const imgRes = await fetch('/api/v1/images/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            prompt: text.trim(),
+            width: 1024,
+            height: 1024,
+            model: 'flux',
+          }),
+        });
+
+        const imgData = await imgRes.json();
+        if (imgData.success && imgData.imageUrl) {
+          // Save to user's 30-day gallery automatically
+          addImageToGallery(text.trim(), imgData.imageUrl, 'Flux 8K', '1:1');
+
+          const target = activeSession.messages.find(m => m.id === assistantMessageId);
+          if (target) {
+            target.content = `![${text.trim()}](${imgData.imageUrl})\n\n**Prompt:** *${text.trim()}*\n**Engine:** Flux 8K Studio • Saved to Library (30 days)`;
+            setSessions([...sessions]);
+            saveStoredSessions(sessions);
+          }
+        } else {
+          throw new Error(imgData.error || 'Failed to generate image');
+        }
+      } catch (err: any) {
+        const target = activeSession.messages.find(m => m.id === assistantMessageId);
+        if (target) {
+          target.content = `⚠️ Image generation error: ${err.message}`;
+          setSessions([...sessions]);
+          saveStoredSessions(sessions);
+        }
+      } finally {
+        setIsStreaming(false);
+      }
+      return;
+    }
+
+    // Standard Text / Reasoning Completion Stream
     const controller = new AbortController();
     setAbortController(controller);
 
@@ -255,11 +296,11 @@ export const ChatInterface: React.FC = () => {
 
       if (!response.ok) {
         const errJson = await response.json().catch(() => ({}));
-        throw new Error(errJson.error?.message || `HTTP xatolik ${response.status}`);
+        throw new Error(errJson.error?.message || `HTTP Error ${response.status}`);
       }
 
       const reader = response.body?.getReader();
-      if (!reader) throw new Error('Javob oqimi (stream) mavjud emas');
+      if (!reader) throw new Error('Response stream not available');
 
       const decoder = new TextDecoder();
       let accumulatedText = '';
@@ -319,20 +360,11 @@ export const ChatInterface: React.FC = () => {
       }
 
       saveStoredSessions(sessions);
-
-      if (authToken) {
-        fetch('/api/auth/me', { headers: { Authorization: `Bearer ${authToken}` } })
-          .then(res => res.json())
-          .then(data => {
-            if (data.success && data.user) setCurrentUser(data.user);
-          })
-          .catch(() => {});
-      }
     } catch (err: any) {
       if (err.name !== 'AbortError') {
         const target = activeSession.messages.find(m => m.id === assistantMessageId);
         if (target) {
-          target.content = `⚠️ Xatolik yuz berdi: ${err.message}`;
+          target.content = `⚠️ An error occurred: ${err.message}`;
           setSessions([...sessions]);
           saveStoredSessions(sessions);
         }
@@ -343,67 +375,67 @@ export const ChatInterface: React.FC = () => {
     }
   };
 
-  // Rotating prompts pool
+  // Rotating prompts pool in English
   const promptPools = {
     code: [
-      'FastAPI va SQLite bilan xavfsiz REST API loyihasini yaratib ber',
-      'React 19 Server Components va Custom Hook optimizatsiyasi bo\'yicha amaliy kod yoz',
-      'Python da asinxron ma\'lumotlar tahlili va web scraping skripti tayyorla',
-      'Docker va Nginx bilan Next.js full-stack ilovani production serverga joylash',
+      'Build a complete REST API with FastAPI, JWT auth, and PostgreSQL database models',
+      'Explain how React 19 Server Components work with practical code examples',
+      'Write a high-performance Python script for asynchronous web scraping and data parsing',
+      'Deploy a Next.js full-stack application using Docker, Nginx, and SSL configuration',
     ],
     biz: [
-      'Yangi startap loyihasi uchun biznes reja va moliyaviy model tuzib ber',
-      'O\'zbekiston bozorida e-tijorat loyihasi uchun marketing va SEO strategiyasi tuz',
-      'SaaS mahsuloti uchun narxlash modellari va retention (saqlab qolish) strategiyasini tahlil qil',
-      'Investorlar uchun 10 ta slayddan iborat ta\'sirchan Pitch Deck rejasini yoz',
+      'Draft an executive summary and financial projection model for a B2B SaaS startup',
+      'Conduct a competitive SWOT analysis and go-to-market strategy for an AI platform',
+      'Create a high-conversion 10-slide investor pitch deck structure with slide scripts',
+      'Design a customer retention and viral referral flywheel for a mobile application',
     ],
     logic: [
-      'Kvant hisoblash va sun\'iy intellekt integratsiyasini bosqichma-bosqich tahlil qil',
-      'Murakkab matematik optimallashtirish masalasini First Principles orqali yech',
-      'Sun\'iy ong va transformator neyron tarmoqlarining ishlash mantig\'ini chuqur tushuntir',
-      'Kriptografiya va blokcheyn konsensus algoritmlarini solishtirib ber',
+      'Analyze the convergence of quantum computing and transformer neural architectures',
+      'Solve a complex mathematical optimization problem step-by-step using First Principles',
+      'Explain the mathematical foundation of gradient descent and backpropagation in deep learning',
+      'Compare Byzantine Fault Tolerance with Proof-of-Stake consensus mechanisms',
     ],
     fast: [
-      'O\'zbekiston IT ekotizimining eng so\'nggi yutuqlari nimalar?',
-      'Dasturchi uchun kunlik eng foydali 5 ta mahsuldorlik qoidasi qaysi?',
-      'TypeScript da Generic turlar qanday ishlaydi, qisqa misol keltir',
-      'PostgreSQL va Redis o\'rtasidagi asosiy farqlar nimada?',
+      'What are the 5 most critical design patterns every senior software engineer should master?',
+      'How does TypeScript generic variance (covariance vs contravariance) work with examples?',
+      'Explain the difference between Redis in-memory caching and Memcached',
+      'Give me a concise summary of the latest breakthroughs in open-weight LLMs',
     ],
     writing: [
-      'Zamonaviy texnologiyalar haqida professional ilmiy maqola yozib ber',
-      'Telegram kanal uchun qiziqarli va jalb qiluvchi texnologik post matni tayyorla',
-      'Yangi mobil ilova uchun App Store va Play Market tavsif matnini yoz',
-      'Kompaniya brendi uchun kuchli va ishonchli About Us matnini tuz',
+      'Write an engaging, SEO-optimized technology article on the future of autonomous AI agents',
+      'Craft a compelling launch announcement post for Product Hunt and Twitter/X',
+      'Write a professional, trustworthy About Us page for a modern tech venture',
+      'Generate 5 viral newsletter hooks and outlines on software productivity hacks',
     ],
   };
 
   const quickCategories = [
     {
-      title: 'Dasturlash & Kod',
+      title: 'Coding & Dev',
       prompt: promptPools.code[promptRotation % promptPools.code.length],
       model: 'iportal-ai-coder',
       icon: <Code className="w-3.5 h-3.5 text-emerald-600" />,
     },
     {
-      title: 'Biznes & Tahlil',
+      title: 'Business & Strategy',
       prompt: promptPools.biz[promptRotation % promptPools.biz.length],
       model: 'iportal-ai-pro',
       icon: <Compass className="w-3.5 h-3.5 text-blue-600" />,
     },
     {
-      title: 'Chuqur Mantiq',
+      title: 'Deep Reasoning',
       prompt: promptPools.logic[promptRotation % promptPools.logic.length],
       model: 'iportal-ai-reasoning',
       icon: <Brain className="w-3.5 h-3.5 text-purple-600" />,
     },
     {
-      title: 'Tezkor Savol',
+      title: 'Quick Answers',
       prompt: promptPools.fast[promptRotation % promptPools.fast.length],
       model: 'iportal-ai-fast',
       icon: <Zap className="w-3.5 h-3.5 text-amber-600" />,
     },
     {
-      title: 'Matn & Maqola',
+      title: 'Content & Writing',
       prompt: promptPools.writing[promptRotation % promptPools.writing.length],
       model: 'iportal-ai',
       icon: <Sparkles className="w-3.5 h-3.5 text-emerald-500" />,
@@ -417,7 +449,7 @@ export const ChatInterface: React.FC = () => {
     { id: 'iportal-ai-reasoning', name: 'Logic 27B', type: 'Deep Reasoning', model: 'iportal-ai-reasoning', icon: <Brain className="w-4 h-4 text-purple-600" /> },
     { id: 'iportal-ai-fast', name: 'Turbo 20B', type: 'High Speed', model: 'iportal-ai-fast', icon: <Zap className="w-4 h-4 text-amber-600" /> },
     { id: 'iportal-ai-pro', name: 'Research Pro', type: 'Deep Knowledge', model: 'iportal-ai-pro', icon: <Sparkles className="w-4 h-4 text-cyan-600" /> },
-    { id: 'flux-image', name: 'Flux Studio', type: 'Image Generator', isImage: true, icon: <ImageIcon className="w-4 h-4 text-purple-600" /> },
+    { id: 'image-flux', name: 'Flux Studio', type: 'Image Generator', model: 'image-flux', icon: <ImageIcon className="w-4 h-4 text-purple-600" /> },
   ];
 
   return (
@@ -436,12 +468,11 @@ export const ChatInterface: React.FC = () => {
           onOpenApiKeys={() => setApiKeysModalOpen(true)}
           onOpenDocs={() => setDocsModalOpen(true)}
           onOpenAuth={() => setAuthModalOpen(true)}
-          onOpenImageModal={() => setImageModalOpen(true)}
+          onOpenImageMode={handleStartImageMode}
           onOpenLibraryModal={() => setLibraryModalOpen(true)}
           currentUser={currentUser}
           onLogout={handleLogout}
           selectedModel={selectedModel}
-          onSelectModelPreset={(m) => handleSelectModel(m)}
         />
 
         {/* Main Canvas Area */}
@@ -452,7 +483,7 @@ export const ChatInterface: React.FC = () => {
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setSidebarOpen(true)}
-                className="md:hidden p-2 text-slate-600 hover:text-slate-900 rounded-xl hover:bg-slate-100 transition-colors"
+                className="md:hidden p-2 text-slate-600 hover:text-slate-900 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
               >
                 <Menu className="w-5 h-5" />
               </button>
@@ -469,7 +500,7 @@ export const ChatInterface: React.FC = () => {
               </div>
             </div>
 
-            {/* Center: Clean Single Tab [AI Chatbot] */}
+            {/* Center: Clean Single Pill [AI Chatbot] */}
             <div className="hidden md:flex items-center">
               <div className="px-4 py-1.5 rounded-full bg-[#f3f7f5] text-slate-900 text-xs font-bold border border-[#e2ece6] shadow-xs flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-[#00d68f] animate-pulse" />
@@ -477,22 +508,20 @@ export const ChatInterface: React.FC = () => {
               </div>
             </div>
 
-            {/* Right Controls: Balance + User Avatar */}
+            {/* Right Controls: Clean Profile & Settings */}
             <div className="flex items-center gap-2">
-              {/* Balance pill */}
               <button
                 onClick={() => setApiKeysModalOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#f3f7f5] hover:bg-[#e7f0ec] text-slate-800 text-xs font-bold transition-colors cursor-pointer border border-[#e2ece6]"
+                className="hidden sm:flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#f3f7f5] hover:bg-[#e7f0ec] text-slate-700 text-xs font-bold transition-colors cursor-pointer border border-[#e2ece6]"
               >
-                <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-                <span>${currentUser?.balance?.toFixed(2) ?? '5.00'}</span>
+                <Key className="w-3.5 h-3.5 text-amber-500" />
+                <span>API Keys</span>
               </button>
 
-              {/* User Avatar */}
               {currentUser ? (
                 <div 
                   onClick={() => setApiKeysModalOpen(true)}
-                  className="flex items-center gap-2 pl-2 cursor-pointer"
+                  className="flex items-center gap-2 pl-1 cursor-pointer"
                 >
                   <div className="w-8 h-8 rounded-full bg-slate-800 text-white flex items-center justify-center text-xs font-bold shadow-xs">
                     {currentUser.name?.[0]?.toUpperCase() || 'U'}
@@ -506,7 +535,8 @@ export const ChatInterface: React.FC = () => {
                   onClick={() => setAuthModalOpen(true)}
                   className="flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-sm transition-all cursor-pointer"
                 >
-                  <span>Kirish</span>
+                  <User className="w-3.5 h-3.5" />
+                  <span>Sign In</span>
                 </button>
               )}
             </div>
@@ -531,7 +561,7 @@ export const ChatInterface: React.FC = () => {
                 <div ref={messagesEndRef} />
               </div>
             ) : (
-              /* Sorin-style Hero Screen */
+              /* Hero Screen */
               <div className="flex-1 flex flex-col items-center justify-center px-4 py-8 md:py-12 max-w-4xl mx-auto w-full text-center space-y-6">
                 {/* Central Glowing Mint Orb */}
                 <div className="relative my-2">
@@ -540,7 +570,7 @@ export const ChatInterface: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Headline: "Hey, I'm iportal. How can I help you today?" */}
+                {/* Headline */}
                 <div className="space-y-2">
                   <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight">
                     Hey, I'm{' '}
@@ -551,7 +581,7 @@ export const ChatInterface: React.FC = () => {
                   </h1>
                 </div>
 
-                {/* Rotating Category Suggestion Pills with Re-roll button */}
+                {/* Dynamic Category Suggestion Pills with Re-roll button */}
                 <div className="flex flex-wrap items-center justify-center gap-2 pt-2 max-w-2xl">
                   {quickCategories.map((cat, idx) => (
                     <button
@@ -571,7 +601,7 @@ export const ChatInterface: React.FC = () => {
                   <button
                     onClick={() => setPromptRotation(prev => prev + 1)}
                     className="p-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-900 transition-all cursor-pointer"
-                    title="Yangi promtlarni ko'rsatish"
+                    title="Shuffle prompt ideas"
                   >
                     <RotateCw className="w-3.5 h-3.5" />
                   </button>
@@ -602,19 +632,13 @@ export const ChatInterface: React.FC = () => {
                         <button
                           key={bot.id}
                           type="button"
-                          onClick={() => {
-                            if (bot.isImage) {
-                              setImageModalOpen(true);
-                            } else if (bot.model) {
-                              handleSelectModel(bot.model);
-                            }
-                          }}
+                          onClick={() => handleSelectModel(bot.model)}
                           className={`group relative p-2.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-center ${
                             isBotActive
                               ? 'bg-emerald-50 border-emerald-400 ring-2 ring-emerald-400/40 shadow-sm'
                               : 'bg-white hover:bg-slate-50 border-slate-200/90 shadow-2xs hover:shadow-sm'
                           }`}
-                          title={`${bot.name} — ${bot.type} (Faollashtirish)`}
+                          title={`${bot.name} — ${bot.type} (Activate)`}
                         >
                           {bot.icon}
                         </button>
@@ -660,18 +684,10 @@ export const ChatInterface: React.FC = () => {
         onClose={() => setDocsModalOpen(false)}
       />
 
-      <ImageModal
-        isOpen={imageModalOpen}
-        onClose={() => setImageModalOpen(false)}
-      />
-
       <LibraryModal
         isOpen={libraryModalOpen}
         onClose={() => setLibraryModalOpen(false)}
-        onSelectPrompt={(p, m) => {
-          if (m) handleSelectModel(m);
-          handleSendMessage(p);
-        }}
+        onStartImageChat={handleStartImageMode}
       />
     </div>
   );

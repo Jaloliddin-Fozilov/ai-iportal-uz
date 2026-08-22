@@ -25,12 +25,12 @@ export const DocsModal: React.FC<DocsModalProps> = ({ isOpen, onClose }) => {
   };
 
   const curlExample = `curl https://ai.iportal.uz/api/v1/chat/completions \\
-  -H "Authorization: Bearer <SIZNING_API_KALITINGIZ>" \\
+  -H "Authorization: Bearer <YOUR_API_KEY>" \\
   -H "Content-Type: application/json" \\
   -d '{
     "model": "iportal-ai",
     "messages": [
-      {"role": "user", "content": "Salom! iportal-ai API orqali javob beryapsanmi?"}
+      {"role": "user", "content": "Hello! How do I build a scalable microservice?"}
     ],
     "stream": false
   }'`;
@@ -38,14 +38,14 @@ export const DocsModal: React.FC<DocsModalProps> = ({ isOpen, onClose }) => {
   const pythonExample = `import openai
 
 client = openai.OpenAI(
-    api_key="<SIZNING_API_KALITINGIZ>",
+    api_key="<YOUR_API_KEY>",
     base_url="https://ai.iportal.uz/api/v1"
 )
 
 response = client.chat.completions.create(
     model="iportal-ai",
     messages=[
-        {"role": "user", "content": "FastAPI va PostgreSQL bilan arxitektura tuzib ber"}
+        {"role": "user", "content": "Explain async architectures in Python."}
     ],
     temperature=0.7
 )
@@ -55,14 +55,14 @@ print(response.choices[0].message.content)`;
   const nodeExample = `import OpenAI from "openai";
 
 const openai = new OpenAI({
-  apiKey: "<SIZNING_API_KALITINGIZ>",
+  apiKey: "<YOUR_API_KEY>",
   baseURL: "https://ai.iportal.uz/api/v1",
 });
 
 async function main() {
   const completion = await openai.chat.completions.create({
     model: "iportal-ai-coder",
-    messages: [{ role: "user", content: "React 19 uchun custom hook yozib ber" }],
+    messages: [{ role: "user", content: "Write a React 19 custom hook." }],
     stream: true,
   });
 
@@ -76,16 +76,16 @@ main();`;
   const cursorExample = `{
   "models": [
     {
-      "name": "iportal-ai 1.0",
+      "name": "iportal-ai 1.0 (Flagship)",
       "model": "iportal-ai",
       "baseUrl": "https://ai.iportal.uz/api/v1",
-      "apiKey": "<SIZNING_API_KALITINGIZ>"
+      "apiKey": "<YOUR_API_KEY>"
     },
     {
       "name": "iportal-ai Code Master",
       "model": "iportal-ai-coder",
       "baseUrl": "https://ai.iportal.uz/api/v1",
-      "apiKey": "<SIZNING_API_KALITINGIZ>"
+      "apiKey": "<YOUR_API_KEY>"
     }
   ]
 }`;
@@ -100,15 +100,15 @@ main();`;
               <BookOpen className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-slate-900 tracking-tight">iportal-ai API & Integratsiya Qo'llanmasi</h2>
-              <p className="text-xs text-slate-500">OpenAI SDK bilan 100% mos keluvchi neyron API</p>
+              <h2 className="text-base font-bold text-slate-900 tracking-tight">API & Integration Documentation</h2>
+              <p className="text-xs text-slate-500">100% OpenAI v1 SDK Compatible Neural Gateway</p>
             </div>
           </div>
           <button
             onClick={onClose}
             className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
@@ -127,7 +127,7 @@ main();`;
             <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
               <div className="flex items-center gap-1.5 text-blue-700 font-bold text-[11px]">
                 <ShieldCheck className="w-3.5 h-3.5" />
-                <span>Moslik:</span>
+                <span>Compatibility:</span>
               </div>
               <div className="text-slate-800 text-[11px] font-medium">OpenAI v1 API Spec (Chat & Streaming)</div>
             </div>
@@ -135,7 +135,7 @@ main();`;
             <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
               <div className="flex items-center gap-1.5 text-purple-700 font-bold text-[11px]">
                 <Cpu className="w-3.5 h-3.5" />
-                <span>Standart Model:</span>
+                <span>Default Model:</span>
               </div>
               <div className="font-mono text-slate-900 text-[11px] font-bold">iportal-ai</div>
             </div>
@@ -169,7 +169,7 @@ main();`;
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition-colors cursor-pointer border border-slate-200"
               >
                 {copied === 'code' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                <span>{copied === 'code' ? 'Nusxalandi' : 'Kodni Nusxalash'}</span>
+                <span>{copied === 'code' ? 'Copied' : 'Copy Snippet'}</span>
               </button>
             </div>
 
@@ -185,23 +185,23 @@ main();`;
 
           {/* Available Models Overview */}
           <div className="space-y-2 pt-2 border-t border-slate-100">
-            <h3 className="font-bold text-slate-900 text-xs uppercase tracking-wider">Mavjud Modellar:</h3>
+            <h3 className="font-bold text-slate-900 text-xs uppercase tracking-wider">Available Neural Models:</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-[11px]">
               <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
                 <div className="font-bold font-mono text-emerald-600">iportal-ai</div>
-                <div className="text-slate-600">Asosiy universal flagman model. 128K kontekst.</div>
+                <div className="text-slate-600">Flagship general-purpose intelligence (128K context).</div>
               </div>
               <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
                 <div className="font-bold font-mono text-blue-600">iportal-ai-coder</div>
-                <div className="text-slate-600">Kod yozish, refaktoring va dasturlash uchun maxsus.</div>
+                <div className="text-slate-600">Specialized for code synthesis and engineering.</div>
               </div>
               <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
                 <div className="font-bold font-mono text-purple-600">iportal-ai-reasoning</div>
-                <div className="text-slate-600">Bosqichma-bosqich mantiqiy xulosalar va tahlil.</div>
+                <div className="text-slate-600">Chain-of-thought logic and mathematical proofs.</div>
               </div>
               <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
                 <div className="font-bold font-mono text-amber-600">iportal-ai-fast</div>
-                <div className="text-slate-600">Ultra tezkor javoblar (800+ tok/s).</div>
+                <div className="text-slate-600">Ultra fast turbo model (800+ tokens/sec).</div>
               </div>
             </div>
           </div>

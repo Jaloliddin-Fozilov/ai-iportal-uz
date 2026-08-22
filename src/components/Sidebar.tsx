@@ -12,10 +12,11 @@ import {
   Image as ImageIcon,
   Library,
   LogOut, 
-  Gift, 
   ShieldAlert,
   ChevronRight,
-  Sparkles
+  Sparkles,
+  User,
+  Settings
 } from 'lucide-react';
 import Link from 'next/link';
 import { ChatSession } from '@/lib/storage/clientChatStore';
@@ -31,12 +32,11 @@ interface SidebarProps {
   onOpenApiKeys: () => void;
   onOpenDocs: () => void;
   onOpenAuth: () => void;
-  onOpenImageModal: () => void;
+  onOpenImageMode: () => void;
   onOpenLibraryModal: () => void;
   currentUser?: any;
   onLogout: () => void;
   selectedModel?: string;
-  onSelectModelPreset?: (modelId: string) => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -50,13 +50,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenApiKeys,
   onOpenDocs,
   onOpenAuth,
-  onOpenImageModal,
+  onOpenImageMode,
   onOpenLibraryModal,
   currentUser,
   onLogout,
+  selectedModel,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearchInput, setShowSearchInput] = useState(false);
+  const [showDevMenu, setShowDevMenu] = useState(false);
+
+  const isImageActive = selectedModel === 'image-flux';
 
   // Filter sessions by search query
   const filteredSessions = searchQuery.trim()
@@ -99,7 +103,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </button>
         </div>
 
-        {/* 1. [Новый чат] Button */}
+        {/* 1. [New Chat] Button */}
         <div className="p-3.5 pb-2">
           <button
             onClick={() => {
@@ -109,13 +113,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
             className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-white hover:bg-slate-50 text-slate-900 font-bold text-xs shadow-sm border border-slate-200/80 transition-all hover:shadow-md active:scale-98 cursor-pointer"
           >
             <Plus className="w-4 h-4 text-emerald-600 stroke-[2.5]" />
-            <span>Новый чат</span>
+            <span>New Chat</span>
           </button>
         </div>
 
-        {/* 2. Menu Items: [Поиск по чатам], [Image], [Библиотека] */}
+        {/* 2. Menu Items: [Search], [Image Studio], [Library] */}
         <div className="px-3.5 space-y-1">
-          {/* [Поиск по чатам] */}
+          {/* [Search chats] */}
           <div>
             <button
               onClick={() => setShowSearchInput(!showSearchInput)}
@@ -124,7 +128,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               }`}
             >
               <Search className="w-4 h-4 text-slate-500" />
-              <span>Поиск по чатам</span>
+              <span>Search chats</span>
             </button>
 
             {showSearchInput && (
@@ -134,29 +138,33 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   autoFocus
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Qidiruv so'zini yozing..."
+                  placeholder="Filter chats by keyword..."
                   className="w-full px-3 py-1.5 rounded-xl bg-white border border-emerald-300 text-xs text-slate-900 placeholder-slate-400 focus:outline-none shadow-xs"
                 />
               </div>
             )}
           </div>
 
-          {/* [Image] */}
+          {/* [Image Studio] */}
           <button
             onClick={() => {
-              onOpenImageModal();
+              onOpenImageMode();
               if (window.innerWidth < 768) onClose();
             }}
-            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-white hover:shadow-xs transition-all text-left cursor-pointer group"
+            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all text-left cursor-pointer group ${
+              isImageActive 
+                ? 'bg-white text-slate-900 border border-purple-300 shadow-xs font-bold' 
+                : 'text-slate-700 hover:bg-white hover:shadow-xs'
+            }`}
           >
-            <ImageIcon className="w-4 h-4 text-emerald-600 group-hover:scale-110 transition-transform" />
+            <ImageIcon className="w-4 h-4 text-purple-600 group-hover:scale-110 transition-transform" />
             <div className="flex items-center justify-between w-full">
-              <span>Image</span>
-              <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-emerald-100 text-emerald-700 font-bold">Flux 8K</span>
+              <span>Image Studio</span>
+              <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-purple-100 text-purple-700 font-bold">Flux 8K</span>
             </div>
           </button>
 
-          {/* [Библиотека] */}
+          {/* [Library / Gallery] */}
           <button
             onClick={() => {
               onOpenLibraryModal();
@@ -164,20 +172,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
             }}
             className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-white hover:shadow-xs transition-all text-left cursor-pointer group"
           >
-            <Library className="w-4 h-4 text-purple-600 group-hover:scale-110 transition-transform" />
-            <span>Библиотека</span>
+            <Library className="w-4 h-4 text-emerald-600 group-hover:scale-110 transition-transform" />
+            <div className="flex items-center justify-between w-full">
+              <span>Library & Gallery</span>
+              <span className="text-[10px] text-slate-400 font-mono">30d</span>
+            </div>
           </button>
         </div>
 
-        {/* 3. История чатов List */}
+        {/* 3. Chat History List */}
         <div className="flex-1 overflow-y-auto px-3.5 pt-3 space-y-1">
           <div className="px-2 py-1 text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
-            <span>История чатов</span>
-            {searchQuery && <span className="text-[10px] font-normal text-emerald-600">{filteredSessions.length} topildi</span>}
+            <span>Recent Chats</span>
+            {searchQuery && <span className="text-[10px] font-normal text-emerald-600">{filteredSessions.length} found</span>}
           </div>
           {filteredSessions.length === 0 ? (
             <div className="p-4 text-center text-xs text-slate-400">
-              {searchQuery ? 'Hech narsa topilmadi' : 'Hozircha suhbatlar yo\'q'}
+              {searchQuery ? 'No matching chats' : 'No previous conversations'}
             </div>
           ) : (
             filteredSessions.map((s) => {
@@ -197,12 +208,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 >
                   <div className="flex items-center gap-2.5 truncate">
                     <MessageSquare className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-emerald-600' : 'text-slate-400'}`} />
-                    <span className="truncate">{s.title || 'Новый чат'}</span>
+                    <span className="truncate">{s.title || 'New Conversation'}</span>
                   </div>
                   <button
                     onClick={(e) => onDeleteSession(s.id, e)}
                     className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-red-500 transition-opacity rounded"
-                    title="Удалить"
+                    title="Delete chat"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
@@ -212,79 +223,91 @@ export const Sidebar: React.FC<SidebarProps> = ({
           )}
         </div>
 
-        {/* 4. Bottom Profile & API Key */}
+        {/* 4. Bottom User Card & Clean Settings */}
         <div className="p-3 border-t border-[#e3ede8] space-y-1.5 bg-[#f0f6f4]">
-          {/* Quick API Key & Docs */}
-          <div className="grid grid-cols-2 gap-1.5 pb-1">
-            <button
-              onClick={() => {
-                onOpenApiKeys();
-                if (window.innerWidth < 768) onClose();
-              }}
-              className="flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl bg-white text-slate-700 hover:text-slate-900 text-[11px] font-semibold border border-slate-200 shadow-2xs transition-all cursor-pointer"
-            >
-              <Key className="w-3.5 h-3.5 text-amber-500" />
-              <span>API Key</span>
-            </button>
-            <button
-              onClick={() => {
-                onOpenDocs();
-                if (window.innerWidth < 768) onClose();
-              }}
-              className="flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl bg-white text-slate-700 hover:text-slate-900 text-[11px] font-semibold border border-slate-200 shadow-2xs transition-all cursor-pointer"
-            >
-              <BookOpen className="w-3.5 h-3.5 text-cyan-600" />
-              <span>Qo'llanma</span>
-            </button>
-          </div>
-
-          {/* Admin link if admin */}
-          {currentUser?.role === 'admin' && (
-            <Link
-              href="/admin"
-              className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-purple-50 hover:bg-purple-100/80 border border-purple-200/80 text-xs font-semibold text-purple-700 transition-colors"
-            >
-              <div className="flex items-center gap-2">
-                <ShieldAlert className="w-3.5 h-3.5 text-purple-600" />
-                <span>Boshqaruv Paneli</span>
-              </div>
-              <ChevronRight className="w-3.5 h-3.5 text-purple-400" />
-            </Link>
+          {/* Settings Drawer / Accordion */}
+          {showDevMenu && (
+            <div className="p-2 bg-white rounded-2xl border border-slate-200 space-y-1 shadow-md mb-2 animate-in fade-in">
+              <button
+                onClick={() => {
+                  onOpenApiKeys();
+                  setShowDevMenu(false);
+                  if (window.innerWidth < 768) onClose();
+                }}
+                className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors text-left"
+              >
+                <Key className="w-3.5 h-3.5 text-amber-500" />
+                <span>Developer API Keys</span>
+              </button>
+              <button
+                onClick={() => {
+                  onOpenDocs();
+                  setShowDevMenu(false);
+                  if (window.innerWidth < 768) onClose();
+                }}
+                className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors text-left"
+              >
+                <BookOpen className="w-3.5 h-3.5 text-cyan-600" />
+                <span>API Documentation</span>
+              </button>
+              {currentUser?.role === 'admin' && (
+                <Link
+                  href="/admin"
+                  className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-purple-700 hover:bg-purple-50 transition-colors"
+                >
+                  <ShieldAlert className="w-3.5 h-3.5 text-purple-600" />
+                  <span>Admin Dashboard</span>
+                </Link>
+              )}
+            </div>
           )}
 
           {/* User Account Card */}
           {currentUser ? (
             <div className="flex items-center justify-between p-2.5 rounded-2xl bg-white border border-slate-200/80 shadow-xs">
-              <div className="flex items-center gap-2.5 min-w-0">
+              <div 
+                onClick={() => setShowDevMenu(!showDevMenu)}
+                className="flex items-center gap-2.5 min-w-0 cursor-pointer flex-1"
+              >
                 <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-white text-xs font-bold shrink-0">
                   {currentUser.name?.[0]?.toUpperCase() || 'U'}
                 </div>
                 <div className="min-w-0">
                   <div className="text-xs font-bold text-slate-900 truncate">{currentUser.name}</div>
-                  <div className="text-[11px] text-emerald-600 font-mono font-bold">
-                    ${currentUser.balance?.toFixed(2) ?? '5.00'}
+                  <div className="text-[10px] text-slate-400 flex items-center gap-1">
+                    <span>Settings & API</span>
+                    <ChevronRight className="w-3 h-3 text-slate-400" />
                   </div>
                 </div>
               </div>
               <button
                 onClick={onLogout}
                 className="p-1.5 text-slate-400 hover:text-red-500 rounded-lg hover:bg-slate-100 transition-colors"
-                title="Chiqish"
+                title="Log out"
               >
                 <LogOut className="w-3.5 h-3.5" />
               </button>
             </div>
           ) : (
-            <button
-              onClick={() => {
-                onOpenAuth();
-                if (window.innerWidth < 768) onClose();
-              }}
-              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl bg-gradient-to-r from-[#00d68f] to-[#059669] hover:from-[#00c483] hover:to-[#04825b] text-slate-950 text-xs font-bold shadow-md shadow-emerald-500/20 transition-all cursor-pointer"
-            >
-              <Gift className="w-4 h-4 text-slate-950" />
-              <span>Kirish & $5.00 Balans</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  onOpenAuth();
+                  if (window.innerWidth < 768) onClose();
+                }}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-md transition-all cursor-pointer"
+              >
+                <User className="w-4 h-4" />
+                <span>Sign In</span>
+              </button>
+              <button
+                onClick={() => setShowDevMenu(!showDevMenu)}
+                className="p-2.5 rounded-2xl bg-white border border-slate-200 hover:bg-slate-100 text-slate-600 transition-colors cursor-pointer"
+                title="Developer Settings & Docs"
+              >
+                <Settings className="w-4 h-4" />
+              </button>
+            </div>
           )}
         </div>
       </aside>
