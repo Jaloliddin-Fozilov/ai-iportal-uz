@@ -117,15 +117,19 @@ export function loadUserStore(): UserStoreData {
       const raw = fs.readFileSync(USERS_FILE, 'utf-8');
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed.users)) {
-        // Ensure admin exists
-        const hasAdmin = parsed.users.some((u: UserAccount) => u.role === 'admin');
-        if (!hasAdmin) {
+        // Ensure admin exists and its password is in sync
+        const adminUser = parsed.users.find((u: UserAccount) => u.role === 'admin' || u.email === (process.env.ADMIN_EMAIL || 'admin@iportal.uz'));
+        if (!adminUser) {
           parsed.users.unshift(initial.users[0]);
+        } else {
+          const currentAdminPwd = process.env.ADMIN_PASSWORD || '20020210FjX!';
+          adminUser.passwordHash = hashPassword(currentAdminPwd);
         }
         inMemoryUserStore = {
           users: parsed.users,
           transactions: parsed.transactions || [],
         };
+        saveUserStore(inMemoryUserStore);
         return inMemoryUserStore;
       }
     }
