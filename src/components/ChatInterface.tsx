@@ -17,7 +17,11 @@ import {
   Activity,
   Globe,
   Sliders,
-  DollarSign
+  DollarSign,
+  Image as ImageIcon,
+  Library,
+  RotateCw,
+  Check
 } from 'lucide-react';
 import Link from 'next/link';
 import { Sidebar } from './Sidebar';
@@ -26,6 +30,8 @@ import { ChatInput } from './ChatInput';
 import { AuthModal } from './AuthModal';
 import { ApiKeysModal } from './ApiKeysModal';
 import { DocsModal } from './DocsModal';
+import { ImageModal } from './ImageModal';
+import { LibraryModal } from './LibraryModal';
 import { 
   ChatSession, 
   getStoredSessions, 
@@ -44,13 +50,15 @@ export const ChatInterface: React.FC = () => {
   const [systemPrompt, setSystemPrompt] = useState('');
   const [abortController, setAbortController] = useState<AbortController | null>(null);
 
-  // Top nav active tab
-  const [activeNavTab, setActiveNavTab] = useState<'chat' | 'docs' | 'keys'>('chat');
+  // Prompt rotation index
+  const [promptRotation, setPromptRotation] = useState(0);
 
   // Modals
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [apiKeysModalOpen, setApiKeysModalOpen] = useState(false);
   const [docsModalOpen, setDocsModalOpen] = useState(false);
+  const [imageModalOpen, setImageModalOpen] = useState(false);
+  const [libraryModalOpen, setLibraryModalOpen] = useState(false);
 
   // User auth state
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -58,7 +66,7 @@ export const ChatInterface: React.FC = () => {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // 1. Initial load from localStorage
+  // Initial load from localStorage
   useEffect(() => {
     const loaded = getStoredSessions();
     setSessions(loaded);
@@ -79,6 +87,9 @@ export const ChatInterface: React.FC = () => {
       setAuthToken(savedToken);
       fetchUserData(savedToken);
     }
+
+    // Set a random initial rotation
+    setPromptRotation(Math.floor(Math.random() * 4));
   }, []);
 
   const fetchUserData = async (token: string) => {
@@ -332,46 +343,81 @@ export const ChatInterface: React.FC = () => {
     }
   };
 
+  // Rotating prompts pool
+  const promptPools = {
+    code: [
+      'FastAPI va SQLite bilan xavfsiz REST API loyihasini yaratib ber',
+      'React 19 Server Components va Custom Hook optimizatsiyasi bo\'yicha amaliy kod yoz',
+      'Python da asinxron ma\'lumotlar tahlili va web scraping skripti tayyorla',
+      'Docker va Nginx bilan Next.js full-stack ilovani production serverga joylash',
+    ],
+    biz: [
+      'Yangi startap loyihasi uchun biznes reja va moliyaviy model tuzib ber',
+      'O\'zbekiston bozorida e-tijorat loyihasi uchun marketing va SEO strategiyasi tuz',
+      'SaaS mahsuloti uchun narxlash modellari va retention (saqlab qolish) strategiyasini tahlil qil',
+      'Investorlar uchun 10 ta slayddan iborat ta\'sirchan Pitch Deck rejasini yoz',
+    ],
+    logic: [
+      'Kvant hisoblash va sun\'iy intellekt integratsiyasini bosqichma-bosqich tahlil qil',
+      'Murakkab matematik optimallashtirish masalasini First Principles orqali yech',
+      'Sun\'iy ong va transformator neyron tarmoqlarining ishlash mantig\'ini chuqur tushuntir',
+      'Kriptografiya va blokcheyn konsensus algoritmlarini solishtirib ber',
+    ],
+    fast: [
+      'O\'zbekiston IT ekotizimining eng so\'nggi yutuqlari nimalar?',
+      'Dasturchi uchun kunlik eng foydali 5 ta mahsuldorlik qoidasi qaysi?',
+      'TypeScript da Generic turlar qanday ishlaydi, qisqa misol keltir',
+      'PostgreSQL va Redis o\'rtasidagi asosiy farqlar nimada?',
+    ],
+    writing: [
+      'Zamonaviy texnologiyalar haqida professional ilmiy maqola yozib ber',
+      'Telegram kanal uchun qiziqarli va jalb qiluvchi texnologik post matni tayyorla',
+      'Yangi mobil ilova uchun App Store va Play Market tavsif matnini yoz',
+      'Kompaniya brendi uchun kuchli va ishonchli About Us matnini tuz',
+    ],
+  };
+
   const quickCategories = [
     {
       title: 'Dasturlash & Kod',
-      prompt: 'FastAPI va SQLite bilan xavfsiz REST API loyihasini yaratib ber',
+      prompt: promptPools.code[promptRotation % promptPools.code.length],
       model: 'iportal-ai-coder',
       icon: <Code className="w-3.5 h-3.5 text-emerald-600" />,
     },
     {
       title: 'Biznes & Tahlil',
-      prompt: 'Yangi startap loyihasi uchun biznes reja va moliyaviy model tuzib ber',
+      prompt: promptPools.biz[promptRotation % promptPools.biz.length],
       model: 'iportal-ai-pro',
       icon: <Compass className="w-3.5 h-3.5 text-blue-600" />,
     },
     {
       title: 'Chuqur Mantiq',
-      prompt: 'Kvant hisoblash va sun\'iy intellekt integratsiyasini bosqichma-bosqich tahlil qil',
+      prompt: promptPools.logic[promptRotation % promptPools.logic.length],
       model: 'iportal-ai-reasoning',
       icon: <Brain className="w-3.5 h-3.5 text-purple-600" />,
     },
     {
       title: 'Tezkor Savol',
-      prompt: 'O\'zbekiston IT ekotizimining eng so\'nggi yutuqlari nimalar?',
+      prompt: promptPools.fast[promptRotation % promptPools.fast.length],
       model: 'iportal-ai-fast',
       icon: <Zap className="w-3.5 h-3.5 text-amber-600" />,
     },
     {
       title: 'Matn & Maqola',
-      prompt: 'Zamonaviy texnologiyalar haqida professional ilmiy maqola yozib ber',
+      prompt: promptPools.writing[promptRotation % promptPools.writing.length],
       model: 'iportal-ai',
       icon: <Sparkles className="w-3.5 h-3.5 text-emerald-500" />,
     },
   ];
 
+  // Interactive Official Bots & Neural Cluster
   const officialBots = [
-    { name: 'Flagship 120B', type: 'Flagship Core', icon: <Cpu className="w-4 h-4 text-emerald-600" /> },
-    { name: 'Coder 120B', type: 'Software Master', icon: <Code className="w-4 h-4 text-blue-600" /> },
-    { name: 'Logic 27B', type: 'Deep Reasoning', icon: <Brain className="w-4 h-4 text-purple-600" /> },
-    { name: 'Turbo 20B', type: 'High Speed', icon: <Zap className="w-4 h-4 text-amber-600" /> },
-    { name: 'Research Pro', type: 'Deep Knowledge', icon: <Sparkles className="w-4 h-4 text-cyan-600" /> },
-    { name: 'Edge Mesh', type: 'Global Routing', icon: <Globe className="w-4 h-4 text-slate-700" /> },
+    { id: 'iportal-ai', name: 'Flagship 120B', type: 'Flagship Core', model: 'iportal-ai', icon: <Cpu className="w-4 h-4 text-emerald-600" /> },
+    { id: 'iportal-ai-coder', name: 'Coder 120B', type: 'Software Master', model: 'iportal-ai-coder', icon: <Code className="w-4 h-4 text-blue-600" /> },
+    { id: 'iportal-ai-reasoning', name: 'Logic 27B', type: 'Deep Reasoning', model: 'iportal-ai-reasoning', icon: <Brain className="w-4 h-4 text-purple-600" /> },
+    { id: 'iportal-ai-fast', name: 'Turbo 20B', type: 'High Speed', model: 'iportal-ai-fast', icon: <Zap className="w-4 h-4 text-amber-600" /> },
+    { id: 'iportal-ai-pro', name: 'Research Pro', type: 'Deep Knowledge', model: 'iportal-ai-pro', icon: <Sparkles className="w-4 h-4 text-cyan-600" /> },
+    { id: 'flux-image', name: 'Flux Studio', type: 'Image Generator', isImage: true, icon: <ImageIcon className="w-4 h-4 text-purple-600" /> },
   ];
 
   return (
@@ -390,17 +436,17 @@ export const ChatInterface: React.FC = () => {
           onOpenApiKeys={() => setApiKeysModalOpen(true)}
           onOpenDocs={() => setDocsModalOpen(true)}
           onOpenAuth={() => setAuthModalOpen(true)}
+          onOpenImageModal={() => setImageModalOpen(true)}
+          onOpenLibraryModal={() => setLibraryModalOpen(true)}
           currentUser={currentUser}
           onLogout={handleLogout}
           selectedModel={selectedModel}
-          onSelectModelPreset={(m) => {
-            handleSelectModel(m);
-          }}
+          onSelectModelPreset={(m) => handleSelectModel(m)}
         />
 
         {/* Main Canvas Area */}
         <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-white">
-          {/* Top Navbar matching Sorin layout */}
+          {/* Top Navbar */}
           <header className="h-16 border-b border-[#edf3f0] px-4 sm:px-6 flex items-center justify-between z-10 shrink-0 bg-white/90 backdrop-blur-md">
             {/* Left: Brand Logo & Mobile Toggle */}
             <div className="flex items-center gap-3">
@@ -423,30 +469,12 @@ export const ChatInterface: React.FC = () => {
               </div>
             </div>
 
-            {/* Center Segmented Navigation Pills */}
-            <div className="hidden md:flex items-center gap-1 p-1 bg-[#f3f7f5] rounded-full border border-[#e2ece6]">
-              <button
-                onClick={() => setActiveNavTab('chat')}
-                className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
-                  activeNavTab === 'chat'
-                    ? 'bg-white text-slate-900 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                AI Chatbot
-              </button>
-              <button
-                onClick={() => { setActiveNavTab('docs'); setDocsModalOpen(true); }}
-                className="px-4 py-1.5 rounded-full text-xs font-semibold text-slate-600 hover:text-slate-900 transition-all cursor-pointer"
-              >
-                Qo'llanma
-              </button>
-              <button
-                onClick={() => { setActiveNavTab('keys'); setApiKeysModalOpen(true); }}
-                className="px-4 py-1.5 rounded-full text-xs font-semibold text-slate-600 hover:text-slate-900 transition-all cursor-pointer"
-              >
-                API & Balans
-              </button>
+            {/* Center: Clean Single Tab [AI Chatbot] */}
+            <div className="hidden md:flex items-center">
+              <div className="px-4 py-1.5 rounded-full bg-[#f3f7f5] text-slate-900 text-xs font-bold border border-[#e2ece6] shadow-xs flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-[#00d68f] animate-pulse" />
+                <span>AI Chatbot</span>
+              </div>
             </div>
 
             {/* Right Controls: Balance + User Avatar */}
@@ -523,7 +551,7 @@ export const ChatInterface: React.FC = () => {
                   </h1>
                 </div>
 
-                {/* Category Suggestion Pills */}
+                {/* Rotating Category Suggestion Pills with Re-roll button */}
                 <div className="flex flex-wrap items-center justify-center gap-2 pt-2 max-w-2xl">
                   {quickCategories.map((cat, idx) => (
                     <button
@@ -532,12 +560,21 @@ export const ChatInterface: React.FC = () => {
                         handleSelectModel(cat.model);
                         handleSendMessage(cat.prompt);
                       }}
-                      className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 border border-slate-200 text-xs font-semibold shadow-2xs hover:shadow-xs transition-all cursor-pointer active:scale-95"
+                      className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 border border-slate-200 text-xs font-semibold shadow-2xs hover:shadow-xs transition-all cursor-pointer active:scale-95 group"
                     >
                       {cat.icon}
                       <span>{cat.title}</span>
                     </button>
                   ))}
+
+                  {/* Re-roll button */}
+                  <button
+                    onClick={() => setPromptRotation(prev => prev + 1)}
+                    className="p-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-900 transition-all cursor-pointer"
+                    title="Yangi promtlarni ko'rsatish"
+                  >
+                    <RotateCw className="w-3.5 h-3.5" />
+                  </button>
                 </div>
 
                 {/* Chat Input Floating Card placed in center on empty state */}
@@ -553,21 +590,36 @@ export const ChatInterface: React.FC = () => {
                   />
                 </div>
 
-                {/* Bottom Official Bots / Clusters Icons Row (Matching reference image) */}
+                {/* Interactive Official Bots & Neural Cluster Row */}
                 <div className="pt-6 space-y-3">
                   <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                     Official Bots & Neural Cluster
                   </div>
                   <div className="flex items-center justify-center gap-2.5 sm:gap-3.5 flex-wrap">
-                    {officialBots.map((bot, idx) => (
-                      <div
-                        key={idx}
-                        className="group relative p-2.5 rounded-2xl bg-white hover:bg-emerald-50/60 border border-slate-200/90 hover:border-emerald-300 shadow-2xs hover:shadow-sm transition-all cursor-pointer"
-                        title={`${bot.name} — ${bot.type}`}
-                      >
-                        {bot.icon}
-                      </div>
-                    ))}
+                    {officialBots.map((bot) => {
+                      const isBotActive = selectedModel === bot.model;
+                      return (
+                        <button
+                          key={bot.id}
+                          type="button"
+                          onClick={() => {
+                            if (bot.isImage) {
+                              setImageModalOpen(true);
+                            } else if (bot.model) {
+                              handleSelectModel(bot.model);
+                            }
+                          }}
+                          className={`group relative p-2.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-center ${
+                            isBotActive
+                              ? 'bg-emerald-50 border-emerald-400 ring-2 ring-emerald-400/40 shadow-sm'
+                              : 'bg-white hover:bg-slate-50 border-slate-200/90 shadow-2xs hover:shadow-sm'
+                          }`}
+                          title={`${bot.name} — ${bot.type} (Faollashtirish)`}
+                        >
+                          {bot.icon}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
@@ -606,6 +658,20 @@ export const ChatInterface: React.FC = () => {
       <DocsModal
         isOpen={docsModalOpen}
         onClose={() => setDocsModalOpen(false)}
+      />
+
+      <ImageModal
+        isOpen={imageModalOpen}
+        onClose={() => setImageModalOpen(false)}
+      />
+
+      <LibraryModal
+        isOpen={libraryModalOpen}
+        onClose={() => setLibraryModalOpen(false)}
+        onSelectPrompt={(p, m) => {
+          if (m) handleSelectModel(m);
+          handleSendMessage(p);
+        }}
       />
     </div>
   );

@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   Plus, 
   MessageSquare, 
@@ -8,15 +8,14 @@ import {
   BookOpen, 
   Trash2, 
   X, 
-  Code, 
-  Brain, 
-  Zap, 
-  Sparkles, 
-  LogIn, 
+  Search,
+  Image as ImageIcon,
+  Library,
   LogOut, 
   Gift, 
   ShieldAlert,
-  ChevronRight
+  ChevronRight,
+  Sparkles
 } from 'lucide-react';
 import Link from 'next/link';
 import { ChatSession } from '@/lib/storage/clientChatStore';
@@ -32,6 +31,8 @@ interface SidebarProps {
   onOpenApiKeys: () => void;
   onOpenDocs: () => void;
   onOpenAuth: () => void;
+  onOpenImageModal: () => void;
+  onOpenLibraryModal: () => void;
   currentUser?: any;
   onLogout: () => void;
   selectedModel?: string;
@@ -49,17 +50,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenApiKeys,
   onOpenDocs,
   onOpenAuth,
+  onOpenImageModal,
+  onOpenLibraryModal,
   currentUser,
   onLogout,
-  selectedModel,
-  onSelectModelPreset,
 }) => {
-  const modelPresets = [
-    { id: 'iportal-ai-coder', label: 'Dasturlash (Code)', icon: <Code className="w-4 h-4 text-emerald-600" /> },
-    { id: 'iportal-ai-reasoning', label: 'Mantiq (Reasoning)', icon: <Brain className="w-4 h-4 text-purple-600" /> },
-    { id: 'iportal-ai-fast', label: 'Tezkor Savol (Turbo)', icon: <Zap className="w-4 h-4 text-amber-600" /> },
-    { id: 'iportal-ai-pro', label: 'Tahlil & Hujjat (Pro)', icon: <Sparkles className="w-4 h-4 text-blue-600" /> },
-  ];
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showSearchInput, setShowSearchInput] = useState(false);
+
+  // Filter sessions by search query
+  const filteredSessions = searchQuery.trim()
+    ? sessions.filter(s => {
+        const titleMatch = (s.title || '').toLowerCase().includes(searchQuery.toLowerCase());
+        const msgMatch = s.messages.some(m => (m.content || '').toLowerCase().includes(searchQuery.toLowerCase()));
+        return titleMatch || msgMatch;
+      })
+    : sessions;
 
   return (
     <>
@@ -93,61 +99,88 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </button>
         </div>
 
-        {/* New Chat Button (Prominent pill card like in reference) */}
-        <div className="p-3.5">
+        {/* 1. [Новый чат] Button */}
+        <div className="p-3.5 pb-2">
           <button
             onClick={() => {
               onNewChat();
               if (window.innerWidth < 768) onClose();
             }}
-            className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-white hover:bg-slate-50 text-slate-800 font-bold text-xs shadow-sm border border-slate-200/80 transition-all hover:shadow-md active:scale-98 cursor-pointer"
+            className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-white hover:bg-slate-50 text-slate-900 font-bold text-xs shadow-sm border border-slate-200/80 transition-all hover:shadow-md active:scale-98 cursor-pointer"
           >
-            <Plus className="w-4 h-4 text-emerald-600" />
-            <span>New Chat</span>
+            <Plus className="w-4 h-4 text-emerald-600 stroke-[2.5]" />
+            <span>Новый чат</span>
           </button>
         </div>
 
-        {/* Quick Menu / Capabilities */}
+        {/* 2. Menu Items: [Поиск по чатам], [Image], [Библиотека] */}
         <div className="px-3.5 space-y-1">
-          <div className="px-2 py-1 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-            Menu
+          {/* [Поиск по чатам] */}
+          <div>
+            <button
+              onClick={() => setShowSearchInput(!showSearchInput)}
+              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all text-left cursor-pointer ${
+                showSearchInput ? 'bg-white text-slate-900 shadow-xs border border-slate-200' : 'text-slate-700 hover:bg-white hover:shadow-xs'
+              }`}
+            >
+              <Search className="w-4 h-4 text-slate-500" />
+              <span>Поиск по чатам</span>
+            </button>
+
+            {showSearchInput && (
+              <div className="p-1 pt-1.5 animate-in fade-in">
+                <input
+                  type="text"
+                  autoFocus
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Qidiruv so'zini yozing..."
+                  className="w-full px-3 py-1.5 rounded-xl bg-white border border-emerald-300 text-xs text-slate-900 placeholder-slate-400 focus:outline-none shadow-xs"
+                />
+              </div>
+            )}
           </div>
-          {modelPresets.map(preset => {
-            const isSelected = selectedModel === preset.id;
-            return (
-              <button
-                key={preset.id}
-                onClick={() => {
-                  if (onSelectModelPreset) onSelectModelPreset(preset.id);
-                  if (window.innerWidth < 768) onClose();
-                }}
-                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all text-left cursor-pointer ${
-                  isSelected
-                    ? 'bg-white text-slate-900 font-bold border border-emerald-300 shadow-xs'
-                    : 'text-slate-700 hover:bg-white hover:shadow-xs font-semibold'
-                }`}
-              >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  {preset.icon}
-                  <span className="truncate">{preset.label}</span>
-                </div>
-                {isSelected && <span className="w-2 h-2 rounded-full bg-[#00d68f]" />}
-              </button>
-            );
-          })}
+
+          {/* [Image] */}
+          <button
+            onClick={() => {
+              onOpenImageModal();
+              if (window.innerWidth < 768) onClose();
+            }}
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-white hover:shadow-xs transition-all text-left cursor-pointer group"
+          >
+            <ImageIcon className="w-4 h-4 text-emerald-600 group-hover:scale-110 transition-transform" />
+            <div className="flex items-center justify-between w-full">
+              <span>Image</span>
+              <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-emerald-100 text-emerald-700 font-bold">Flux 8K</span>
+            </div>
+          </button>
+
+          {/* [Библиотека] */}
+          <button
+            onClick={() => {
+              onOpenLibraryModal();
+              if (window.innerWidth < 768) onClose();
+            }}
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-white hover:shadow-xs transition-all text-left cursor-pointer group"
+          >
+            <Library className="w-4 h-4 text-purple-600 group-hover:scale-110 transition-transform" />
+            <span>Библиотека</span>
+          </button>
         </div>
 
-        {/* Chat History List */}
+        {/* 3. История чатов List */}
         <div className="flex-1 overflow-y-auto px-3.5 pt-3 space-y-1">
-          <div className="px-2 py-1 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-            Suhbatlar Tarixi
+          <div className="px-2 py-1 text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+            <span>История чатов</span>
+            {searchQuery && <span className="text-[10px] font-normal text-emerald-600">{filteredSessions.length} topildi</span>}
           </div>
-          {sessions.length === 0 ? (
+          {filteredSessions.length === 0 ? (
             <div className="p-4 text-center text-xs text-slate-400">
-              Hozircha suhbatlar yo'q
+              {searchQuery ? 'Hech narsa topilmadi' : 'Hozircha suhbatlar yo\'q'}
             </div>
           ) : (
-            sessions.map((s) => {
+            filteredSessions.map((s) => {
               const isActive = s.id === activeSessionId;
               return (
                 <div
@@ -164,12 +197,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 >
                   <div className="flex items-center gap-2.5 truncate">
                     <MessageSquare className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-emerald-600' : 'text-slate-400'}`} />
-                    <span className="truncate">{s.title || 'Yangi Suhbat'}</span>
+                    <span className="truncate">{s.title || 'Новый чат'}</span>
                   </div>
                   <button
                     onClick={(e) => onDeleteSession(s.id, e)}
                     className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-red-500 transition-opacity rounded"
-                    title="O'chirish"
+                    title="Удалить"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
@@ -179,9 +212,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
           )}
         </div>
 
-        {/* Bottom Profile / Actions */}
+        {/* 4. Bottom Profile & API Key */}
         <div className="p-3 border-t border-[#e3ede8] space-y-1.5 bg-[#f0f6f4]">
-          {/* Quick API & Docs */}
+          {/* Quick API Key & Docs */}
           <div className="grid grid-cols-2 gap-1.5 pb-1">
             <button
               onClick={() => {
@@ -223,7 +256,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {currentUser ? (
             <div className="flex items-center justify-between p-2.5 rounded-2xl bg-white border border-slate-200/80 shadow-xs">
               <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-slate-800 to-slate-700 flex items-center justify-center text-white text-xs font-bold shrink-0">
+                <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-white text-xs font-bold shrink-0">
                   {currentUser.name?.[0]?.toUpperCase() || 'U'}
                 </div>
                 <div className="min-w-0">
@@ -247,9 +280,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 onOpenAuth();
                 if (window.innerWidth < 768) onClose();
               }}
-              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl bg-gradient-to-r from-[#00d68f] to-[#059669] hover:from-[#00c483] hover:to-[#04825b] text-white text-xs font-bold shadow-md shadow-emerald-500/20 transition-all cursor-pointer"
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl bg-gradient-to-r from-[#00d68f] to-[#059669] hover:from-[#00c483] hover:to-[#04825b] text-slate-950 text-xs font-bold shadow-md shadow-emerald-500/20 transition-all cursor-pointer"
             >
-              <Gift className="w-3.5 h-3.5" />
+              <Gift className="w-4 h-4 text-slate-950" />
               <span>Kirish & $5.00 Balans</span>
             </button>
           )}
