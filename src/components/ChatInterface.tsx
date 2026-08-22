@@ -228,11 +228,20 @@ export const ChatInterface: React.FC = () => {
     // If Image Generation mode is active, call image API directly in chat!
     if (isImageGeneration) {
       try {
+        const contextMessages = activeSession.messages
+          .filter(m => m.id !== assistantMessageId)
+          .slice(-8)
+          .map(m => ({
+            role: m.role,
+            content: m.content,
+          }));
+
         const imgRes = await fetch('/api/v1/images/generate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             prompt: cleanImagePrompt || trimmedText,
+            messages: contextMessages,
             width: 1024,
             height: 1024,
           }),
@@ -240,13 +249,14 @@ export const ChatInterface: React.FC = () => {
 
         const imgData = await imgRes.json();
         if (imgData.success && imgData.imageUrl) {
-          const promptToSave = cleanImagePrompt || trimmedText;
+          const finalPromptUsed = imgData.prompt || cleanImagePrompt || trimmedText;
           // Save to user's 30-day gallery automatically
-          addImageToGallery(promptToSave, imgData.imageUrl, 'iportal Image', '1:1');
+          addImageToGallery(finalPromptUsed, imgData.imageUrl, 'iportal Image', '1:1');
 
           const target = activeSession.messages.find(m => m.id === assistantMessageId);
           if (target) {
-            target.content = `![${promptToSave}](${imgData.imageUrl})\n\n**Prompt:** *${promptToSave}*\n**Engine:** iportal Neural Image • Saved to Library (30 days)`;
+            const editNotice = imgData.wasModifiedFromContext ? '\n*✨ Iterated with context from previous scene*' : '';
+            target.content = `![${finalPromptUsed}](${imgData.imageUrl})\n\n**Prompt:** *${finalPromptUsed}*${editNotice}\n**Engine:** iportal Neural Image • Saved to Library (30 days)`;
             setSessions([...sessions]);
             saveStoredSessions(sessions);
           }

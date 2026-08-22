@@ -5,7 +5,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
-import { User, Copy, Check, ChevronDown, ChevronRight, BrainCircuit, Sparkles, RefreshCw, Download, Image as ImageIcon } from 'lucide-react';
+import { User, Copy, Check, ChevronDown, ChevronRight, BrainCircuit, Sparkles, RefreshCw, Download, Image as ImageIcon, Wand2 } from 'lucide-react';
 import { CodeBlock } from './CodeBlock';
 
 interface ChatMessageProps {
@@ -28,6 +28,12 @@ export const ChatMessageItem: React.FC<ChatMessageProps> = ({
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   const isUser = role === 'user';
+
+  // Check if assistant is currently generating an image
+  const isImageGenerating = !isUser && (
+    content.startsWith('🎨 Generating') || 
+    (isStreaming && (content.includes('iportal Neural Engine') || content.includes('Generating high-resolution') || content.includes('Generating image')))
+  );
 
   // Parse <think>...</think> tags for reasoning mode
   let thinkingContent = '';
@@ -114,7 +120,7 @@ export const ChatMessageItem: React.FC<ChatMessageProps> = ({
             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
               <button
                 onClick={handleCopy}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
                 title="Copy text"
               >
                 {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
@@ -122,7 +128,7 @@ export const ChatMessageItem: React.FC<ChatMessageProps> = ({
               {!isUser && onRetry && (
                 <button
                   onClick={onRetry}
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
                   title="Regenerate response"
                 >
                   <RefreshCw className="w-3.5 h-3.5" />
@@ -160,6 +166,38 @@ export const ChatMessageItem: React.FC<ChatMessageProps> = ({
           {isUser ? (
             <div className="text-sm text-slate-800 whitespace-pre-wrap leading-relaxed font-normal bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-xs inline-block max-w-3xl">
               {content}
+            </div>
+          ) : isImageGenerating ? (
+            /* High-Fidelity Animated Image Generation Skeleton */
+            <div className="my-2 max-w-lg w-full rounded-3xl bg-[#0b101d] border border-emerald-500/25 shadow-2xl p-6 sm:p-8 relative overflow-hidden flex flex-col items-center justify-center text-center space-y-4">
+              {/* Background ambient glow */}
+              <div className="absolute -top-12 -left-12 w-32 h-32 bg-[#00d68f]/15 rounded-full blur-2xl pointer-events-none" />
+              <div className="absolute -bottom-12 -right-12 w-32 h-32 bg-purple-500/15 rounded-full blur-2xl pointer-events-none" />
+
+              {/* Glowing pulsating central icon */}
+              <div className="relative">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#00d68f] via-[#059669] to-[#10b981] flex items-center justify-center text-slate-950 shadow-xl shadow-emerald-500/30 animate-pulse">
+                  <Sparkles className="w-7 h-7 stroke-[2.2]" />
+                </div>
+              </div>
+
+              <div className="space-y-1 z-10">
+                <h4 className="text-sm sm:text-base font-extrabold text-white tracking-tight">
+                  Synthesizing Neural Artwork...
+                </h4>
+                <p className="text-xs text-emerald-400 font-medium">
+                  iportal Neural Diffusion Core is rendering your scene
+                </p>
+              </div>
+
+              {/* Shimmering Progress Bar */}
+              <div className="w-full max-w-xs h-2 bg-slate-800/80 rounded-full overflow-hidden p-0.5 border border-slate-700/50">
+                <div className="h-full bg-gradient-to-r from-[#00d68f] via-emerald-400 to-[#00d68f] rounded-full animate-pulse w-full" />
+              </div>
+
+              <div className="text-[11px] text-slate-400">
+                Rendering 1024×1024 high resolution • Please wait ~3-5 seconds
+              </div>
             </div>
           ) : (
             <div className="markdown-body text-sm leading-relaxed text-slate-800">
@@ -200,7 +238,7 @@ export const ChatMessageItem: React.FC<ChatMessageProps> = ({
                         <div className="my-3 rounded-2xl overflow-hidden border border-slate-200 bg-slate-950 shadow-md max-w-lg">
                           <img
                             src={src}
-                            alt={alt || 'AI Artwork'}
+                            alt={alt || 'iportal Image'}
                             className="w-full h-auto object-contain max-h-96 cursor-pointer hover:opacity-95 transition-opacity"
                             onClick={() => setPreviewImage(src)}
                             loading="lazy"
