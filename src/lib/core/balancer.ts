@@ -111,9 +111,9 @@ export class LoadBalancer {
         body: bodyString,
       };
 
-      // Set a strict 6-second timeout on worker node proxy connection
+      // Set a generous 90-second timeout for streaming long AI completions
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 6000);
+      const timeoutId = setTimeout(() => controller.abort(), 90000);
 
       // Chain with caller's signal if present
       if (options.signal) {
