@@ -97,8 +97,20 @@ class MasterRouter {
 
     console.error(`[MasterRouter Exhausted] All providers and keys failed:\n${errors.join('\n')}`);
 
+    if (errors.some(e => e.includes('Request too large') || e.includes('tokens per minute') || e.includes('413') || e.includes('context_length') || e.includes('TPM'))) {
+      throw new Error(
+        'TOO_LONG: Matn yoki yuklangan fayl hajmi neyrotizimning bitta so\'rovdagi xotira limitidan (TPM) oshib ketdi. Iltimos, xabarni qisqartiring, yangi chat oching yoki faylsiz yuboring.'
+      );
+    }
+
+    if (errors.some(e => e.includes('429') || e.includes('Rate limit') || e.includes('rate_limit_exceeded') || e.includes('RPM'))) {
+      throw new Error(
+        'RATE_LIMIT: Minutlik so\'rovlar chegarasiga yetildi. Bepul model 30-60 soniyada avtomatik qayta tiklanadi.'
+      );
+    }
+
     throw new Error(
-      'Neyrotizim ayni damda yuqori yuklama ostida. Iltimos, birozdan so\'ng qayta urinib ko\'ring.'
+      'HIGH_LOAD: Neyrotizim ayni damda yuqori yuklama ostida. Iltimos, birozdan so\'ng qayta urinib ko\'ring.'
     );
   }
 }

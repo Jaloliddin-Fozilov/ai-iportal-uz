@@ -411,7 +411,23 @@ export const ChatInterface: React.FC = () => {
       if (err.name !== 'AbortError') {
         const target = activeSession.messages.find(m => m.id === assistantMessageId);
         if (target) {
-          target.content = `⚠️ Neyrotizim ayni damda yuqori yuklama ostida.`;
+          const rawMsg = err.message || '';
+          if (
+            rawMsg.includes('TOO_LONG') || 
+            rawMsg.includes('Request too large') || 
+            rawMsg.includes('413') || 
+            rawMsg.includes('tokens per minute') ||
+            rawMsg.includes('xotira') ||
+            rawMsg.includes('uzun')
+          ) {
+            target.content = `⚠️ error:too_long`;
+          } else if (rawMsg.includes('RATE_LIMIT') || rawMsg.includes('429') || rawMsg.includes('limit')) {
+            target.content = `⚠️ error:rate_limit`;
+          } else if (rawMsg.includes('FILE') || rawMsg.includes('pdf') || rawMsg.includes('hujjat')) {
+            target.content = `⚠️ error:file_error`;
+          } else {
+            target.content = `⚠️ error:high_load`;
+          }
           setSessions([...sessions]);
           saveStoredSessions(sessions);
         }
@@ -596,6 +612,7 @@ export const ChatInterface: React.FC = () => {
                         handleSendMessage(lastUser.content, withoutAttachments ? undefined : lastUser.attachments);
                       }
                     }}
+                    onNewChat={handleNewChat}
                   />
                 ))}
                 <div ref={messagesEndRef} />

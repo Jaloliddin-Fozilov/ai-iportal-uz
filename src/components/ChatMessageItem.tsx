@@ -19,7 +19,8 @@ import {
   FileText, 
   FileCode, 
   File as FileIcon,
-  ShieldAlert
+  ShieldAlert,
+  Plus
 } from 'lucide-react';
 import { CodeBlock } from './CodeBlock';
 import { ChatAttachment } from '@/lib/core/types';
@@ -32,6 +33,7 @@ interface ChatMessageProps {
   node?: string;
   isStreaming?: boolean;
   onRetry?: (withoutAttachments?: boolean) => void;
+  onNewChat?: () => void;
 }
 
 export const ChatMessageItem: React.FC<ChatMessageProps> = ({
@@ -40,6 +42,7 @@ export const ChatMessageItem: React.FC<ChatMessageProps> = ({
   attachments = [],
   isStreaming,
   onRetry,
+  onNewChat,
 }) => {
   const [copied, setCopied] = useState(false);
   const [showThinking, setShowThinking] = useState(false);
@@ -64,12 +67,25 @@ export const ChatMessageItem: React.FC<ChatMessageProps> = ({
     content.includes('error:')
   );
 
-  const isFileError = isErrorMessage && (
-    content.includes('fayl') || 
-    content.includes('file') || 
+  const isTooLongError = isErrorMessage && (
+    content.includes('too_long') || 
     content.includes('Request too large') || 
-    content.includes('413') ||
-    content.includes('token')
+    content.includes('413') || 
+    content.includes('tokens per minute') ||
+    content.includes('xotira') ||
+    content.includes('uzun')
+  );
+
+  const isRateLimitError = isErrorMessage && (
+    content.includes('rate_limit') || 
+    content.includes('429')
+  );
+
+  const isFileError = isErrorMessage && (
+    content.includes('file_error') ||
+    content.includes('fayl') || 
+    content.includes('pdf') ||
+    (isTooLongError && attachments && attachments.length > 0)
   );
 
   // Parse <think>...</think> tags for reasoning mode
@@ -277,28 +293,49 @@ export const ChatMessageItem: React.FC<ChatMessageProps> = ({
               </div>
             </div>
           ) : isErrorMessage ? (
-            /* Elegant, Friendly Error Notice Card with Retry & Action Options */
-            <div className="my-2 max-w-xl p-4 sm:p-5 rounded-2xl bg-amber-500/5 border border-amber-500/20 text-slate-800 space-y-3.5">
+            /* Elegant, Accurate, Truthful Error Notice Card with Actionable Recovery */
+            <div className="my-2 max-w-xl p-4 sm:p-5 rounded-2xl bg-amber-500/5 border border-amber-500/25 text-slate-800 space-y-3.5 shadow-xs">
               <div className="flex items-start gap-3">
                 <div className="p-2 rounded-xl bg-amber-500/15 text-amber-600 shrink-0 mt-0.5">
                   <ShieldAlert className="w-5 h-5" />
                 </div>
-                <div className="space-y-1 min-w-0">
-                  <h4 className="text-xs sm:text-sm font-bold text-slate-900">
-                    {isFileError 
-                      ? "📄 Yuklangan Fayl Hajmi / Matni Katta"
-                      : "⚡️ Neyrotizim ayni damda yuqori yuklama ostida"}
+                <div className="space-y-1.5 min-w-0">
+                  <h4 className="text-xs sm:text-sm font-bold text-slate-900 flex items-center gap-2">
+                    <span>
+                      {isTooLongError
+                        ? "📝 Matn / Suhbat Tarixi Juda Uzun Bo'lib Ketdi"
+                        : isRateLimitError
+                        ? "⏱ Minutlik So'rov Limiti (30-60s kuting)"
+                        : isFileError
+                        ? "📄 Yuklangan Fayl Hajmi Katta"
+                        : "⚡️ Neyrotizim Serverlarida Vaqtinchalik Yuklama"}
+                    </span>
                   </h4>
                   <p className="text-xs text-slate-600 leading-relaxed">
-                    {isFileError 
-                      ? "Yuklangan fayl (PDF/Hujjat) hajmi yoki matni neyrotizimning bitta so'rovdagi xotirasidan oshib ketdi. Faylsiz qayta urinib ko'rishingiz yoki fayl ichidagi kerakli matndan nusxa olib yuborishingiz mumkin."
+                    {isTooLongError
+                      ? "Siz yuborgan xabar, oldingi suhbat tarixi yoki yuklangan fayl neyrotizimning bitta so'rovdagi xotira limitidan (TPM) oshib ketdi. Yangi toza chat ochish yoki faylsiz qayta yuborish orqali buni darhol hal qilishingiz mumkin."
+                      : isRateLimitError
+                      ? "Ushbu bepul model bir daqiqada cheklangan so'rovlarni qabul qiladi. 30-60 soniyadan so'ng limit avtomatik qayta tiklanadi."
+                      : isFileError
+                      ? "Yuklangan fayl (PDF/Hujjat) ichidagi matn sun'iy intellekt xotirasidan oshib ketdi. Faylsiz qayta urinib ko'rishingiz yoki kerakli matndan nusxa olib yuborishingiz mumkin."
                       : "Kechirasiz, so'rovingizni qayta ishlashda vaqtinchalik to'siq yuzaga keldi. Iltimos, qayta urinib ko'ring yoki boshqa modelni tanlang."}
                   </p>
                 </div>
               </div>
 
-              {onRetry && (
-                <div className="flex flex-wrap items-center gap-2 pt-1 pl-10">
+              <div className="flex flex-wrap items-center gap-2 pt-1 pl-10">
+                {onNewChat && isTooLongError && (
+                  <button
+                    type="button"
+                    onClick={onNewChat}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-xs transition-all cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>+ Yangi Toza Chat Ochish</span>
+                  </button>
+                )}
+
+                {onRetry && (
                   <button
                     type="button"
                     onClick={() => onRetry(false)}
@@ -307,19 +344,19 @@ export const ChatMessageItem: React.FC<ChatMessageProps> = ({
                     <RefreshCw className="w-3.5 h-3.5" />
                     <span>Qayta urinish</span>
                   </button>
+                )}
 
-                  {isFileError && (
-                    <button
-                      type="button"
-                      onClick={() => onRetry(true)}
-                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition-all cursor-pointer border border-slate-200"
-                      title="Faylni olib tashlab, faqat yozilgan matn bilan qayta yuborish"
-                    >
-                      <span>🗑 Faylsiz Qayta Urinish</span>
-                    </button>
-                  )}
-                </div>
-              )}
+                {onRetry && (isTooLongError || isFileError) && (
+                  <button
+                    type="button"
+                    onClick={() => onRetry(true)}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition-all cursor-pointer border border-slate-200"
+                    title="Faylni olib tashlab, faqat yozilgan matn bilan qayta yuborish"
+                  >
+                    <span>🗑 Faylsiz Qayta Urinish</span>
+                  </button>
+                )}
+              </div>
             </div>
           ) : (
             <div className="markdown-body text-sm leading-relaxed text-slate-800">
