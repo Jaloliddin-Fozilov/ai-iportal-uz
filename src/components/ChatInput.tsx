@@ -139,8 +139,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         </div>
       </div>
 
-      <div className="mt-2 text-center text-[11px] text-slate-400">
-        iportal-ai muhim ma'lumotlar va axloqiy me'yorlarga mos javob beradi.
+      <div className="mt-2 text-center text-[11px] text-slate-500">
+        iportal-ai xatoliklarga yo'l qo'yishi mumkin. Muhim ma'lumotlarni tekshiring.
       </div>
     </div>
   );

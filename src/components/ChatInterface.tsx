@@ -478,10 +478,6 @@ export const ChatInterface: React.FC = () => {
               </div>
 
               <div className="space-y-3">
-                <div className="inline-flex items-center gap-2 px-3.5 py-1.2 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-xs font-semibold text-emerald-400">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>100% Xavfsiz, Qonuniy va Islomiy Axloq Qoidalariga Mos</span>
-                </div>
                 <h1 className="text-3xl md:text-5xl font-extrabold text-white tracking-tight leading-tight">
                   <span className="bg-gradient-to-r from-blue-400 via-indigo-200 to-cyan-300 bg-clip-text text-transparent">
                     iportal-ai
