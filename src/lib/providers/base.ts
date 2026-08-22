@@ -102,13 +102,15 @@ export abstract class BaseProvider {
     node?: WorkerNode | null
   ): Promise<ProviderResponse> {
     const targetModel = this.resolveModel(request.model);
+    const isStream = request.stream === true;
+
     const payload = {
       model: targetModel,
       messages: request.messages,
       temperature: request.temperature ?? 0.7,
       max_tokens: request.max_tokens,
       top_p: request.top_p ?? 0.9,
-      stream: request.stream ?? true,
+      stream: isStream,
     };
 
     const headers: Record<string, string> = {
@@ -156,7 +158,7 @@ export abstract class BaseProvider {
       saveStore(loadStore());
     } catch (_) {}
 
-    if (request.stream) {
+    if (isStream) {
       if (!response.body) {
         throw new Error(`Provider [${this.id}] returned empty stream body`);
       }
@@ -166,7 +168,22 @@ export abstract class BaseProvider {
         usedNode,
       };
     } else {
-      const data = await response.json();
+      const text = await response.text();
+      let data: any;
+      try {
+        data = JSON.parse(text);
+      } catch (parseErr) {
+        // Fallback for SSE lines if provider returned streaming chunks
+        if (text.includes('data:')) {
+          const lines = text.split('\n').filter(l => l.startsWith('data:') && !l.includes('[DONE]'));
+          const lastLine = lines[lines.length - 1];
+          if (lastLine) {
+            data = JSON.parse(lastLine.replace(/^data:\s*/, ''));
+          }
+        }
+        if (!data) throw new Error(`Invalid JSON response from ${this.id}: ${text.slice(0, 150)}`);
+      }
+
       return {
         response: data as ChatCompletionResponse,
         usedKey: keyItem,
