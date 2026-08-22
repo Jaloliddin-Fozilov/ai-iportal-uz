@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { ModelSelector } from './ModelSelector';
 import { ChatAttachment } from '@/lib/core/types';
+import { extractTextFromFile } from '@/lib/utils/fileParser';
 
 interface ChatInputProps {
   onSendMessage: (message: string, attachments?: ChatAttachment[]) => void;
@@ -88,13 +89,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           });
           attachment.dataUrl = dataUrl;
         } else {
-          // Read text / code / document content
-          const text = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result as string);
-            reader.onerror = reject;
-            reader.readAsText(file);
-          });
+          // Read text / code / document content safely
+          const { text } = await extractTextFromFile(file);
           attachment.content = text;
         }
         newAttachments.push(attachment);

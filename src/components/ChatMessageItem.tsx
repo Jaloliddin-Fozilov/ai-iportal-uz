@@ -31,7 +31,7 @@ interface ChatMessageProps {
   provider?: string;
   node?: string;
   isStreaming?: boolean;
-  onRetry?: () => void;
+  onRetry?: (withoutAttachments?: boolean) => void;
 }
 
 export const ChatMessageItem: React.FC<ChatMessageProps> = ({
@@ -60,7 +60,16 @@ export const ChatMessageItem: React.FC<ChatMessageProps> = ({
     content.includes('yuqori yuklama') ||
     content.includes('rate_limit_exceeded') ||
     content.includes('Barcha bepul AI provayderlar') ||
-    content.includes('Request too large')
+    content.includes('Request too large') ||
+    content.includes('error:')
+  );
+
+  const isFileError = isErrorMessage && (
+    content.includes('fayl') || 
+    content.includes('file') || 
+    content.includes('Request too large') || 
+    content.includes('413') ||
+    content.includes('token')
   );
 
   // Parse <think>...</think> tags for reasoning mode
@@ -161,7 +170,7 @@ export const ChatMessageItem: React.FC<ChatMessageProps> = ({
               </button>
               {!isUser && onRetry && (
                 <button
-                  onClick={onRetry}
+                  onClick={() => onRetry(false)}
                   className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
                   title="Regenerate response"
                 >
@@ -268,32 +277,47 @@ export const ChatMessageItem: React.FC<ChatMessageProps> = ({
               </div>
             </div>
           ) : isErrorMessage ? (
-            /* Elegant, Friendly Error Notice Card with Retry Action */
-            <div className="my-2 max-w-xl p-4 sm:p-5 rounded-2xl bg-amber-500/5 border border-amber-500/20 text-slate-800 space-y-3">
+            /* Elegant, Friendly Error Notice Card with Retry & Action Options */
+            <div className="my-2 max-w-xl p-4 sm:p-5 rounded-2xl bg-amber-500/5 border border-amber-500/20 text-slate-800 space-y-3.5">
               <div className="flex items-start gap-3">
                 <div className="p-2 rounded-xl bg-amber-500/15 text-amber-600 shrink-0 mt-0.5">
                   <ShieldAlert className="w-5 h-5" />
                 </div>
                 <div className="space-y-1 min-w-0">
                   <h4 className="text-xs sm:text-sm font-bold text-slate-900">
-                    Neyrotizim ayni damda yuqori yuklama ostida
+                    {isFileError 
+                      ? "📄 Yuklangan Fayl Hajmi / Matni Katta"
+                      : "⚡️ Neyrotizim ayni damda yuqori yuklama ostida"}
                   </h4>
-                  <p className="text-xs text-slate-500 leading-relaxed">
-                    Kechirasiz, so'rovingizni qayta ishlashda vaqtinchalik to'siq yuzaga keldi. Iltimos, qayta urinib ko'ring yoki boshqa modelni tanlang.
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    {isFileError 
+                      ? "Yuklangan fayl (PDF/Hujjat) hajmi yoki matni neyrotizimning bitta so'rovdagi xotirasidan oshib ketdi. Faylsiz qayta urinib ko'rishingiz yoki fayl ichidagi kerakli matndan nusxa olib yuborishingiz mumkin."
+                      : "Kechirasiz, so'rovingizni qayta ishlashda vaqtinchalik to'siq yuzaga keldi. Iltimos, qayta urinib ko'ring yoki boshqa modelni tanlang."}
                   </p>
                 </div>
               </div>
 
               {onRetry && (
-                <div className="flex items-center gap-2 pt-1 pl-10">
+                <div className="flex flex-wrap items-center gap-2 pt-1 pl-10">
                   <button
                     type="button"
-                    onClick={onRetry}
+                    onClick={() => onRetry(false)}
                     className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-[#00d68f] to-[#059669] text-slate-950 font-bold text-xs hover:from-[#00c483] hover:to-[#04825b] shadow-xs transition-all cursor-pointer"
                   >
                     <RefreshCw className="w-3.5 h-3.5" />
                     <span>Qayta urinish</span>
                   </button>
+
+                  {isFileError && (
+                    <button
+                      type="button"
+                      onClick={() => onRetry(true)}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition-all cursor-pointer border border-slate-200"
+                      title="Faylni olib tashlab, faqat yozilgan matn bilan qayta yuborish"
+                    >
+                      <span>🗑 Faylsiz Qayta Urinish</span>
+                    </button>
+                  )}
                 </div>
               )}
             </div>

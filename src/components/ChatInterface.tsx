@@ -590,9 +590,11 @@ export const ChatInterface: React.FC = () => {
                     content={msg.content}
                     attachments={msg.attachments}
                     isStreaming={isStreaming && index === activeSession.messages.length - 1}
-                    onRetry={() => {
+                    onRetry={(withoutAttachments = false) => {
                       const lastUser = activeSession.messages.slice(0, index).reverse().find(m => m.role === 'user');
-                      if (lastUser) handleSendMessage(lastUser.content, lastUser.attachments);
+                      if (lastUser) {
+                        handleSendMessage(lastUser.content, withoutAttachments ? undefined : lastUser.attachments);
+                      }
                     }}
                   />
                 ))}
