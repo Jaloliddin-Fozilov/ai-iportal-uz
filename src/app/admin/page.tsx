@@ -586,8 +586,8 @@ export default function AdminPage() {
               </div>
             </div>
             <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-mono">
-              {(healthSummary?.totalRemainingRequests ?? 14400).toLocaleString()}{' '}
-              <span className="text-xs font-normal text-slate-400">/ {(healthSummary?.totalDailyCapacity ?? 14400).toLocaleString()}</span>
+              {(healthSummary?.totalRemainingRequests ?? 14400).toLocaleString('ru-RU')}{' '}
+              <span className="text-xs font-normal text-slate-400">/ {(healthSummary?.totalDailyCapacity ?? 14400).toLocaleString('ru-RU')}</span>
             </div>
             <div className="text-[11px] text-emerald-600 font-semibold">
               Klaster salomatligi: {healthSummary?.overallHealthPercent ?? 100}%
@@ -602,10 +602,10 @@ export default function AdminPage() {
               </div>
             </div>
             <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-mono">
-              {(stats?.totalTokens ?? 0).toLocaleString()}
+              {(stats?.totalTokens ?? 0).toLocaleString('ru-RU')}
             </div>
-            <div className="text-[11px] text-slate-400">
-              Qolgan bepul tokenlar: ~{(healthSummary?.totalRemainingTokens ?? 1000000).toLocaleString()}
+            <div className="text-[11px] text-slate-400 font-mono">
+              Qolgan bepul tokenlar: ~{(healthSummary?.totalRemainingTokens ?? 1000000).toLocaleString('ru-RU')}
             </div>
           </div>
 
@@ -982,17 +982,17 @@ export default function AdminPage() {
                           {item.maskedKey}
                         </td>
                         <td className="py-3.5 px-3 font-mono font-semibold text-slate-800">
-                          {item.dailyRequestsLimit.toLocaleString()} req/kun
+                          {item.dailyRequestsLimit.toLocaleString('ru-RU')} req/kun
                         </td>
                         <td className="py-3.5 px-3 font-mono text-slate-600">
-                          {item.usedRequests.toLocaleString()} req
+                          {item.usedRequests.toLocaleString('ru-RU')} req
                         </td>
                         <td className="py-3.5 px-3">
                           <div className="font-bold font-mono text-emerald-700 text-sm">
-                            ~{item.remainingRequests.toLocaleString()} req
+                            ~{item.remainingRequests.toLocaleString('ru-RU')} ta so'rov
                           </div>
-                          <div className="text-[10px] text-slate-400">
-                            ~{item.remainingTokens.toLocaleString()} token zaxira
+                          <div className="text-[10px] text-slate-400 font-mono">
+                            ~{item.remainingTokens.toLocaleString('ru-RU')} token zaxira
                           </div>
                         </td>
                         <td className="py-3.5 px-3 w-36">
