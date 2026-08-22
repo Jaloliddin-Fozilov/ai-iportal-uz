@@ -148,10 +148,32 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Smart Sliding Window: If chat history is huge (> 18,000 chars / ~4,500 tokens), preserve the latest turns
+    const systemSafeguard = composeSystemMessages(userCustomPrompt);
+    let trimmedDialogue: ChatMessage[] = nonSystemMessages;
+
+    const maxHistoryChars = 18000;
+    const totalChars = nonSystemMessages.reduce((acc, m) => acc + (m.content?.length || 0), 0);
+
+    if (totalChars > maxHistoryChars && nonSystemMessages.length > 2) {
+      const lastMsg = nonSystemMessages[nonSystemMessages.length - 1];
+      let currentLen = (lastMsg.content?.length || 0);
+      const kept: ChatMessage[] = [];
+
+      for (let i = nonSystemMessages.length - 2; i >= 0; i--) {
+        const msg = nonSystemMessages[i];
+        const len = msg.content?.length || 0;
+        if (currentLen + len > maxHistoryChars) break;
+        kept.unshift(msg);
+        currentLen += len;
+      }
+      trimmedDialogue = [...kept, lastMsg];
+    }
+
     // Always place composed system safeguard as first message
     body.messages = [
-      composeSystemMessages(userCustomPrompt),
-      ...nonSystemMessages,
+      systemSafeguard,
+      ...trimmedDialogue,
     ];
 
     const isStreaming = body.stream !== false;
