@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Square, Sliders, Sparkles, ShieldCheck } from 'lucide-react';
+import { Send, Square, Sliders, Sparkles, Plus, ArrowUp, Wand2 } from 'lucide-react';
+import { ModelSelector } from './ModelSelector';
 
 interface ChatInputProps {
   onSendMessage: (message: string) => void;
@@ -9,6 +10,8 @@ interface ChatInputProps {
   isStreaming: boolean;
   systemPrompt: string;
   onUpdateSystemPrompt: (prompt: string) => void;
+  selectedModel: string;
+  onSelectModel: (modelId: string) => void;
 }
 
 export const ChatInput: React.FC<ChatInputProps> = ({
@@ -17,6 +20,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   isStreaming,
   systemPrompt,
   onUpdateSystemPrompt,
+  selectedModel,
+  onSelectModel,
 }) => {
   const [input, setInput] = useState('');
   const [showSystemSettings, setShowSystemSettings] = useState(false);
@@ -25,7 +30,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`;
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 180)}px`;
     }
   }, [input]);
 
@@ -47,100 +52,113 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   };
 
   return (
-    <div className="w-full max-w-4xl mx-auto px-3 md:px-6 pb-4">
+    <div className="w-full max-w-4xl mx-auto px-3 sm:px-6 pb-4">
       {/* System prompt toggle modal / drawer */}
       {showSystemSettings && (
-        <div className="mb-3 p-3.5 rounded-2xl bg-[#0e1422] border border-[#1e293f] shadow-2xl animate-in fade-in space-y-2.5">
+        <div className="mb-3 p-4 rounded-2xl bg-white border border-emerald-200 shadow-xl shadow-emerald-500/10 animate-in fade-in space-y-2">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-xs font-semibold text-slate-200">
-              <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+            <div className="flex items-center gap-2 text-xs font-bold text-slate-800">
+              <Sparkles className="w-4 h-4 text-[#00d68f]" />
               <span>Shaxsiy Ko'rsatma (Ixtiyoriy)</span>
             </div>
             <button
               onClick={() => setShowSystemSettings(false)}
-              className="text-xs text-slate-400 hover:text-white"
+              className="text-xs text-slate-400 hover:text-slate-700 font-semibold"
             >
               Yopish
             </button>
           </div>
-          <p className="text-[11px] text-slate-400 leading-relaxed">
-            AI ga o'zingiz xohlagan qo'shimcha uslub yoki rolni belgilang (masalan: <em>"Python bo'yicha mutaxassis sifatida gapir"</em> yoki <em>"Javoblarni faqat punktlarda ber"</em>).
+          <p className="text-[11px] text-slate-500 leading-relaxed">
+            AI ga shaxsiy rol yoki maxsus talab belgilang (masalan: <em>"Python bo'yicha mutaxassis sifatida gapir"</em> yoki <em>"Javoblarni faqat punktlarda ber"</em>).
           </p>
           <textarea
             value={systemPrompt}
             onChange={(e) => onUpdateSystemPrompt(e.target.value)}
             rows={2}
-            className="w-full bg-[#070a12] border border-[#1a2337] rounded-xl p-2.5 text-xs text-slate-200 focus:outline-none focus:border-cyan-500 font-sans resize-none"
-            placeholder="AI modeliga shaxsiy ko'rsatmalaringizni yozing..."
+            className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none focus:border-[#00d68f] focus:ring-1 focus:ring-[#00d68f] font-sans resize-none"
+            placeholder="AI ga shaxsiy ko'rsatmalaringizni yozing..."
           />
         </div>
       )}
 
-      {/* Main Input Box */}
-      <div className="relative rounded-2xl bg-[#0d121f] border border-[#1a243a] shadow-2xl shadow-black/40 focus-within:border-cyan-500/50 focus-within:ring-1 focus-within:ring-cyan-500/20 transition-all">
-        <textarea
-          ref={textareaRef}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          rows={1}
-          placeholder="iportal-ai ga xabar yozing... (Enter — yuborish, Shift+Enter — yangi qator)"
-          className="w-full bg-transparent text-slate-100 placeholder-slate-500 px-4 pt-3.5 pb-12 focus:outline-none resize-none text-sm leading-relaxed max-h-48 overflow-y-auto"
-        />
+      {/* Main Floating Input Card (Mint Glow Card matching reference) */}
+      <div className="relative rounded-3xl bg-white border-2 border-[#bfeade] mint-input-glow transition-all p-2.5 sm:p-3 shadow-lg shadow-emerald-500/5">
+        <div className="flex items-start gap-2">
+          {/* Plus icon button on left */}
+          <button
+            type="button"
+            onClick={() => setShowSystemSettings(!showSystemSettings)}
+            className="p-2 rounded-full bg-slate-100 hover:bg-slate-200/80 text-slate-600 transition-colors shrink-0 mt-0.5"
+            title="Qo'shimcha sozlamalar"
+          >
+            <Plus className="w-4 h-4" />
+          </button>
 
-        {/* Bottom Actions Bar */}
-        <div className="absolute bottom-2.5 left-3 right-3 flex items-center justify-between pointer-events-none">
-          {/* Left tools */}
-          <div className="flex items-center gap-1.5 pointer-events-auto">
+          {/* Textarea */}
+          <textarea
+            ref={textareaRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            rows={1}
+            placeholder="Kod yozish, tahlil qilish, arxitektura tuzish va savollaringizni yozing..."
+            className="w-full bg-transparent text-slate-900 placeholder-slate-400 py-1.5 focus:outline-none resize-none text-xs sm:text-sm leading-relaxed max-h-40 overflow-y-auto"
+          />
+        </div>
+
+        {/* Bottom Toolbar inside input */}
+        <div className="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+          {/* Left tools: Model Selector pill & prompt button */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <ModelSelector
+              selectedModelId={selectedModel}
+              onSelectModel={onSelectModel}
+              compact
+            />
+
             <button
               type="button"
               onClick={() => setShowSystemSettings(!showSystemSettings)}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs transition-all cursor-pointer ${
+              className={`p-1.5 rounded-full transition-colors ${
                 showSystemSettings || systemPrompt.trim()
-                  ? 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/30'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-[#151c2d]'
+                  ? 'bg-emerald-100 text-emerald-700'
+                  : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100'
               }`}
-              title="Shaxsiy ko'rsatma sozlash"
+              title="Ko'rsatma"
             >
-              <Sliders className="w-3.5 h-3.5" />
-              <span className="text-[11px] font-medium hidden sm:inline">
-                {systemPrompt.trim() ? "Ko'rsatma faol" : "Ko'rsatma"}
-              </span>
+              <Wand2 className="w-3.5 h-3.5" />
             </button>
           </div>
 
-          {/* Right Action: Send or Stop */}
-          <div className="pointer-events-auto">
+          {/* Right send / stop button */}
+          <div>
             {isStreaming ? (
               <button
                 type="button"
                 onClick={onStop}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-500/90 hover:bg-red-600 text-white text-xs font-semibold shadow-md transition-all cursor-pointer"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-red-500 hover:bg-red-600 text-white text-xs font-bold shadow-md transition-all cursor-pointer"
               >
                 <Square className="w-3.5 h-3.5 fill-current" />
-                <span>To'xtatish</span>
+                <span>Stop</span>
               </button>
             ) : (
               <button
                 type="button"
                 onClick={() => handleSubmit()}
                 disabled={!input.trim()}
-                className={`p-2 rounded-xl text-white transition-all shadow-md cursor-pointer ${
+                className={`flex items-center gap-1.5 px-4 sm:px-5 py-2 rounded-full text-xs font-bold transition-all shadow-md cursor-pointer ${
                   input.trim()
-                    ? 'bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 shadow-blue-500/25'
-                    : 'bg-[#151c2d] text-slate-600 cursor-not-allowed'
+                    ? 'bg-[#00d68f] hover:bg-[#00bf80] text-slate-950 shadow-emerald-500/25 active:scale-95'
+                    : 'bg-slate-100 text-slate-400 cursor-not-allowed'
                 }`}
-                title="Xabar yuborish"
+                title="Yuborish"
               >
-                <Send className="w-4 h-4" />
+                <span>Send</span>
+                <ArrowUp className="w-3.5 h-3.5 stroke-[2.5]" />
               </button>
             )}
           </div>
         </div>
-      </div>
-
-      <div className="mt-2 text-center text-[11px] text-slate-500">
-        iportal-ai xatoliklarga yo'l qo'yishi mumkin. Muhim ma'lumotlarni tekshiring.
       </div>
     </div>
   );

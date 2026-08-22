@@ -2,13 +2,15 @@
 @import "katex/dist/katex.min.css";
 
 :root {
-  --background: #090b10;
-  --foreground: #f0f4f8;
-  --card-bg: #111522;
-  --border-color: #1e2638;
-  --accent: #3b82f6;
-  --accent-glow: rgba(59, 130, 246, 0.25);
-  --primary-gradient: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  --background: #edf3f0;
+  --foreground: #0f172a;
+  --card-bg: #ffffff;
+  --sidebar-bg: #f5f9f7;
+  --border-color: #e2ede7;
+  --mint-primary: #00d68f;
+  --mint-dark: #059669;
+  --mint-light: #e6fbf3;
+  --mint-glow: rgba(0, 214, 143, 0.25);
 }
 
 body {
@@ -18,10 +20,10 @@ body {
   overflow-x: hidden;
 }
 
-/* Custom Scrollbar */
+/* Custom Smooth Scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
@@ -29,33 +31,44 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #232b3e;
-  border-radius: 4px;
+  background: #cbd5e1;
+  border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #333f5c;
+  background: #94a3b8;
 }
 
-/* Glassmorphism Classes */
-.glass-panel {
-  background: rgba(17, 21, 34, 0.85);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+/* Ambient Mint Glow Animations */
+@keyframes orb-pulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 40px rgba(0, 214, 143, 0.35), 0 0 80px rgba(0, 214, 143, 0.15);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 0 60px rgba(0, 214, 143, 0.55), 0 0 110px rgba(0, 214, 143, 0.25);
+  }
 }
 
-.glass-dropdown {
-  background: rgba(13, 17, 28, 0.95);
-  backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+.animate-orb-glow {
+  animation: orb-pulse 4s infinite ease-in-out;
 }
 
-/* Markdown Typography */
+/* Light Card Shadows */
+.mint-card-shadow {
+  box-shadow: 0 10px 30px -5px rgba(0, 214, 143, 0.08), 0 4px 15px -2px rgba(15, 23, 42, 0.04);
+}
+
+.mint-input-glow {
+  box-shadow: 0 0 0 4px rgba(0, 214, 143, 0.12), 0 12px 30px -5px rgba(0, 214, 143, 0.1);
+}
+
+/* Markdown Typography (Clean High-Contrast) */
 .markdown-body {
-  font-size: 0.96rem;
+  font-size: 0.94rem;
   line-height: 1.68;
-  color: #e2e8f0;
+  color: #1e293b;
   word-break: break-word;
 }
 
@@ -71,15 +84,16 @@ body {
 .markdown-body h2,
 .markdown-body h3,
 .markdown-body h4 {
-  color: #ffffff;
+  color: #0f172a;
   font-weight: 700;
   margin-top: 1.2em;
   margin-bottom: 0.5em;
+  letter-spacing: -0.02em;
 }
 
-.markdown-body h1 { font-size: 1.45rem; border-bottom: 1px solid #1e2638; padding-bottom: 0.3em; }
-.markdown-body h2 { font-size: 1.25rem; }
-.markdown-body h3 { font-size: 1.1rem; }
+.markdown-body h1 { font-size: 1.35rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.3em; }
+.markdown-body h2 { font-size: 1.2rem; }
+.markdown-body h3 { font-size: 1.05rem; }
 
 .markdown-body ul,
 .markdown-body ol {
@@ -96,101 +110,47 @@ body {
 }
 
 .markdown-body blockquote {
-  border-left: 3px solid #3b82f6;
+  border-left: 3px solid #00d68f;
   padding-left: 1rem;
   margin: 0.8em 0;
-  color: #94a3b8;
-  font-style: italic;
+  color: #475569;
+  background: #f8fafc;
+  padding-top: 0.4em;
+  padding-bottom: 0.4em;
+  border-radius: 0 8px 8px 0;
 }
 
 .markdown-body table {
   width: 100%;
   border-collapse: collapse;
   margin: 1em 0;
-  font-size: 0.9rem;
+  font-size: 0.88rem;
 }
 
 .markdown-body th,
 .markdown-body td {
-  border: 1px solid #242e44;
+  border: 1px solid #e2e8f0;
   padding: 8px 12px;
   text-align: left;
 }
 
 .markdown-body th {
-  background: #161c2d;
+  background: #f8fafc;
   font-weight: 600;
-  color: #f1f5f9;
+  color: #0f172a;
 }
 
 .markdown-body tr:nth-child(even) {
-  background: #0f1422;
+  background: #f8fafc;
 }
 
 .markdown-body code:not(pre code) {
-  background: rgba(59, 130, 246, 0.15);
-  color: #93c5fd;
-  padding: 0.2em 0.4em;
-  border-radius: 4px;
+  background: #ecfdf5;
+  color: #047857;
+  padding: 0.2em 0.45em;
+  border-radius: 6px;
   font-size: 0.88em;
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
-}
-
-/* Pulsing glow animation */
-@keyframes pulse-glow {
-  0%, 100% {
-    box-shadow: 0 0 15px rgba(59, 130, 246, 0.4);
-  }
-  50% {
-    box-shadow: 0 0 30px rgba(139, 92, 246, 0.7);
-  }
-}
-
-.animate-pulse-glow {
-  animation: pulse-glow 3s infinite ease-in-out;
-}
-
-/* Webmail Message Rendering */
-.mail-content-frame {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  color: #e2e8f0;
-  font-size: 0.92rem;
-  line-height: 1.6;
-}
-
-.mail-content-frame a {
-  color: #38bdf8 !important;
-  text-decoration: underline;
-  word-break: break-all;
+  border: 1px solid #d1fae5;
   font-weight: 500;
 }
-
-.mail-content-frame a:hover {
-  color: #7dd3fc !important;
-}
-
-.mail-content-frame table {
-  color: inherit !important;
-}
-
-.mail-content-frame h1, 
-.mail-content-frame h2, 
-.mail-content-frame h3 {
-  color: #ffffff !important;
-  font-weight: 700;
-  margin-top: 0.8em;
-  margin-bottom: 0.4em;
-}
-
-.blocked-image-badge {
-  display: inline-block;
-  padding: 2px 8px;
-  margin: 4px 0;
-  font-size: 11px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px dashed rgba(255, 255, 255, 0.2);
-  border-radius: 6px;
-  color: #94a3b8;
-  font-family: monospace;
-}
-

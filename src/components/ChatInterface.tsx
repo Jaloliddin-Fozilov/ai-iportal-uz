@@ -7,17 +7,20 @@ import {
   Brain, 
   Code, 
   Zap, 
-  DollarSign, 
-  Gift, 
   Key, 
   BookOpen, 
   ShieldAlert,
-  ShieldCheck,
-  Cpu
+  Compass,
+  Terminal,
+  Cpu,
+  Layers,
+  Activity,
+  Globe,
+  Sliders,
+  DollarSign
 } from 'lucide-react';
 import Link from 'next/link';
 import { Sidebar } from './Sidebar';
-import { ModelSelector } from './ModelSelector';
 import { ChatMessageItem } from './ChatMessageItem';
 import { ChatInput } from './ChatInput';
 import { AuthModal } from './AuthModal';
@@ -40,6 +43,9 @@ export const ChatInterface: React.FC = () => {
   const [isStreaming, setIsStreaming] = useState(false);
   const [systemPrompt, setSystemPrompt] = useState('');
   const [abortController, setAbortController] = useState<AbortController | null>(null);
+
+  // Top nav active tab
+  const [activeNavTab, setActiveNavTab] = useState<'chat' | 'docs' | 'keys'>('chat');
 
   // Modals
   const [authModalOpen, setAuthModalOpen] = useState(false);
@@ -197,10 +203,8 @@ export const ChatInterface: React.FC = () => {
     setAbortController(controller);
 
     try {
-      // Build messages payload for OpenAI standard endpoint
       const messagesPayload: { role: string; content: string }[] = [];
 
-      // User custom prompt if set in UI
       if (systemPrompt.trim()) {
         messagesPayload.push({
           role: 'system',
@@ -208,7 +212,6 @@ export const ChatInterface: React.FC = () => {
         });
       }
 
-      // Add recent chat context (up to 12 messages)
       const contextMessages = activeSession.messages
         .filter(m => m.id !== assistantMessageId)
         .slice(-12)
@@ -306,7 +309,6 @@ export const ChatInterface: React.FC = () => {
 
       saveStoredSessions(sessions);
 
-      // Refresh balance after stream
       if (authToken) {
         fetch('/api/auth/me', { headers: { Authorization: `Bearer ${authToken}` } })
           .then(res => res.json())
@@ -330,202 +332,261 @@ export const ChatInterface: React.FC = () => {
     }
   };
 
-  const promptSuggestions = [
+  const quickCategories = [
     {
-      title: 'Dasturlash va REST API',
-      desc: 'FastAPI va SQLite bilan xavfsiz REST API loyihasini yaratib ber',
+      title: 'Dasturlash & Kod',
+      prompt: 'FastAPI va SQLite bilan xavfsiz REST API loyihasini yaratib ber',
       model: 'iportal-ai-coder',
-      icon: <Code className="w-4 h-4 text-emerald-400" />,
+      icon: <Code className="w-3.5 h-3.5 text-emerald-600" />,
     },
     {
-      title: 'Mantiqiy va Ilmiy Tahlil',
-      desc: 'Kvant hisoblash va sun\'iy intellektning kelajakdagi integratsiyasi haqida tahlil',
-      model: 'iportal-ai-reasoning',
-      icon: <Brain className="w-4 h-4 text-purple-400" />,
-    },
-    {
-      title: 'Tezkor Savol-Javob',
-      desc: 'O\'zbekiston IT ekotizimining eng so\'nggi yutuqlari va startap imkoniyatlari',
-      model: 'iportal-ai-fast',
-      icon: <Zap className="w-4 h-4 text-amber-400" />,
-    },
-    {
-      title: 'Chuqur Tadqiqot va Biznes',
-      desc: 'Zamonaviy SaaS loyihasi uchun biznes model va arxitektura rejasini tuzib ber',
+      title: 'Biznes & Tahlil',
+      prompt: 'Yangi startap loyihasi uchun biznes reja va moliyaviy model tuzib ber',
       model: 'iportal-ai-pro',
-      icon: <Sparkles className="w-4 h-4 text-cyan-400" />,
+      icon: <Compass className="w-3.5 h-3.5 text-blue-600" />,
+    },
+    {
+      title: 'Chuqur Mantiq',
+      prompt: 'Kvant hisoblash va sun\'iy intellekt integratsiyasini bosqichma-bosqich tahlil qil',
+      model: 'iportal-ai-reasoning',
+      icon: <Brain className="w-3.5 h-3.5 text-purple-600" />,
+    },
+    {
+      title: 'Tezkor Savol',
+      prompt: 'O\'zbekiston IT ekotizimining eng so\'nggi yutuqlari nimalar?',
+      model: 'iportal-ai-fast',
+      icon: <Zap className="w-3.5 h-3.5 text-amber-600" />,
+    },
+    {
+      title: 'Matn & Maqola',
+      prompt: 'Zamonaviy texnologiyalar haqida professional ilmiy maqola yozib ber',
+      model: 'iportal-ai',
+      icon: <Sparkles className="w-3.5 h-3.5 text-emerald-500" />,
     },
   ];
 
+  const officialBots = [
+    { name: 'Flagship 120B', type: 'Flagship Core', icon: <Cpu className="w-4 h-4 text-emerald-600" /> },
+    { name: 'Coder 120B', type: 'Software Master', icon: <Code className="w-4 h-4 text-blue-600" /> },
+    { name: 'Logic 27B', type: 'Deep Reasoning', icon: <Brain className="w-4 h-4 text-purple-600" /> },
+    { name: 'Turbo 20B', type: 'High Speed', icon: <Zap className="w-4 h-4 text-amber-600" /> },
+    { name: 'Research Pro', type: 'Deep Knowledge', icon: <Sparkles className="w-4 h-4 text-cyan-600" /> },
+    { name: 'Edge Mesh', type: 'Global Routing', icon: <Globe className="w-4 h-4 text-slate-700" /> },
+  ];
+
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-[#06090e] text-slate-100 font-sans">
-      {/* Sidebar */}
-      <Sidebar
-        isOpen={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        sessions={sessions}
-        activeSessionId={activeSessionId}
-        onSelectSession={handleSelectSession}
-        onNewChat={handleNewChat}
-        onDeleteSession={handleDeleteSession}
-        onOpenApiKeys={() => setApiKeysModalOpen(true)}
-        onOpenDocs={() => setDocsModalOpen(true)}
-        onOpenAuth={() => setAuthModalOpen(true)}
-        currentUser={currentUser}
-        onLogout={handleLogout}
-      />
+    <div className="flex h-screen w-screen overflow-hidden bg-[#edf3f0] text-slate-900 font-sans p-2 sm:p-3 md:p-4">
+      {/* Outer Rounded Application Frame (Sorin Style) */}
+      <div className="flex-1 flex overflow-hidden rounded-3xl bg-white border border-[#dce8e2] shadow-2xl shadow-emerald-900/5">
+        {/* Left Sidebar */}
+        <Sidebar
+          isOpen={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+          sessions={sessions}
+          activeSessionId={activeSessionId}
+          onSelectSession={handleSelectSession}
+          onNewChat={handleNewChat}
+          onDeleteSession={handleDeleteSession}
+          onOpenApiKeys={() => setApiKeysModalOpen(true)}
+          onOpenDocs={() => setDocsModalOpen(true)}
+          onOpenAuth={() => setAuthModalOpen(true)}
+          currentUser={currentUser}
+          onLogout={handleLogout}
+          onSelectModelPreset={(m) => {
+            handleSelectModel(m);
+            handleNewChat();
+          }}
+        />
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-[#06090e]">
-        {/* Top Navbar */}
-        <header className="h-16 border-b border-[#141b2c] bg-[#080c14]/85 backdrop-blur-md px-3 md:px-6 flex items-center justify-between z-10 shrink-0">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="md:hidden p-2 text-slate-400 hover:text-white rounded-xl hover:bg-[#111726] transition-colors"
-            >
-              <Menu className="w-5 h-5" />
-            </button>
-
-            {/* Model Selector */}
-            <ModelSelector
-              selectedModelId={selectedModel}
-              onSelectModel={handleSelectModel}
-            />
-          </div>
-
-          {/* Right Header Controls */}
-          <div className="flex items-center gap-2">
-            {/* User Balance or Free $5 register banner */}
-            {currentUser ? (
+        {/* Main Canvas Area */}
+        <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-white">
+          {/* Top Navbar matching Sorin layout */}
+          <header className="h-16 border-b border-[#edf3f0] px-4 sm:px-6 flex items-center justify-between z-10 shrink-0 bg-white/90 backdrop-blur-md">
+            {/* Left: Brand Logo & Mobile Toggle */}
+            <div className="flex items-center gap-3">
               <button
-                onClick={() => setApiKeysModalOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-950/40 border border-emerald-500/30 text-emerald-400 text-xs font-mono font-bold hover:bg-emerald-900/40 transition-all cursor-pointer shadow-sm"
-                title="Sizning balansingiz"
+                onClick={() => setSidebarOpen(true)}
+                className="md:hidden p-2 text-slate-600 hover:text-slate-900 rounded-xl hover:bg-slate-100 transition-colors"
               >
-                <DollarSign className="w-3.5 h-3.5" />
-                <span>${currentUser.balance?.toFixed(2) ?? '5.00'}</span>
+                <Menu className="w-5 h-5" />
               </button>
-            ) : (
-              <button
-                onClick={() => setAuthModalOpen(true)}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white text-xs font-semibold shadow-md shadow-blue-500/20 transition-all cursor-pointer"
-              >
-                <Gift className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">$5.00 Bepul Balans</span>
-                <span className="sm:hidden">Kirish</span>
-              </button>
-            )}
 
-            {/* Admin Panel quick button if admin */}
-            {currentUser?.role === 'admin' && (
-              <Link
-                href="/admin"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-950/40 border border-purple-500/40 text-purple-300 text-xs font-semibold hover:bg-purple-900/40 transition-colors"
-                title="Admin Boshqaruv Markazi"
-              >
-                <ShieldAlert className="w-3.5 h-3.5 text-purple-400" />
-                <span className="hidden md:inline">Admin</span>
-              </Link>
-            )}
-
-            {/* API Keys quick button */}
-            <button
-              onClick={() => setApiKeysModalOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#0e1422] hover:bg-[#141c2c] border border-[#1b253b] text-xs text-amber-300 hover:text-white transition-all cursor-pointer"
-              title="API Kalitlar"
-            >
-              <Key className="w-3.5 h-3.5 text-amber-400" />
-              <span className="hidden md:inline font-medium text-xs">API Key</span>
-            </button>
-
-            {/* Docs quick button */}
-            <button
-              onClick={() => setDocsModalOpen(true)}
-              className="p-2 rounded-xl bg-[#0e1422] hover:bg-[#141c2c] border border-[#1b253b] text-slate-400 hover:text-white transition-all cursor-pointer"
-              title="Qo'llanma"
-            >
-              <BookOpen className="w-4 h-4 text-cyan-400" />
-            </button>
-          </div>
-        </header>
-
-        {/* Chat Messages List / Welcome Screen */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden">
-          {activeSession && activeSession.messages.length > 0 ? (
-            <div className="pb-8">
-              {activeSession.messages.map((msg, index) => (
-                <ChatMessageItem
-                  key={msg.id || index}
-                  role={msg.role}
-                  content={msg.content}
-                  isStreaming={isStreaming && index === activeSession.messages.length - 1}
-                  onRetry={() => {
-                    const lastUser = activeSession.messages.slice(0, index).reverse().find(m => m.role === 'user');
-                    if (lastUser) handleSendMessage(lastUser.content);
-                  }}
-                />
-              ))}
-              <div ref={messagesEndRef} />
-            </div>
-          ) : (
-            /* Welcome Hero Screen */
-            <div className="max-w-4xl mx-auto px-4 py-10 md:py-20 flex flex-col items-center justify-center text-center space-y-6">
-              <div className="relative">
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-500 flex items-center justify-center shadow-2xl shadow-blue-500/25 border border-blue-400/30">
-                  <Sparkles className="w-8 h-8 text-white" />
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-full bg-[#00d68f] flex items-center justify-center text-slate-950 shadow-md shadow-emerald-500/20">
+                  <Globe className="w-5 h-5 text-slate-950 stroke-[2.2]" />
+                </div>
+                <div className="hidden sm:block">
+                  <span className="font-extrabold text-base text-slate-900 tracking-tight">
+                    iportal-ai
+                  </span>
                 </div>
               </div>
-
-              <div className="space-y-3">
-                <h1 className="text-3xl md:text-5xl font-extrabold text-white tracking-tight leading-tight">
-                  <span className="bg-gradient-to-r from-blue-400 via-indigo-200 to-cyan-300 bg-clip-text text-transparent">
-                    iportal-ai
-                  </span>{' '}
-                  Neyron Platformasi
-                </h1>
-                <p className="text-xs md:text-sm text-slate-400 max-w-lg mx-auto leading-relaxed">
-                  Dasturlash, tahlil, ilm-fan va kundalik vazifalar uchun yuksak intellektli milliy yordamchi.
-                </p>
-              </div>
-
-              {/* Suggestion Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 w-full max-w-2xl mt-4 text-left">
-                {promptSuggestions.map((item, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => {
-                      handleSelectModel(item.model);
-                      handleSendMessage(item.desc);
-                    }}
-                    className="p-4 rounded-2xl bg-[#0c101c] hover:bg-[#111728] border border-[#172138] hover:border-cyan-500/40 transition-all text-left group cursor-pointer shadow-lg shadow-black/30"
-                  >
-                    <div className="flex items-center gap-2.5 mb-1.5">
-                      <div className="p-1.5 rounded-lg bg-[#141b2c] border border-[#1f2a42]">
-                        {item.icon}
-                      </div>
-                      <span className="font-semibold text-xs text-white group-hover:text-cyan-300 transition-colors">
-                        {item.title}
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-slate-400 line-clamp-2 leading-relaxed">
-                      {item.desc}
-                    </p>
-                  </button>
-                ))}
-              </div>
             </div>
-          )}
-        </div>
 
-        {/* Bottom Input Field */}
-        <ChatInput
-          onSendMessage={handleSendMessage}
-          onStop={handleStopGeneration}
-          isStreaming={isStreaming}
-          systemPrompt={systemPrompt}
-          onUpdateSystemPrompt={handleUpdateSystemPrompt}
-        />
+            {/* Center Segmented Navigation Pills */}
+            <div className="hidden md:flex items-center gap-1 p-1 bg-[#f3f7f5] rounded-full border border-[#e2ece6]">
+              <button
+                onClick={() => setActiveNavTab('chat')}
+                className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                  activeNavTab === 'chat'
+                    ? 'bg-white text-slate-900 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                AI Chatbot
+              </button>
+              <button
+                onClick={() => { setActiveNavTab('docs'); setDocsModalOpen(true); }}
+                className="px-4 py-1.5 rounded-full text-xs font-semibold text-slate-600 hover:text-slate-900 transition-all cursor-pointer"
+              >
+                Qo'llanma
+              </button>
+              <button
+                onClick={() => { setActiveNavTab('keys'); setApiKeysModalOpen(true); }}
+                className="px-4 py-1.5 rounded-full text-xs font-semibold text-slate-600 hover:text-slate-900 transition-all cursor-pointer"
+              >
+                API & Balans
+              </button>
+            </div>
+
+            {/* Right Controls: Balance + User Avatar */}
+            <div className="flex items-center gap-2">
+              {/* Balance pill */}
+              <button
+                onClick={() => setApiKeysModalOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#f3f7f5] hover:bg-[#e7f0ec] text-slate-800 text-xs font-bold transition-colors cursor-pointer border border-[#e2ece6]"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                <span>${currentUser?.balance?.toFixed(2) ?? '5.00'}</span>
+              </button>
+
+              {/* User Avatar */}
+              {currentUser ? (
+                <div 
+                  onClick={() => setApiKeysModalOpen(true)}
+                  className="flex items-center gap-2 pl-2 cursor-pointer"
+                >
+                  <div className="w-8 h-8 rounded-full bg-slate-800 text-white flex items-center justify-center text-xs font-bold shadow-xs">
+                    {currentUser.name?.[0]?.toUpperCase() || 'U'}
+                  </div>
+                  <span className="text-xs font-semibold text-slate-700 hidden lg:inline truncate max-w-[100px]">
+                    {currentUser.name}
+                  </span>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setAuthModalOpen(true)}
+                  className="flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-sm transition-all cursor-pointer"
+                >
+                  <span>Kirish</span>
+                </button>
+              )}
+            </div>
+          </header>
+
+          {/* Main Messages List / Sorin Hero Screen */}
+          <div className="flex-1 overflow-y-auto overflow-x-hidden relative flex flex-col justify-between">
+            {activeSession && activeSession.messages.length > 0 ? (
+              <div className="pb-8">
+                {activeSession.messages.map((msg, index) => (
+                  <ChatMessageItem
+                    key={msg.id || index}
+                    role={msg.role}
+                    content={msg.content}
+                    isStreaming={isStreaming && index === activeSession.messages.length - 1}
+                    onRetry={() => {
+                      const lastUser = activeSession.messages.slice(0, index).reverse().find(m => m.role === 'user');
+                      if (lastUser) handleSendMessage(lastUser.content);
+                    }}
+                  />
+                ))}
+                <div ref={messagesEndRef} />
+              </div>
+            ) : (
+              /* Sorin-style Hero Screen */
+              <div className="flex-1 flex flex-col items-center justify-center px-4 py-8 md:py-12 max-w-4xl mx-auto w-full text-center space-y-6">
+                {/* Central Glowing Mint Orb */}
+                <div className="relative my-2">
+                  <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-[#00d68f] via-[#059669] to-[#10b981] flex items-center justify-center text-white shadow-2xl animate-orb-glow">
+                    <Globe className="w-10 h-10 text-white stroke-[2]" />
+                  </div>
+                </div>
+
+                {/* Headline: "Hey, I'm iportal. How can I help you today?" */}
+                <div className="space-y-2">
+                  <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight">
+                    Hey, I'm{' '}
+                    <span className="text-[#00d68f]">
+                      iportal
+                    </span>
+                    . How can I help you today?
+                  </h1>
+                </div>
+
+                {/* Category Suggestion Pills */}
+                <div className="flex flex-wrap items-center justify-center gap-2 pt-2 max-w-2xl">
+                  {quickCategories.map((cat, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => {
+                        handleSelectModel(cat.model);
+                        handleSendMessage(cat.prompt);
+                      }}
+                      className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 border border-slate-200 text-xs font-semibold shadow-2xs hover:shadow-xs transition-all cursor-pointer active:scale-95"
+                    >
+                      {cat.icon}
+                      <span>{cat.title}</span>
+                    </button>
+                  ))}
+                </div>
+
+                {/* Chat Input Floating Card placed in center on empty state */}
+                <div className="w-full pt-4">
+                  <ChatInput
+                    onSendMessage={handleSendMessage}
+                    onStop={handleStopGeneration}
+                    isStreaming={isStreaming}
+                    systemPrompt={systemPrompt}
+                    onUpdateSystemPrompt={handleUpdateSystemPrompt}
+                    selectedModel={selectedModel}
+                    onSelectModel={handleSelectModel}
+                  />
+                </div>
+
+                {/* Bottom Official Bots / Clusters Icons Row (Matching reference image) */}
+                <div className="pt-6 space-y-3">
+                  <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                    Official Bots & Neural Cluster
+                  </div>
+                  <div className="flex items-center justify-center gap-2.5 sm:gap-3.5 flex-wrap">
+                    {officialBots.map((bot, idx) => (
+                      <div
+                        key={idx}
+                        className="group relative p-2.5 rounded-2xl bg-white hover:bg-emerald-50/60 border border-slate-200/90 hover:border-emerald-300 shadow-2xs hover:shadow-sm transition-all cursor-pointer"
+                        title={`${bot.name} — ${bot.type}`}
+                      >
+                        {bot.icon}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* If messages exist, keep input at the bottom */}
+            {activeSession && activeSession.messages.length > 0 && (
+              <ChatInput
+                onSendMessage={handleSendMessage}
+                onStop={handleStopGeneration}
+                isStreaming={isStreaming}
+                systemPrompt={systemPrompt}
+                onUpdateSystemPrompt={handleUpdateSystemPrompt}
+                selectedModel={selectedModel}
+                onSelectModel={handleSelectModel}
+              />
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Modals */}

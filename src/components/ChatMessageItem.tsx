@@ -5,7 +5,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
-import { Bot, User, Copy, Check, ChevronDown, ChevronRight, BrainCircuit, Sparkles, RefreshCw } from 'lucide-react';
+import { User, Copy, Check, ChevronDown, ChevronRight, BrainCircuit, Sparkles, RefreshCw } from 'lucide-react';
 import { CodeBlock } from './CodeBlock';
 
 interface ChatMessageProps {
@@ -56,38 +56,38 @@ export const ChatMessageItem: React.FC<ChatMessageProps> = ({
 
   return (
     <div
-      className={`group w-full border-b transition-colors duration-200 ${
+      className={`group w-full transition-colors duration-200 py-3 sm:py-4 ${
         isUser
-          ? 'bg-transparent border-[#151c2e]/60'
-          : 'bg-[#0a0d16]/70 border-[#151c2e]/80'
+          ? 'bg-transparent'
+          : 'bg-[#fafcfb] border-y border-[#eaf2ee]'
       }`}
     >
-      <div className="max-w-4xl mx-auto px-4 md:px-6 py-5 flex gap-4 md:gap-5">
+      <div className="max-w-4xl mx-auto px-4 md:px-6 flex gap-3.5 md:gap-4.5">
         {/* Avatar */}
         <div className="shrink-0 pt-0.5">
           {isUser ? (
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-slate-700 to-slate-600 flex items-center justify-center text-white text-xs font-semibold shadow-sm border border-slate-500/30">
+            <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-white text-xs font-semibold shadow-sm">
               <User className="w-4 h-4 text-slate-200" />
             </div>
           ) : (
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 to-cyan-500 flex items-center justify-center text-white shadow-md shadow-blue-500/20 border border-blue-400/30">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#00d68f] to-[#059669] flex items-center justify-center text-white shadow-md shadow-emerald-500/20">
               <Sparkles className="w-4 h-4 text-white" />
             </div>
           )}
         </div>
 
         {/* Content Body */}
-        <div className="flex-1 min-w-0 space-y-2.5">
+        <div className="flex-1 min-w-0 space-y-2">
           {/* Header row */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="font-semibold text-xs text-slate-200 tracking-tight">
+              <span className="font-bold text-xs text-slate-900 tracking-tight">
                 {isUser ? 'Siz' : 'iportal-ai'}
               </span>
               {!isUser && (
-                <span className="inline-flex items-center gap-1 text-[10px] text-cyan-400/90 font-medium px-1.5 py-0.2 rounded bg-cyan-950/40 border border-cyan-500/20">
-                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-                  Intellekt
+                <span className="inline-flex items-center gap-1 text-[10px] text-emerald-700 font-semibold px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200/60">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#00d68f] animate-pulse" />
+                  Neyron Intellekt
                 </span>
               )}
             </div>
@@ -96,15 +96,15 @@ export const ChatMessageItem: React.FC<ChatMessageProps> = ({
             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
               <button
                 onClick={handleCopy}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-[#161f32] transition-colors"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
                 title="Nusxa olish"
               >
-                {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
               </button>
               {!isUser && onRetry && (
                 <button
                   onClick={onRetry}
-                  className="p-1 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-[#161f32] transition-colors"
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
                   title="Qayta generatsiya qilish"
                 >
                   <RefreshCw className="w-3.5 h-3.5" />
@@ -115,23 +115,23 @@ export const ChatMessageItem: React.FC<ChatMessageProps> = ({
 
           {/* Reasoning / Thinking Box */}
           {thinkingContent && (
-            <div className="rounded-xl border border-indigo-900/30 bg-gradient-to-r from-indigo-950/20 to-blue-950/20 overflow-hidden mb-2">
+            <div className="rounded-xl border border-emerald-200/80 bg-emerald-50/40 overflow-hidden mb-2">
               <button
                 type="button"
                 onClick={() => setShowThinking(!showThinking)}
-                className="w-full flex items-center justify-between px-3 py-2 text-xs text-indigo-300/90 hover:bg-indigo-950/40 transition-colors cursor-pointer"
+                className="w-full flex items-center justify-between px-3 py-2 text-xs text-emerald-800 hover:bg-emerald-100/40 transition-colors cursor-pointer"
               >
                 <div className="flex items-center gap-2">
-                  <BrainCircuit className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-                  <span className="font-medium text-[11px]">
+                  <BrainCircuit className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  <span className="font-semibold text-[11px]">
                     Fikrlash jarayoni (Mulohaza)
                   </span>
                 </div>
-                {showThinking ? <ChevronDown className="w-3.5 h-3.5 text-indigo-400" /> : <ChevronRight className="w-3.5 h-3.5 text-indigo-400" />}
+                {showThinking ? <ChevronDown className="w-3.5 h-3.5 text-emerald-600" /> : <ChevronRight className="w-3.5 h-3.5 text-emerald-600" />}
               </button>
 
               {showThinking && (
-                <div className="px-3 pb-3 pt-1 border-t border-indigo-900/20 text-xs text-indigo-200/70 font-mono whitespace-pre-wrap leading-relaxed max-h-60 overflow-y-auto">
+                <div className="px-3 pb-3 pt-1 border-t border-emerald-200/60 text-xs text-emerald-950 font-mono whitespace-pre-wrap leading-relaxed max-h-60 overflow-y-auto">
                   {thinkingContent}
                 </div>
               )}
@@ -140,11 +140,11 @@ export const ChatMessageItem: React.FC<ChatMessageProps> = ({
 
           {/* Main Message Text / Markdown */}
           {isUser ? (
-            <div className="text-sm text-slate-100 whitespace-pre-wrap leading-relaxed font-normal">
+            <div className="text-sm text-slate-800 whitespace-pre-wrap leading-relaxed font-normal bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-xs inline-block max-w-3xl">
               {content}
             </div>
           ) : (
-            <div className="markdown-body text-sm leading-relaxed text-slate-200">
+            <div className="markdown-body text-sm leading-relaxed text-slate-800">
               {mainContent ? (
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm, remarkMath]}
@@ -171,7 +171,7 @@ export const ChatMessageItem: React.FC<ChatMessageProps> = ({
                       }
 
                       return (
-                        <code className="px-1.5 py-0.5 rounded bg-blue-950/50 text-blue-300 font-mono text-[12px] border border-blue-900/40" {...props}>
+                        <code className="px-1.5 py-0.5 rounded-md bg-emerald-50 text-emerald-700 font-mono text-[12px] border border-emerald-200/80 font-medium" {...props}>
                           {children}
                         </code>
                       );
@@ -181,8 +181,8 @@ export const ChatMessageItem: React.FC<ChatMessageProps> = ({
                   {mainContent}
                 </ReactMarkdown>
               ) : isStreaming ? (
-                <div className="flex items-center gap-1.5 py-1 text-xs text-cyan-400 font-medium">
-                  <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+                <div className="flex items-center gap-2 py-1 text-xs text-emerald-600 font-semibold">
+                  <span className="w-2 h-2 rounded-full bg-[#00d68f] animate-ping" />
                   <span>Javob tayyorlanmoqda...</span>
                 </div>
               ) : null}
