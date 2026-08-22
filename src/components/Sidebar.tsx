@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { ChatSession } from '@/lib/storage/clientChatStore';
+import { AIOrb } from './AIOrb';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -90,9 +91,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* Header / Brand in mobile */}
         <div className="h-16 px-4 border-b border-[#e3ede8] flex items-center justify-between md:hidden">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#00d68f] to-[#059669] flex items-center justify-center text-white shadow-md shadow-emerald-500/20">
-              <Sparkles className="w-4 h-4" />
-            </div>
+            <AIOrb size="sm" />
             <span className="font-extrabold text-sm text-slate-900 tracking-tight">iportal-ai</span>
           </div>
           <button

@@ -26,6 +26,7 @@ import { AuthModal } from './AuthModal';
 import { ApiKeysModal } from './ApiKeysModal';
 import { DocsModal } from './DocsModal';
 import { LibraryModal } from './LibraryModal';
+import { AIOrb } from './AIOrb';
 import { 
   ChatSession, 
   getStoredSessions, 
@@ -515,22 +516,12 @@ export const ChatInterface: React.FC = () => {
               </button>
 
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-full bg-[#00d68f] flex items-center justify-center text-slate-950 shadow-md shadow-emerald-500/20">
-                  <Globe className="w-5 h-5 text-slate-950 stroke-[2.2]" />
-                </div>
+                <AIOrb size="sm" />
                 <div className="hidden sm:block">
                   <span className="font-extrabold text-base text-slate-900 tracking-tight">
                     iportal-ai
                   </span>
                 </div>
-              </div>
-            </div>
-
-            {/* Center: Clean Single Pill [AI Chatbot] */}
-            <div className="hidden md:flex items-center">
-              <div className="px-4 py-1.5 rounded-full bg-[#f3f7f5] text-slate-900 text-xs font-bold border border-[#e2ece6] shadow-xs flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-[#00d68f] animate-pulse" />
-                <span>AI Chatbot</span>
               </div>
             </div>
 
@@ -589,11 +580,9 @@ export const ChatInterface: React.FC = () => {
             ) : (
               /* Hero Screen */
               <div className="flex-1 flex flex-col items-center justify-center px-4 py-8 md:py-12 max-w-4xl mx-auto w-full text-center space-y-6">
-                {/* Central Glowing Mint Orb */}
-                <div className="relative my-2">
-                  <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-[#00d68f] via-[#059669] to-[#10b981] flex items-center justify-center text-white shadow-2xl animate-orb-glow">
-                    <Globe className="w-10 h-10 text-white stroke-[2]" />
-                  </div>
+                {/* 3D Holographic AI Wave Orb */}
+                <div className="relative my-3">
+                  <AIOrb size="lg" />
                 </div>
 
                 {/* Headline */}
