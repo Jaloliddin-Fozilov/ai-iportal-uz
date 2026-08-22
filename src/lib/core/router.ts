@@ -95,8 +95,10 @@ class MasterRouter {
       }
     }
 
+    console.error(`[MasterRouter Exhausted] All providers and keys failed:\n${errors.join('\n')}`);
+
     throw new Error(
-      `Barcha bepul AI provayderlar va kalitlar band yoki xatolik berdi. Xatoliklar:\n${errors.join('\n')}\n\nIltimos, .env yoki Boshqaruv Panelida (ai.iportal.uz) yangi bepul kalitlarni kiriting.`
+      'Neyrotizim ayni damda yuqori yuklama ostida. Iltimos, birozdan so\'ng qayta urinib ko\'ring.'
     );
   }
 }

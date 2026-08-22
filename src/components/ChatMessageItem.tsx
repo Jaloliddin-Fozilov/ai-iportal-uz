@@ -18,7 +18,8 @@ import {
   Image as ImageIcon, 
   FileText, 
   FileCode, 
-  File as FileIcon 
+  File as FileIcon,
+  ShieldAlert
 } from 'lucide-react';
 import { CodeBlock } from './CodeBlock';
 import { ChatAttachment } from '@/lib/core/types';
@@ -50,6 +51,16 @@ export const ChatMessageItem: React.FC<ChatMessageProps> = ({
   const isImageGenerating = !isUser && (
     content.startsWith('🎨 Generating') || 
     (isStreaming && (content.includes('iportal Neural Engine') || content.includes('Generating high-resolution') || content.includes('Generating image')))
+  );
+
+  // Check if message is a system error
+  const isErrorMessage = !isUser && (
+    content.startsWith('⚠️') || 
+    content.includes('error occurred') || 
+    content.includes('yuqori yuklama') ||
+    content.includes('rate_limit_exceeded') ||
+    content.includes('Barcha bepul AI provayderlar') ||
+    content.includes('Request too large')
   );
 
   // Parse <think>...</think> tags for reasoning mode
@@ -255,6 +266,36 @@ export const ChatMessageItem: React.FC<ChatMessageProps> = ({
               <div className="text-[11px] text-slate-400">
                 Rendering 1024×1024 high resolution • Please wait ~3-5 seconds
               </div>
+            </div>
+          ) : isErrorMessage ? (
+            /* Elegant, Friendly Error Notice Card with Retry Action */
+            <div className="my-2 max-w-xl p-4 sm:p-5 rounded-2xl bg-amber-500/5 border border-amber-500/20 text-slate-800 space-y-3">
+              <div className="flex items-start gap-3">
+                <div className="p-2 rounded-xl bg-amber-500/15 text-amber-600 shrink-0 mt-0.5">
+                  <ShieldAlert className="w-5 h-5" />
+                </div>
+                <div className="space-y-1 min-w-0">
+                  <h4 className="text-xs sm:text-sm font-bold text-slate-900">
+                    Neyrotizim ayni damda yuqori yuklama ostida
+                  </h4>
+                  <p className="text-xs text-slate-500 leading-relaxed">
+                    Kechirasiz, so'rovingizni qayta ishlashda vaqtinchalik to'siq yuzaga keldi. Iltimos, qayta urinib ko'ring yoki boshqa modelni tanlang.
+                  </p>
+                </div>
+              </div>
+
+              {onRetry && (
+                <div className="flex items-center gap-2 pt-1 pl-10">
+                  <button
+                    type="button"
+                    onClick={onRetry}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-[#00d68f] to-[#059669] text-slate-950 font-bold text-xs hover:from-[#00c483] hover:to-[#04825b] shadow-xs transition-all cursor-pointer"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span>Qayta urinish</span>
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
             <div className="markdown-body text-sm leading-relaxed text-slate-800">

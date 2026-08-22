@@ -411,7 +411,7 @@ export const ChatInterface: React.FC = () => {
       if (err.name !== 'AbortError') {
         const target = activeSession.messages.find(m => m.id === assistantMessageId);
         if (target) {
-          target.content = `⚠️ An error occurred: ${err.message}`;
+          target.content = `⚠️ Neyrotizim ayni damda yuqori yuklama ostida.`;
           setSessions([...sessions]);
           saveStoredSessions(sessions);
         }
