@@ -76,9 +76,23 @@ function getInitialData(): StoreData {
 
   // Parse Worker Nodes from ENV (e.g. WORKER_URLS=https://node1.workers.dev,https://node2.deno.dev)
   const workerNodes: WorkerNode[] = [];
+  const vercelProxy = process.env.VERCEL_PROXY_URL || 'https://vercel-vert-sigma-25.vercel.app/api/proxy';
+  if (vercelProxy) {
+    workerNodes.push({
+      id: 'node-vercel-edge-1',
+      name: 'Vercel Edge US-East (iad1)',
+      type: 'vercel',
+      url: vercelProxy.trim(),
+      secret: process.env.PROXY_SECRET || 'iportal-proxy-secret-token',
+      status: 'online',
+      failureCount: 0,
+    });
+  }
+
   const rawWorkers = process.env.WORKER_URLS || '';
   const urls = rawWorkers.split(',').map(u => u.trim()).filter(Boolean);
   urls.forEach((u, idx) => {
+    if (workerNodes.some(n => n.url === u)) return;
     let type: WorkerNode['type'] = 'custom';
     if (u.includes('workers.dev')) type = 'cloudflare';
     else if (u.includes('deno.dev')) type = 'deno';

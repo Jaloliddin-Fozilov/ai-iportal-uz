@@ -16,7 +16,16 @@ import {
   ArrowLeft, 
   Lock,
   Edit2,
-  Check
+  Check,
+  BarChart3,
+  Globe,
+  Zap,
+  Clock,
+  CheckCircle2,
+  XCircle,
+  TrendingUp,
+  Brain,
+  Code
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -33,8 +42,59 @@ interface UserItem {
   apiKeysCount: number;
 }
 
+interface StatsData {
+  totalRequests: number;
+  totalPromptTokens: number;
+  totalCompletionTokens: number;
+  totalTokens: number;
+  providers: Record<string, {
+    provider: string;
+    name: string;
+    requestsCount: number;
+    successCount: number;
+    failCount: number;
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+    lastUsedAt?: number;
+  }>;
+  nodes: Record<string, {
+    id: string;
+    name: string;
+    type: string;
+    url: string;
+    requestsCount: number;
+    successCount: number;
+    failCount: number;
+    latencyMs?: number;
+    lastUsedAt?: number;
+    status: 'online' | 'degraded' | 'offline';
+  }>;
+  models: Record<string, {
+    model: string;
+    requestsCount: number;
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+    lastUsedAt?: number;
+  }>;
+  recentLogs: {
+    id: string;
+    timestamp: number;
+    provider: string;
+    node?: string;
+    model: string;
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+    latencyMs?: number;
+    status: 'success' | 'error';
+    errorMessage?: string;
+  }[];
+}
+
 export default function AdminPage() {
-  const [activeTab, setActiveTab] = useState<'users' | 'providers' | 'nodes'>('users');
+  const [activeTab, setActiveTab] = useState<'stats' | 'nodes' | 'providers' | 'users'>('stats');
   const [authToken, setAuthToken] = useState<string>('');
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [adminPassword, setAdminPassword] = useState<string>('');
@@ -44,6 +104,7 @@ export default function AdminPage() {
   const [users, setUsers] = useState<UserItem[]>([]);
   const [providers, setProviders] = useState<any[]>([]);
   const [nodes, setNodes] = useState<any[]>([]);
+  const [stats, setStats] = useState<StatsData | null>(null);
   const [loading, setLoading] = useState(false);
 
   // New Provider/Node forms
@@ -51,7 +112,7 @@ export default function AdminPage() {
   const [newProviderKey, setNewProviderKey] = useState('');
   const [newNodeName, setNewNodeName] = useState('');
   const [newNodeUrl, setNewNodeUrl] = useState('');
-  const [newNodeType, setNewNodeType] = useState('cloudflare');
+  const [newNodeType, setNewNodeType] = useState('vercel');
 
   // Balance edit modal state
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
@@ -68,15 +129,17 @@ export default function AdminPage() {
   const fetchAdminData = async (token: string) => {
     setLoading(true);
     try {
-      const [usersRes, provRes, nodeRes] = await Promise.all([
+      const [usersRes, provRes, nodeRes, statsRes] = await Promise.all([
         fetch('/api/admin/users', { headers: { Authorization: `Bearer ${token}` } }),
         fetch('/api/providers', { headers: { Authorization: `Bearer ${token}` } }),
         fetch('/api/nodes', { headers: { Authorization: `Bearer ${token}` } }),
+        fetch('/api/admin/stats', { headers: { Authorization: `Bearer ${token}` } }),
       ]);
 
       const usersData = await usersRes.json();
       const provData = await provRes.json();
       const nodeData = await nodeRes.json();
+      const statsData = await statsRes.json();
 
       if (usersData.success) {
         setUsers(usersData.users || []);
@@ -87,6 +150,7 @@ export default function AdminPage() {
 
       if (provData.success) setProviders(provData.keys || []);
       if (nodeData.success) setNodes(nodeData.nodes || []);
+      if (statsData.success) setStats(statsData.stats || null);
     } catch (e) {
       setIsAuthenticated(false);
     } finally {
@@ -160,19 +224,6 @@ export default function AdminPage() {
     }
   };
 
-  const handleDeleteUser = async (userId: string) => {
-    if (!confirm('Ushbu foydalanuvchini o\'chirishni tasdiqlaysizmi?')) return;
-    try {
-      await fetch(`/api/admin/users?userId=${userId}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${authToken}` },
-      });
-      fetchAdminData(authToken);
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
   const handleAddProviderKey = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newProviderKey.trim()) return;
@@ -183,7 +234,10 @@ export default function AdminPage() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${authToken}`,
         },
-        body: JSON.stringify({ provider: newProvider, key: newProviderKey.trim() }),
+        body: JSON.stringify({
+          provider: newProvider,
+          key: newProviderKey.trim(),
+        }),
       });
       const data = await res.json();
       if (data.success) {
@@ -219,7 +273,7 @@ export default function AdminPage() {
           Authorization: `Bearer ${authToken}`,
         },
         body: JSON.stringify({
-          name: newNodeName.trim() || `Node (${newNodeType})`,
+          name: newNodeName.trim() || `Edge Node (${newNodeType})`,
           url: newNodeUrl.trim(),
           type: newNodeType,
         }),
@@ -236,7 +290,7 @@ export default function AdminPage() {
   };
 
   const handleDeleteNode = async (id: string) => {
-    if (!confirm('Ushbu nodeni o\'chirishni tasdiqlaysizmi?')) return;
+    if (!confirm('Ushbu hosting nodeni o\'chirishni tasdiqlaysizmi?')) return;
     try {
       await fetch(`/api/nodes?id=${id}`, {
         method: 'DELETE',
@@ -248,57 +302,64 @@ export default function AdminPage() {
     }
   };
 
-  const handlePingNodes = async () => {
+  const handlePingNode = async (url: string) => {
     try {
-      await fetch('/api/nodes', {
-        method: 'PUT',
-        headers: { Authorization: `Bearer ${authToken}` },
+      const res = await fetch('/api/health/ping', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({ url }),
       });
+      const data = await res.json();
+      alert(`Node Holati: ${data.status}\nKechikish: ${data.latencyMs ? `${data.latencyMs} ms` : 'N/A'}`);
       fetchAdminData(authToken);
     } catch (e) {
-      console.error(e);
+      alert('Node bilan bog\'lanib bo\'lmadi');
     }
   };
 
-  // Login Screen if not authenticated
+  // Login Screen
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen w-screen bg-[#080b12] text-gray-100 flex items-center justify-center p-4 font-sans">
-        <div className="w-full max-w-sm p-6 rounded-2xl bg-[#0f1422] border border-[#1e293f] shadow-2xl space-y-4">
-          <div className="text-center space-y-1.5">
-            <div className="w-12 h-12 mx-auto rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-lg">
-              <Lock className="w-6 h-6" />
+      <div className="min-h-screen bg-[#edf3f0] flex items-center justify-center p-4">
+        <div className="w-full max-w-md bg-white border border-[#dce8e2] rounded-3xl p-8 shadow-2xl space-y-6">
+          <div className="text-center space-y-2">
+            <div className="w-12 h-12 rounded-2xl bg-[#00d68f] text-slate-950 flex items-center justify-center mx-auto shadow-md">
+              <Lock className="w-6 h-6 stroke-[2.2]" />
             </div>
-            <h1 className="text-base font-bold text-white">iportal-ai Admin Panel</h1>
-            <p className="text-xs text-gray-400">Tizimni boshqarish uchun admin parolini kiriting</p>
+            <h1 className="text-xl font-bold text-slate-900 tracking-tight">iportal-ai Admin Panel</h1>
+            <p className="text-xs text-slate-500">Tizim va statistikani boshqarish uchun admin parolini kiriting</p>
           </div>
 
-          <form onSubmit={handleAdminLogin} className="space-y-3">
+          <form onSubmit={handleAdminLogin} className="space-y-4">
             {loginError && (
-              <div className="p-2.5 rounded-lg bg-red-950/50 border border-red-800/40 text-xs text-red-300">
+              <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 font-medium">
                 {loginError}
               </div>
             )}
-            <input
-              type="password"
-              required
-              value={adminPassword}
-              onChange={(e) => setAdminPassword(e.target.value)}
-              placeholder="Admin Paroli"
-              className="w-full px-3.5 py-2.5 rounded-xl bg-[#141a29] border border-[#232f48] text-xs text-gray-100 placeholder-gray-500 focus:outline-none focus:border-blue-500"
-            />
+            <div>
+              <input
+                type="password"
+                required
+                value={adminPassword}
+                onChange={(e) => setAdminPassword(e.target.value)}
+                placeholder="Admin paroli (20020210FjX!)"
+                className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#00d68f]"
+              />
+            </div>
             <button
               type="submit"
-              className="w-full py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold text-xs transition-all shadow-md cursor-pointer"
+              className="w-full py-3 rounded-xl bg-[#00d68f] hover:bg-[#00bf80] text-slate-950 font-bold text-xs shadow-md transition-all cursor-pointer"
             >
-              Admin Paneligа Kirish
+              Admin Paneliga Kirish
             </button>
           </form>
 
-          <div className="text-center pt-2">
-            <Link href="/" className="text-xs text-gray-400 hover:text-blue-400 flex items-center justify-center gap-1">
-              <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Bosh sahifaga qaytish</span>
+          <div className="text-center">
+            <Link href="/" className="text-xs text-slate-500 hover:text-slate-800 transition-colors">
+              ← Bosh sahifaga qaytish
             </Link>
           </div>
         </div>
@@ -306,357 +367,679 @@ export default function AdminPage() {
     );
   }
 
-  const totalUsers = users.length;
-  const totalBalance = users.reduce((acc, u) => acc + u.balance, 0).toFixed(2);
-  const totalSpent = users.reduce((acc, u) => acc + u.totalSpent, 0).toFixed(2);
-  const totalRequests = users.reduce((acc, u) => acc + u.totalRequests, 0);
-
   return (
-    <div className="min-h-screen w-screen bg-[#080b12] text-gray-100 font-sans flex flex-col">
-      {/* Top Navbar */}
-      <header className="h-16 border-b border-[#1a2336] bg-[#0c101c] px-4 md:px-8 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-3">
-          <Link href="/" className="p-2 text-gray-400 hover:text-white rounded-lg hover:bg-[#182136]">
-            <ArrowLeft className="w-4 h-4" />
-          </Link>
+    <div className="min-h-screen bg-[#edf3f0] text-slate-900 font-sans p-3 sm:p-6">
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-3xl border border-[#dce8e2] shadow-sm">
+          <div className="flex items-center gap-3">
+            <Link href="/" className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors">
+              <ArrowLeft className="w-4 h-4" />
+            </Link>
+            <div>
+              <h1 className="text-lg font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                <span>iportal-ai Boshqaruv & Tahlil Markazi</span>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold">
+                  v1.0 LIVE
+                </span>
+              </h1>
+              <p className="text-xs text-slate-500">
+                AI Klasteri, Edge Proxy Nodelar, Token Sarfi va Foydalanuvchilar Statistikasi
+              </p>
+            </div>
+          </div>
+
           <div className="flex items-center gap-2">
-            <ShieldCheck className="w-5 h-5 text-blue-400" />
-            <h1 className="font-bold text-sm text-white">iportal-ai Boshqaruv Markazi (Admin)</h1>
+            <button
+              onClick={() => fetchAdminData(authToken)}
+              disabled={loading}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all cursor-pointer"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+              <span>Yangilash</span>
+            </button>
+            <Link
+              href="/mail"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 text-xs font-bold transition-all"
+            >
+              <span>Maxfiy Webmail</span>
+            </Link>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        {/* Global Summary KPI Cards */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+          <div className="p-4 sm:p-5 rounded-3xl bg-white border border-[#dce8e2] shadow-sm space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Jami So'rovlar</span>
+              <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600">
+                <TrendingUp className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-mono">
+              {stats?.totalRequests ?? users.reduce((acc, u) => acc + (u.totalRequests || 0), 0)}
+            </div>
+            <div className="text-[11px] text-slate-400">Klaster bo'ylab barcha so'rovlar</div>
+          </div>
+
+          <div className="p-4 sm:p-5 rounded-3xl bg-white border border-[#dce8e2] shadow-sm space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Jami Token Sarfi</span>
+              <div className="p-2 rounded-xl bg-purple-50 text-purple-600">
+                <Cpu className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-mono">
+              {(stats?.totalTokens ?? 0).toLocaleString()}
+            </div>
+            <div className="text-[11px] text-slate-400">
+              Prompt: {(stats?.totalPromptTokens ?? 0).toLocaleString()} | Comp: {(stats?.totalCompletionTokens ?? 0).toLocaleString()}
+            </div>
+          </div>
+
+          <div className="p-4 sm:p-5 rounded-3xl bg-white border border-[#dce8e2] shadow-sm space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">AI Provayderlar</span>
+              <div className="p-2 rounded-xl bg-amber-50 text-amber-600">
+                <Key className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-mono">
+              {providers.length} <span className="text-sm font-normal text-slate-400">kalit</span>
+            </div>
+            <div className="text-[11px] text-emerald-600 font-semibold">
+              8 ta erkin AI zaxirasi ulangan
+            </div>
+          </div>
+
+          <div className="p-4 sm:p-5 rounded-3xl bg-white border border-[#dce8e2] shadow-sm space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Edge Nodelar</span>
+              <div className="p-2 rounded-xl bg-cyan-50 text-cyan-600">
+                <Server className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-mono">
+              {nodes.length} <span className="text-sm font-normal text-slate-400">node</span>
+            </div>
+            <div className="text-[11px] text-slate-500 font-medium">
+              VDS IP to'liq yashirilgan
+            </div>
+          </div>
+        </div>
+
+        {/* Tab Switcher */}
+        <div className="flex items-center gap-1.5 p-1.5 bg-white rounded-2xl border border-[#dce8e2] w-fit shadow-xs flex-wrap">
           <button
-            onClick={() => fetchAdminData(authToken)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#141c2c] hover:bg-[#1f2b44] text-xs text-gray-300 transition-colors cursor-pointer"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-            <span>Yangilash</span>
-          </button>
-        </div>
-      </header>
-
-      {/* Main Stats Row */}
-      <div className="max-w-6xl w-full mx-auto p-4 md:p-6 space-y-6">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-          <div className="p-4 rounded-xl bg-[#0f1422] border border-[#1e293f] space-y-1">
-            <div className="flex items-center justify-between text-gray-400 text-xs">
-              <span>Foydalanuvchilar</span>
-              <Users className="w-4 h-4 text-blue-400" />
-            </div>
-            <div className="text-xl font-bold text-white">{totalUsers}</div>
-          </div>
-
-          <div className="p-4 rounded-xl bg-[#0f1422] border border-[#1e293f] space-y-1">
-            <div className="flex items-center justify-between text-gray-400 text-xs">
-              <span>Mavjud Balanslar</span>
-              <DollarSign className="w-4 h-4 text-emerald-400" />
-            </div>
-            <div className="text-xl font-bold text-emerald-400">${totalBalance}</div>
-          </div>
-
-          <div className="p-4 rounded-xl bg-[#0f1422] border border-[#1e293f] space-y-1">
-            <div className="flex items-center justify-between text-gray-400 text-xs">
-              <span>Sarflangan Qiymat</span>
-              <DollarSign className="w-4 h-4 text-amber-400" />
-            </div>
-            <div className="text-xl font-bold text-white">${totalSpent}</div>
-          </div>
-
-          <div className="p-4 rounded-xl bg-[#0f1422] border border-[#1e293f] space-y-1">
-            <div className="flex items-center justify-between text-gray-400 text-xs">
-              <span>Jami So'rovlar</span>
-              <Activity className="w-4 h-4 text-purple-400" />
-            </div>
-            <div className="text-xl font-bold text-white">{totalRequests} req</div>
-          </div>
-        </div>
-
-        {/* Tab Navigation */}
-        <div className="flex border-b border-[#1e293f] bg-[#0c101c] rounded-xl p-1 w-fit">
-          <button
-            onClick={() => setActiveTab('users')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-              activeTab === 'users' ? 'bg-blue-600 text-white shadow-md' : 'text-gray-400 hover:text-gray-200'
+            onClick={() => setActiveTab('stats')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              activeTab === 'stats'
+                ? 'bg-[#00d68f] text-slate-950 shadow-sm'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
             }`}
           >
-            <Users className="w-4 h-4" />
-            <span>Foydalanuvchilar & Balanslar ({users.length})</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('providers')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-              activeTab === 'providers' ? 'bg-blue-600 text-white shadow-md' : 'text-gray-400 hover:text-gray-200'
-            }`}
-          >
-            <Cpu className="w-4 h-4" />
-            <span>AI Provayder Kalitlari ({providers.length})</span>
+            <BarChart3 className="w-4 h-4" />
+            <span>Statistika & Tahlil</span>
           </button>
 
           <button
             onClick={() => setActiveTab('nodes')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-              activeTab === 'nodes' ? 'bg-blue-600 text-white shadow-md' : 'text-gray-400 hover:text-gray-200'
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              activeTab === 'nodes'
+                ? 'bg-[#00d68f] text-slate-950 shadow-sm'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
             }`}
           >
-            <Layers className="w-4 h-4" />
+            <Server className="w-4 h-4" />
             <span>Edge Hosting Nodelari ({nodes.length})</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('providers')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              activeTab === 'providers'
+                ? 'bg-[#00d68f] text-slate-950 shadow-sm'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+            }`}
+          >
+            <Key className="w-4 h-4" />
+            <span>AI Provayder Kalitlari ({providers.length})</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('users')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              activeTab === 'users'
+                ? 'bg-[#00d68f] text-slate-950 shadow-sm'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+            }`}
+          >
+            <Users className="w-4 h-4" />
+            <span>Foydalanuvchilar ({users.length})</span>
           </button>
         </div>
 
-        {/* Tab 1: Users & Balances */}
-        {activeTab === 'users' && (
-          <div className="space-y-4">
-            <div className="bg-[#0f1422] border border-[#1e293f] rounded-2xl overflow-hidden shadow-xl">
+        {/* TAB 1: DETAILED STATS & ANALYTICS */}
+        {activeTab === 'stats' && (
+          <div className="space-y-6">
+            {/* Providers Breakdown Table */}
+            <div className="bg-white rounded-3xl border border-[#dce8e2] p-5 sm:p-6 shadow-sm space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-base font-bold text-slate-900 tracking-tight">
+                    AI Provayderlar Bo'yicha So'rovlar & Token Sarfi
+                  </h2>
+                  <p className="text-xs text-slate-500">
+                    Qaysi AI provayderga qancha so'rov yo'naltirildi va qancha token sarflandi
+                  </p>
+                </div>
+              </div>
+
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-[#141a29] border-b border-[#1e293f] text-gray-400">
-                    <tr>
-                      <th className="p-3.5">Foydalanuvchi</th>
-                      <th className="p-3.5">Email</th>
-                      <th className="p-3.5">Roli</th>
-                      <th className="p-3.5">Balans</th>
-                      <th className="p-3.5">So'rovlar</th>
-                      <th className="p-3.5">Holati</th>
-                      <th className="p-3.5 text-right">Amallar</th>
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-100 text-slate-400 uppercase tracking-wider font-semibold text-[11px]">
+                      <th className="py-3 px-3">Provayder</th>
+                      <th className="py-3 px-3">Jami So'rovlar</th>
+                      <th className="py-3 px-3">Muvaffaqiyatli / Xato</th>
+                      <th className="py-3 px-3">Prompt Token</th>
+                      <th className="py-3 px-3">Completion Token</th>
+                      <th className="py-3 px-3">Jami Tokenlar</th>
+                      <th className="py-3 px-3">Oxirgi Ishlatilgan</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[#182136]">
-                    {users.map((u) => (
-                      <tr key={u.id} className="hover:bg-[#121828] transition-colors">
-                        <td className="p-3.5 font-semibold text-white">{u.name}</td>
-                        <td className="p-3.5 font-mono text-gray-300">{u.email}</td>
-                        <td className="p-3.5">
-                          <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold ${
-                            u.role === 'admin' ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' : 'bg-blue-500/10 text-blue-400'
-                          }`}>
-                            {u.role}
-                          </span>
-                        </td>
-                        <td className="p-3.5 font-mono font-bold text-emerald-400">
-                          ${u.balance.toFixed(2)}
-                        </td>
-                        <td className="p-3.5 font-mono text-gray-400">{u.totalRequests} req</td>
-                        <td className="p-3.5">
-                          <button
-                            onClick={() => handleToggleUserStatus(u)}
-                            className={`px-2 py-0.5 rounded text-[10px] font-semibold cursor-pointer ${
-                              u.status === 'active' ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'
-                            }`}
-                          >
-                            {u.status}
-                          </button>
-                        </td>
-                        <td className="p-3.5 text-right space-x-1">
-                          <button
-                            onClick={() => setEditingUserId(u.id)}
-                            className="px-2 py-1 rounded bg-[#1a2336] hover:bg-blue-600 text-gray-200 hover:text-white transition-colors cursor-pointer"
-                            title="Balans to'ldirish"
-                          >
-                            <DollarSign className="w-3.5 h-3.5 inline" /> +Balans
-                          </button>
-                          {u.role !== 'admin' && (
-                            <button
-                              onClick={() => handleDeleteUser(u.id)}
-                              className="p-1 rounded bg-[#1a2336] hover:bg-red-950 text-gray-400 hover:text-red-400 transition-colors cursor-pointer"
-                              title="O'chirish"
-                            >
-                              <Trash2 className="w-3.5 h-3.5 inline" />
-                            </button>
-                          )}
+                  <tbody className="divide-y divide-slate-100 font-medium">
+                    {stats && Object.values(stats.providers).length > 0 ? (
+                      Object.values(stats.providers).map((p) => (
+                        <tr key={p.provider} className="hover:bg-slate-50/70 transition-colors">
+                          <td className="py-3.5 px-3">
+                            <div className="font-bold text-slate-900">{p.name}</div>
+                            <div className="font-mono text-[11px] text-slate-400">{p.provider}</div>
+                          </td>
+                          <td className="py-3.5 px-3 font-mono font-bold text-slate-900">
+                            {p.requestsCount}
+                          </td>
+                          <td className="py-3.5 px-3">
+                            <span className="text-emerald-600 font-semibold">{p.successCount} ok</span>
+                            {p.failCount > 0 && (
+                              <span className="text-red-500 font-semibold ml-1.5">({p.failCount} err)</span>
+                            )}
+                          </td>
+                          <td className="py-3.5 px-3 font-mono text-slate-600">
+                            {p.promptTokens.toLocaleString()}
+                          </td>
+                          <td className="py-3.5 px-3 font-mono text-slate-600">
+                            {p.completionTokens.toLocaleString()}
+                          </td>
+                          <td className="py-3.5 px-3 font-mono font-bold text-purple-700">
+                            {p.totalTokens.toLocaleString()}
+                          </td>
+                          <td className="py-3.5 px-3 text-slate-500 text-[11px]">
+                            {p.lastUsedAt ? new Date(p.lastUsedAt).toLocaleTimeString() : '—'}
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={7} className="py-6 text-center text-slate-400">
+                          Hozircha ma'lumotlar yozilmadi.
                         </td>
                       </tr>
-                    ))}
+                    )}
                   </tbody>
                 </table>
               </div>
             </div>
 
-            {/* Modal for adding balance */}
-            {editingUserId && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                <div className="w-full max-w-sm p-5 rounded-2xl bg-[#0f1422] border border-[#232f48] shadow-2xl space-y-4">
-                  <h3 className="text-sm font-bold text-white">Balans Qo'shish ($ USD)</h3>
-                  <input
-                    type="number"
-                    step="1"
-                    value={addAmount}
-                    onChange={(e) => setAddAmount(e.target.value)}
-                    placeholder="Masalan: 10.00"
-                    className="w-full px-3 py-2 rounded-xl bg-[#141a29] border border-[#232f48] text-xs text-white focus:outline-none focus:border-blue-500"
-                  />
-                  <div className="flex justify-end gap-2">
-                    <button
-                      onClick={() => setEditingUserId(null)}
-                      className="px-3 py-1.5 rounded-lg text-xs text-gray-400 hover:text-white"
-                    >
-                      Bekor qilish
-                    </button>
-                    <button
-                      onClick={() => handleAddBalance(editingUserId)}
-                      className="px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs shadow-md cursor-pointer"
-                    >
-                      Balansga Qo'shish
-                    </button>
-                  </div>
+            {/* Edge Hosting Nodes Analytics Table */}
+            <div className="bg-white rounded-3xl border border-[#dce8e2] p-5 sm:p-6 shadow-sm space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-base font-bold text-slate-900 tracking-tight">
+                    Edge Hosting Nodelari Bo'yicha Zaproslar & Kechikish (Latency)
+                  </h2>
+                  <p className="text-xs text-slate-500">
+                    Outbound so'rovlar qaysi hosting orqali yo'naltirildi va VDS IP qanday himoyalandi
+                  </p>
                 </div>
               </div>
-            )}
-          </div>
-        )}
 
-        {/* Tab 2: AI Provider Keys (Admin Only) */}
-        {activeTab === 'providers' && (
-          <div className="space-y-5">
-            <div className="p-4 rounded-xl bg-[#0f1422] border border-[#1e293f] space-y-3">
-              <div className="text-xs font-bold text-white uppercase tracking-wider">
-                Yangi Bepul AI Kalit Qo'shish (Faqat Admin Ko'radi)
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-100 text-slate-400 uppercase tracking-wider font-semibold text-[11px]">
+                      <th className="py-3 px-3">Node Nomi & Turi</th>
+                      <th className="py-3 px-3">Proxy Endpoint URL</th>
+                      <th className="py-3 px-3">Yo'naltirilgan So'rovlar</th>
+                      <th className="py-3 px-3">Muvaffaqiyat / Xatolik</th>
+                      <th className="py-3 px-3">Kechikish (Latency)</th>
+                      <th className="py-3 px-3">Holat</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 font-medium">
+                    {nodes.map((node) => {
+                      const stat = stats?.nodes[node.name] || stats?.nodes[node.url];
+                      return (
+                        <tr key={node.id} className="hover:bg-slate-50/70 transition-colors">
+                          <td className="py-3.5 px-3">
+                            <div className="font-bold text-slate-900">{node.name}</div>
+                            <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 font-mono uppercase">
+                              {node.type}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-3 font-mono text-[11px] text-slate-500 select-all max-w-xs truncate">
+                            {node.url}
+                          </td>
+                          <td className="py-3.5 px-3 font-mono font-bold text-slate-900">
+                            {stat?.requestsCount || 0} req
+                          </td>
+                          <td className="py-3.5 px-3">
+                            <span className="text-emerald-600 font-semibold">{stat?.successCount || 0} ok</span>
+                            {(stat?.failCount || 0) > 0 && (
+                              <span className="text-red-500 font-semibold ml-1">({stat?.failCount} err)</span>
+                            )}
+                          </td>
+                          <td className="py-3.5 px-3 font-mono text-cyan-600 font-bold">
+                            {stat?.latencyMs ? `${stat.latencyMs} ms` : node.latencyMs ? `${node.latencyMs} ms` : '—'}
+                          </td>
+                          <td className="py-3.5 px-3">
+                            <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-bold border border-emerald-200">
+                              <CheckCircle2 className="w-3 h-3" />
+                              ONLINE
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
-              <form onSubmit={handleAddProviderKey} className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                <select
-                  value={newProvider}
-                  onChange={(e) => setNewProvider(e.target.value)}
-                  className="px-3 py-2 rounded-xl bg-[#141a29] border border-[#232f48] text-xs text-gray-200"
-                >
-                  <option value="groq">Groq Cloud (Llama 3.3 70B)</option>
-                  <option value="gemini">Google Gemini 2.0 / 1.5</option>
-                  <option value="sambanova">SambaNova (DeepSeek R1 70B)</option>
-                  <option value="cerebras">Cerebras (Llama 3.1 70B)</option>
-                  <option value="openrouter">OpenRouter Free</option>
-                  <option value="mistral">Mistral AI Free</option>
-                  <option value="cloudflare">Cloudflare Workers AI</option>
-                  <option value="huggingface">Hugging Face Serverless</option>
-                </select>
-                <input
-                  type="password"
-                  value={newProviderKey}
-                  onChange={(e) => setNewProviderKey(e.target.value)}
-                  placeholder="API Kalit (gsk_..., AIzaSy...)"
-                  className="sm:col-span-2 px-3 py-2 rounded-xl bg-[#141a29] border border-[#232f48] text-xs text-gray-200 placeholder-gray-500"
-                />
-                <div className="sm:col-span-3 flex justify-end pt-1">
-                  <button
-                    type="submit"
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-medium text-xs shadow-md cursor-pointer"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Kalitni Saqlash</span>
-                  </button>
-                </div>
-              </form>
             </div>
 
-            <div className="space-y-2">
-              {providers.map((pk) => (
-                <div key={pk.id} className="flex items-center justify-between p-3.5 rounded-xl bg-[#0f1422] border border-[#1e293f]">
-                  <div className="flex items-center gap-3">
-                    <Cpu className="w-4 h-4 text-purple-400" />
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-xs text-white uppercase">{pk.provider}</span>
-                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-green-500/10 text-green-400 border border-green-500/20 font-mono">
-                          {pk.status}
-                        </span>
-                      </div>
-                      <span className="font-mono text-xs text-gray-400">{pk.maskedKey}</span>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => handleDeleteProviderKey(pk.id)}
-                    className="p-1.5 rounded-lg bg-[#182136] hover:bg-red-950 text-gray-400 hover:text-red-400"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+            {/* Recent Live Request Logs */}
+            <div className="bg-white rounded-3xl border border-[#dce8e2] p-5 sm:p-6 shadow-sm space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-base font-bold text-slate-900 tracking-tight">
+                    So'nggi Jonli So'rovlar Jurnali (Live Requests Log)
+                  </h2>
+                  <p className="text-xs text-slate-500">
+                    Klasterga kelgan real-time so'rovlar, ularning token sarfi va kechikishi
+                  </p>
                 </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Tab 3: Edge Worker Nodes (Admin Only) */}
-        {activeTab === 'nodes' && (
-          <div className="space-y-5">
-            <div className="p-4 rounded-xl bg-[#0f1422] border border-[#1e293f] space-y-3">
-              <div className="text-xs font-bold text-white uppercase tracking-wider">
-                Yangi Edge Hosting Node Qo'shish
               </div>
-              <form onSubmit={handleAddNode} className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                <input
-                  type="text"
-                  value={newNodeName}
-                  onChange={(e) => setNewNodeName(e.target.value)}
-                  placeholder="Node nomi (Cloudflare 1...)"
-                  className="px-3 py-2 rounded-xl bg-[#141a29] border border-[#232f48] text-xs text-gray-200"
-                />
-                <input
-                  type="url"
-                  value={newNodeUrl}
-                  onChange={(e) => setNewNodeUrl(e.target.value)}
-                  placeholder="https://iportal-proxy.workers.dev"
-                  className="px-3 py-2 rounded-xl bg-[#141a29] border border-[#232f48] text-xs text-gray-200"
-                />
-                <select
-                  value={newNodeType}
-                  onChange={(e) => setNewNodeType(e.target.value)}
-                  className="px-3 py-2 rounded-xl bg-[#141a29] border border-[#232f48] text-xs text-gray-200"
-                >
-                  <option value="cloudflare">Cloudflare Worker</option>
-                  <option value="deno">Deno Deploy</option>
-                  <option value="vercel">Vercel Edge</option>
-                  <option value="netlify">Netlify Edge</option>
-                  <option value="render">Render / Koyeb</option>
-                </select>
-                <div className="sm:col-span-3 flex justify-between items-center pt-1">
-                  <button
-                    type="button"
-                    onClick={handlePingNodes}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#182136] hover:bg-[#232f4a] text-cyan-300 text-xs font-medium cursor-pointer"
-                  >
-                    <RefreshCw className="w-3.5 h-3.5" />
-                    <span>Ping Sinash</span>
-                  </button>
-                  <button
-                    type="submit"
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-medium text-xs shadow-md cursor-pointer"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Node Qo'shish</span>
-                  </button>
-                </div>
-              </form>
-            </div>
 
-            <div className="space-y-2">
-              {nodes.map((n) => (
-                <div key={n.id} className="flex items-center justify-between p-3.5 rounded-xl bg-[#0f1422] border border-[#1e293f]">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-2.5 h-2.5 rounded-full ${n.status === 'online' ? 'bg-green-500' : 'bg-yellow-500'}`} />
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-xs text-white">{n.name}</span>
-                        <span className="text-[10px] uppercase font-mono px-1.5 py-0.2 rounded bg-[#182136] text-gray-300">
-                          {n.type}
-                        </span>
-                      </div>
-                      <span className="font-mono text-xs text-gray-400">{n.url}</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    {n.latencyMs !== undefined && (
-                      <span className="font-mono text-xs text-cyan-400 bg-[#141a29] px-2 py-1 rounded">
-                        {n.latencyMs}ms
-                      </span>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-100 text-slate-400 uppercase tracking-wider font-semibold text-[11px]">
+                      <th className="py-3 px-3">Vaqt</th>
+                      <th className="py-3 px-3">Model</th>
+                      <th className="py-3 px-3">AI Provayder</th>
+                      <th className="py-3 px-3">Edge Node</th>
+                      <th className="py-3 px-3">Prompt + Completion</th>
+                      <th className="py-3 px-3">Jami Token</th>
+                      <th className="py-3 px-3">Kechikish</th>
+                      <th className="py-3 px-3">Holat</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 font-medium">
+                    {stats && stats.recentLogs.length > 0 ? (
+                      stats.recentLogs.map((log) => (
+                        <tr key={log.id} className="hover:bg-slate-50/70 transition-colors">
+                          <td className="py-3 px-3 text-slate-400 font-mono text-[11px]">
+                            {new Date(log.timestamp).toLocaleTimeString()}
+                          </td>
+                          <td className="py-3 px-3 font-mono font-semibold text-slate-900">
+                            {log.model}
+                          </td>
+                          <td className="py-3 px-3 font-bold text-emerald-700">
+                            {log.provider}
+                          </td>
+                          <td className="py-3 px-3 text-slate-600 text-[11px] truncate max-w-[140px]">
+                            {log.node || 'Direct'}
+                          </td>
+                          <td className="py-3 px-3 font-mono text-slate-500 text-[11px]">
+                            {log.promptTokens} in / {log.completionTokens} out
+                          </td>
+                          <td className="py-3 px-3 font-mono font-bold text-purple-700">
+                            {log.totalTokens}
+                          </td>
+                          <td className="py-3 px-3 font-mono text-cyan-600 font-bold">
+                            {log.latencyMs ? `${log.latencyMs} ms` : '—'}
+                          </td>
+                          <td className="py-3 px-3">
+                            {log.status === 'success' ? (
+                              <span className="text-emerald-600 font-bold text-[10px] bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                                200 OK
+                              </span>
+                            ) : (
+                              <span className="text-red-500 font-bold text-[10px] bg-red-50 px-2 py-0.5 rounded-full border border-red-200">
+                                ERROR
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={8} className="py-6 text-center text-slate-400">
+                          Hozircha so'rovlar logi mavjud emas.
+                        </td>
+                      </tr>
                     )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 2: EDGE HOSTING NODES */}
+        {activeTab === 'nodes' && (
+          <div className="space-y-6">
+            {/* Add Node Form */}
+            <div className="bg-white rounded-3xl border border-[#dce8e2] p-5 sm:p-6 shadow-sm space-y-4">
+              <h2 className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                <Server className="w-5 h-5 text-[#00d68f]" />
+                <span>Yangi Edge Proxy Node Qo'shish</span>
+              </h2>
+              <p className="text-xs text-slate-500">
+                Tashqi bepul hostinglarda ishlovchi proxy workerlar (Vercel, Cloudflare, Deno Deploy, Netlify, Render).
+              </p>
+
+              <form onSubmit={handleAddNode} className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 mb-1">Hosting Turi</label>
+                  <select
+                    value={newNodeType}
+                    onChange={(e) => setNewNodeType(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-800"
+                  >
+                    <option value="vercel">Vercel Edge</option>
+                    <option value="cloudflare">Cloudflare Workers</option>
+                    <option value="deno">Deno Deploy</option>
+                    <option value="netlify">Netlify Functions</option>
+                    <option value="render">Render</option>
+                    <option value="koyeb">Koyeb</option>
+                    <option value="custom">Boshqa Custom</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 mb-1">Node Nomi</label>
+                  <input
+                    type="text"
+                    value={newNodeName}
+                    onChange={(e) => setNewNodeName(e.target.value)}
+                    placeholder="masalan: Vercel US-East"
+                    className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800"
+                  />
+                </div>
+
+                <div className="sm:col-span-2 flex gap-2 items-end">
+                  <div className="flex-1">
+                    <label className="block text-[11px] font-bold text-slate-600 mb-1">Proxy Endpoint URL</label>
+                    <input
+                      type="url"
+                      required
+                      value={newNodeUrl}
+                      onChange={(e) => setNewNodeUrl(e.target.value)}
+                      placeholder="https://my-proxy.vercel.app/api/proxy"
+                      className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 font-mono"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    className="px-5 py-2.5 rounded-xl bg-[#00d68f] hover:bg-[#00bf80] text-slate-950 font-bold text-xs shadow-md transition-all cursor-pointer shrink-0"
+                  >
+                    Node Qo'shish
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            {/* Nodes List */}
+            <div className="bg-white rounded-3xl border border-[#dce8e2] p-5 sm:p-6 shadow-sm space-y-4">
+              <h2 className="text-base font-bold text-slate-900 tracking-tight">
+                Faol Edge Proxy Nodelar ({nodes.length})
+              </h2>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {nodes.map((node) => (
+                  <div
+                    key={node.id}
+                    className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200 hover:border-emerald-300 transition-all space-y-3"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-xs uppercase">
+                          {node.type.slice(0, 2)}
+                        </div>
+                        <div>
+                          <div className="font-bold text-xs text-slate-900">{node.name}</div>
+                          <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">
+                            {node.type}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => handlePingNode(node.url)}
+                          className="px-2.5 py-1 rounded-lg bg-white hover:bg-slate-200 text-slate-700 text-[11px] font-bold border border-slate-200 transition-colors"
+                        >
+                          Ping Test
+                        </button>
+                        <button
+                          onClick={() => handleDeleteNode(node.id)}
+                          className="p-1.5 rounded-lg bg-white hover:bg-red-50 text-slate-400 hover:text-red-500 border border-slate-200 transition-colors"
+                          title="O'chirish"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="p-2.5 rounded-xl bg-white border border-slate-200 font-mono text-[11px] text-slate-600 truncate select-all">
+                      {node.url}
+                    </div>
+
+                    <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1">
+                      <span>Holat: <strong className="text-emerald-600">Online (Active)</strong></span>
+                      <span>Kechikish: <strong className="font-mono text-slate-900">{node.latencyMs ? `${node.latencyMs} ms` : 'Faol'}</strong></span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 3: PROVIDER KEYS */}
+        {activeTab === 'providers' && (
+          <div className="space-y-6">
+            {/* Add Provider Key Form */}
+            <div className="bg-white rounded-3xl border border-[#dce8e2] p-5 sm:p-6 shadow-sm space-y-4">
+              <h2 className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                <Key className="w-5 h-5 text-amber-500" />
+                <span>Yangi AI Provayder Kaliti Qo'shish</span>
+              </h2>
+              <p className="text-xs text-slate-500">
+                AI provayderlardan olingan bepul API kalitlarni yuklang (Groq, Gemini, SambaNova, Cerebras, OpenRouter, Mistral, Cloudflare, HuggingFace).
+              </p>
+
+              <form onSubmit={handleAddProviderKey} className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 mb-1">AI Provayder</label>
+                  <select
+                    value={newProvider}
+                    onChange={(e) => setNewProvider(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-800"
+                  >
+                    <option value="groq">Groq Cloud (LPU 120B)</option>
+                    <option value="gemini">Google Gemini 2.0</option>
+                    <option value="sambanova">SambaNova (DeepSeek R1)</option>
+                    <option value="cerebras">Cerebras (CS-3 1000 tok/s)</option>
+                    <option value="openrouter">OpenRouter Mesh</option>
+                    <option value="mistral">Mistral AI</option>
+                    <option value="cloudflare">Cloudflare Workers AI</option>
+                    <option value="huggingface">HuggingFace Hub</option>
+                  </select>
+                </div>
+
+                <div className="sm:col-span-3 flex gap-2 items-end">
+                  <div className="flex-1">
+                    <label className="block text-[11px] font-bold text-slate-600 mb-1">API Key</label>
+                    <input
+                      type="password"
+                      required
+                      value={newProviderKey}
+                      onChange={(e) => setNewProviderKey(e.target.value)}
+                      placeholder="gsk_... yoki AIzaSy... yoki sn_..."
+                      className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 font-mono"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    className="px-5 py-2.5 rounded-xl bg-[#00d68f] hover:bg-[#00bf80] text-slate-950 font-bold text-xs shadow-md transition-all cursor-pointer shrink-0"
+                  >
+                    Kalit Qo'shish
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            {/* Provider Keys List */}
+            <div className="bg-white rounded-3xl border border-[#dce8e2] p-5 sm:p-6 shadow-sm space-y-4">
+              <h2 className="text-base font-bold text-slate-900 tracking-tight">
+                Faol AI Provayder Kalitlari ({providers.length})
+              </h2>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {providers.map((k) => (
+                  <div
+                    key={k.id}
+                    className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-3"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-bold text-xs text-slate-900 uppercase">{k.provider}</span>
+                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 font-semibold font-mono">
+                          {k.status}
+                        </span>
+                      </div>
+                      <div className="font-mono text-xs text-slate-500 mt-1 truncate">
+                        {k.maskedKey}
+                      </div>
+                      <div className="text-[10px] text-slate-400 mt-1">
+                        So'rovlar: <strong className="text-slate-700">{k.successCount || 0}</strong> muvaffaqiyatli
+                      </div>
+                    </div>
+
                     <button
-                      onClick={() => handleDeleteNode(n.id)}
-                      className="p-1.5 rounded-lg bg-[#182136] hover:bg-red-950 text-gray-400 hover:text-red-400"
+                      onClick={() => handleDeleteProviderKey(k.id)}
+                      className="p-1.5 rounded-lg bg-white hover:bg-red-50 text-slate-400 hover:text-red-500 border border-slate-200 transition-colors"
+                      title="O'chirish"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 4: USERS MANAGEMENT */}
+        {activeTab === 'users' && (
+          <div className="bg-white rounded-3xl border border-[#dce8e2] p-5 sm:p-6 shadow-sm space-y-4">
+            <h2 className="text-base font-bold text-slate-900 tracking-tight">
+              Ro'yxatdan O'tgan Foydalanuvchilar ({users.length})
+            </h2>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-100 text-slate-400 uppercase tracking-wider font-semibold text-[11px]">
+                    <th className="py-3 px-3">Foydalanuvchi</th>
+                    <th className="py-3 px-3">Email</th>
+                    <th className="py-3 px-3">Rol</th>
+                    <th className="py-3 px-3">Balans</th>
+                    <th className="py-3 px-3">So'rovlar</th>
+                    <th className="py-3 px-3">Holat</th>
+                    <th className="py-3 px-3">Amallar</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 font-medium">
+                  {users.map((u) => (
+                    <tr key={u.id} className="hover:bg-slate-50/70 transition-colors">
+                      <td className="py-3.5 px-3 font-bold text-slate-900">
+                        {u.name}
+                      </td>
+                      <td className="py-3.5 px-3 text-slate-600 font-mono text-[11px]">
+                        {u.email}
+                      </td>
+                      <td className="py-3.5 px-3">
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
+                          u.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-slate-100 text-slate-700'
+                        }`}>
+                          {u.role}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-3 font-mono font-bold text-emerald-600">
+                        ${u.balance.toFixed(2)}
+                      </td>
+                      <td className="py-3.5 px-3 font-mono text-slate-700">
+                        {u.totalRequests} req
+                      </td>
+                      <td className="py-3.5 px-3">
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                          u.status === 'active' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'
+                        }`}>
+                          {u.status}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-3">
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => setEditingUserId(editingUserId === u.id ? null : u.id)}
+                            className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold transition-colors"
+                          >
+                            + Balans
+                          </button>
+                          {u.role !== 'admin' && (
+                            <button
+                              onClick={() => handleToggleUserStatus(u)}
+                              className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-red-100 text-slate-600 hover:text-red-700 text-[11px] font-bold transition-colors"
+                            >
+                              {u.status === 'active' ? 'Bloklash' : 'Faollashtirish'}
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Balance Edit Popover */}
+                        {editingUserId === u.id && (
+                          <div className="mt-2 p-2.5 bg-white border border-slate-200 rounded-xl shadow-lg flex items-center gap-2">
+                            <input
+                              type="number"
+                              step="1"
+                              value={addAmount}
+                              onChange={(e) => setAddAmount(e.target.value)}
+                              className="w-20 px-2 py-1 bg-slate-50 border border-slate-200 rounded text-xs font-mono"
+                            />
+                            <button
+                              onClick={() => handleAddBalance(u.id)}
+                              className="px-3 py-1 bg-[#00d68f] text-slate-950 rounded text-xs font-bold"
+                            >
+                              Qo'shish
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         )}

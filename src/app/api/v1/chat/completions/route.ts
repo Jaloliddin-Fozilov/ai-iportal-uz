@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { masterRouter } from '@/lib/core/router';
 import { validateApiKey } from '@/lib/storage/dataStore';
 import { findUserByApiKey, deductUserBalance, verifySessionToken, findUserById } from '@/lib/storage/userStore';
+import { recordRequestStats } from '@/lib/storage/statsStore';
 import { SecurityGuard } from '@/lib/core/security';
 import { composeSystemMessages } from '@/lib/core/systemPrompt';
 import { ChatCompletionRequest, ChatMessage } from '@/lib/core/types';
@@ -160,10 +161,26 @@ export async function POST(req: NextRequest) {
     const promptChars = body.messages.reduce((acc, m) => acc + (m.content?.length || 0), 0);
     const estimatedPromptTokens = Math.max(1, Math.ceil(promptChars / 4));
 
+    const startTime = Date.now();
+
     // 5. Execute Chat through Master Router (routed via edge worker proxies)
     const result = await masterRouter.executeChat(body);
 
-    const finalizeUsage = (completionTokens: number) => {
+    const finalizeUsage = (completionTokens: number, status: 'success' | 'error' = 'success', errorMsg?: string) => {
+      const latencyMs = Date.now() - startTime;
+      recordRequestStats({
+        provider: result?.usedKey?.provider || 'groq',
+        nodeName: result?.usedNode?.name,
+        nodeUrl: result?.usedNode?.url,
+        nodeType: result?.usedNode?.type,
+        model: body.model || 'iportal-ai',
+        promptTokens: estimatedPromptTokens,
+        completionTokens,
+        latencyMs,
+        status,
+        errorMessage: errorMsg,
+      });
+
       if (authenticatedUserId && !isMasterKey) {
         deductUserBalance(
           authenticatedUserId,
@@ -212,6 +229,14 @@ export async function POST(req: NextRequest) {
     }
   } catch (err: any) {
     console.error('[API /v1/chat/completions Error]:', err);
+    recordRequestStats({
+      provider: 'unknown',
+      model: 'iportal-ai',
+      promptTokens: 0,
+      completionTokens: 0,
+      status: 'error',
+      errorMessage: err.message,
+    });
     return NextResponse.json(
       {
         error: {
