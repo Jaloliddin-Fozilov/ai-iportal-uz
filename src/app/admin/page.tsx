@@ -514,7 +514,7 @@ export default function AdminPage() {
                 required
                 value={adminPassword}
                 onChange={(e) => setAdminPassword(e.target.value)}
-                placeholder="Admin paroli (20020210FjX!)"
+                placeholder="Admin parolini kiriting..."
                 className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#00d68f]"
               />
             </div>

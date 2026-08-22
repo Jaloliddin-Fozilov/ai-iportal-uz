@@ -396,7 +396,7 @@ export default function WebmailPage() {
               <span>Barcha Pochtalarning Paroli:</span>
             </div>
             <div className="flex items-center justify-between p-1.5 rounded-lg bg-[#090d16] font-mono text-gray-200 border border-[#232f48]">
-              <span>20020210FjX!</span>
+              <span>••••••••••••</span>
               <button
                 onClick={() => copyToClipboard('20020210FjX!', 'pwd')}
                 className="p-1 rounded text-gray-400 hover:text-white hover:bg-[#1a2336]"
