@@ -55,6 +55,32 @@ body {
   animation: hologram-pulse 4s infinite ease-in-out;
 }
 
+@keyframes gyro-1 {
+  0% {
+    transform: rotateX(68deg) rotateY(18deg) rotateZ(0deg);
+  }
+  100% {
+    transform: rotateX(68deg) rotateY(18deg) rotateZ(360deg);
+  }
+}
+
+.animate-gyro-1 {
+  animation: gyro-1 8s linear infinite;
+}
+
+@keyframes gyro-2 {
+  0% {
+    transform: rotateX(55deg) rotateY(-35deg) rotateZ(360deg);
+  }
+  100% {
+    transform: rotateX(55deg) rotateY(-35deg) rotateZ(0deg);
+  }
+}
+
+.animate-gyro-2 {
+  animation: gyro-2 11s linear infinite;
+}
+
 @keyframes spin-slow {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
@@ -71,55 +97,6 @@ body {
 
 .animate-spin-reverse {
   animation: spin-reverse 8s linear infinite;
-}
-
-@keyframes orb-fluid {
-  0%, 100% {
-    filter: hue-rotate(0deg) brightness(1);
-    transform: scale(1) rotate(0deg);
-  }
-  50% {
-    filter: hue-rotate(45deg) brightness(1.2);
-    transform: scale(1.08) rotate(180deg);
-  }
-}
-
-.animate-orb-fluid {
-  animation: orb-fluid 7s ease-in-out infinite alternate;
-}
-
-@keyframes wave-morph {
-  0%, 100% {
-    border-radius: 42% 58% 70% 30% / 45% 45% 55% 55%;
-    transform: rotate(0deg) scale(1);
-  }
-  33% {
-    border-radius: 70% 30% 46% 54% / 30% 29% 71% 70%;
-    transform: rotate(120deg) scale(1.05);
-  }
-  66% {
-    border-radius: 100% 60% 60% 100% / 100% 100% 60% 60%;
-    transform: rotate(240deg) scale(0.98);
-  }
-}
-
-.animate-wave-morph {
-  animation: wave-morph 8s ease-in-out infinite;
-}
-
-@keyframes wave-morph-reverse {
-  0%, 100% {
-    border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
-    transform: rotate(360deg) scale(1);
-  }
-  50% {
-    border-radius: 30% 60% 70% 40% / 50% 60% 30% 60%;
-    transform: rotate(180deg) scale(1.08);
-  }
-}
-
-.animate-wave-morph-reverse {
-  animation: wave-morph-reverse 10s ease-in-out infinite;
 }
 
 /* Light Card Shadows */
