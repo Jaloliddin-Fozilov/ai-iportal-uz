@@ -25,7 +25,11 @@ import {
   XCircle,
   TrendingUp,
   Brain,
-  Code
+  Code,
+  Stethoscope,
+  AlertTriangle,
+  HardDrive,
+  Radio
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -93,8 +97,43 @@ interface StatsData {
   }[];
 }
 
+interface KeyQuotaItem {
+  keyId: string;
+  provider: string;
+  providerName: string;
+  maskedKey: string;
+  status: string;
+  usedRequests: number;
+  usedTokens: number;
+  dailyRequestsLimit: number;
+  remainingRequests: number;
+  dailyTokensLimit: number;
+  remainingTokens: number;
+  percentRemaining: number;
+  healthStatus: 'healthy' | 'warning' | 'exhausted' | 'error';
+  resetInfo: string;
+}
+
+interface HealthSummaryData {
+  totalDailyCapacity: number;
+  totalRemainingRequests: number;
+  totalTokensCapacity: number;
+  totalRemainingTokens: number;
+  overallHealthPercent: number;
+  activeKeysCount: number;
+  activeNodesCount: number;
+  systemInfo?: {
+    uptimeSeconds: number;
+    nodeVersion: string;
+    memoryUsageMb: number;
+    totalMemoryMb: number;
+    platform: string;
+    arch: string;
+  };
+}
+
 export default function AdminPage() {
-  const [activeTab, setActiveTab] = useState<'stats' | 'nodes' | 'providers' | 'users'>('stats');
+  const [activeTab, setActiveTab] = useState<'stats' | 'health' | 'nodes' | 'providers' | 'users'>('stats');
   const [authToken, setAuthToken] = useState<string>('');
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [adminPassword, setAdminPassword] = useState<string>('');
@@ -105,7 +144,10 @@ export default function AdminPage() {
   const [providers, setProviders] = useState<any[]>([]);
   const [nodes, setNodes] = useState<any[]>([]);
   const [stats, setStats] = useState<StatsData | null>(null);
+  const [keyQuotas, setKeyQuotas] = useState<KeyQuotaItem[]>([]);
+  const [healthSummary, setHealthSummary] = useState<HealthSummaryData | null>(null);
   const [loading, setLoading] = useState(false);
+  const [probing, setProbing] = useState(false);
 
   // New Provider/Node forms
   const [newProvider, setNewProvider] = useState('groq');
@@ -129,17 +171,19 @@ export default function AdminPage() {
   const fetchAdminData = async (token: string) => {
     setLoading(true);
     try {
-      const [usersRes, provRes, nodeRes, statsRes] = await Promise.all([
+      const [usersRes, provRes, nodeRes, statsRes, healthRes] = await Promise.all([
         fetch('/api/admin/users', { headers: { Authorization: `Bearer ${token}` } }),
         fetch('/api/providers', { headers: { Authorization: `Bearer ${token}` } }),
         fetch('/api/nodes', { headers: { Authorization: `Bearer ${token}` } }),
         fetch('/api/admin/stats', { headers: { Authorization: `Bearer ${token}` } }),
+        fetch('/api/admin/health-check', { headers: { Authorization: `Bearer ${token}` } }),
       ]);
 
       const usersData = await usersRes.json();
       const provData = await provRes.json();
       const nodeData = await nodeRes.json();
       const statsData = await statsRes.json();
+      const healthData = await healthRes.json();
 
       if (usersData.success) {
         setUsers(usersData.users || []);
@@ -151,10 +195,36 @@ export default function AdminPage() {
       if (provData.success) setProviders(provData.keys || []);
       if (nodeData.success) setNodes(nodeData.nodes || []);
       if (statsData.success) setStats(statsData.stats || null);
+      if (healthData.success) {
+        setKeyQuotas(healthData.keyQuotas || []);
+        setHealthSummary({
+          ...healthData.summary,
+          systemInfo: healthData.systemInfo,
+        });
+      }
     } catch (e) {
       setIsAuthenticated(false);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRunHealthProbe = async () => {
+    setProbing(true);
+    try {
+      const res = await fetch('/api/admin/health-check', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert('Jonli salomatlik diagnostikasi muvaffaqiyatli yakunlandi!');
+        fetchAdminData(authToken);
+      }
+    } catch (e: any) {
+      alert(`Diagnostika xatosi: ${e.message}`);
+    } finally {
+      setProbing(false);
     }
   };
 
@@ -384,7 +454,7 @@ export default function AdminPage() {
                 </span>
               </h1>
               <p className="text-xs text-slate-500">
-                AI Klasteri, Edge Proxy Nodelar, Token Sarfi va Foydalanuvchilar Statistikasi
+                AI Klasteri, Edge Proxy Nodelar, Token Sarfi, Health Checker & Quota Tahlili
               </p>
             </div>
           </div>
@@ -411,15 +481,18 @@ export default function AdminPage() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
           <div className="p-4 sm:p-5 rounded-3xl bg-white border border-[#dce8e2] shadow-sm space-y-1">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Jami So'rovlar</span>
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Kunlik Qolgan So'rov</span>
               <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600">
                 <TrendingUp className="w-4 h-4" />
               </div>
             </div>
             <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-mono">
-              {stats?.totalRequests ?? users.reduce((acc, u) => acc + (u.totalRequests || 0), 0)}
+              {(healthSummary?.totalRemainingRequests ?? 14400).toLocaleString()}{' '}
+              <span className="text-xs font-normal text-slate-400">/ {(healthSummary?.totalDailyCapacity ?? 14400).toLocaleString()}</span>
             </div>
-            <div className="text-[11px] text-slate-400">Klaster bo'ylab barcha so'rovlar</div>
+            <div className="text-[11px] text-emerald-600 font-semibold">
+              Klaster salomatligi: {healthSummary?.overallHealthPercent ?? 100}%
+            </div>
           </div>
 
           <div className="p-4 sm:p-5 rounded-3xl bg-white border border-[#dce8e2] shadow-sm space-y-1">
@@ -433,7 +506,7 @@ export default function AdminPage() {
               {(stats?.totalTokens ?? 0).toLocaleString()}
             </div>
             <div className="text-[11px] text-slate-400">
-              Prompt: {(stats?.totalPromptTokens ?? 0).toLocaleString()} | Comp: {(stats?.totalCompletionTokens ?? 0).toLocaleString()}
+              Qolgan bepul tokenlar: ~{(healthSummary?.totalRemainingTokens ?? 1000000).toLocaleString()}
             </div>
           </div>
 
@@ -480,6 +553,18 @@ export default function AdminPage() {
           >
             <BarChart3 className="w-4 h-4" />
             <span>Statistika & Tahlil</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('health')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              activeTab === 'health'
+                ? 'bg-[#00d68f] text-slate-950 shadow-sm'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+            }`}
+          >
+            <Stethoscope className="w-4 h-4" />
+            <span>Health Checker & Quota ({keyQuotas.length})</span>
           </button>
 
           <button
@@ -735,7 +820,163 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* TAB 2: EDGE HOSTING NODES */}
+        {/* TAB 2: HEALTH CHECKER & QUOTA ANALYTICS */}
+        {activeTab === 'health' && (
+          <div className="space-y-6">
+            {/* Health Action Card */}
+            <div className="bg-white rounded-3xl border border-[#dce8e2] p-5 sm:p-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h2 className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                  <Stethoscope className="w-5 h-5 text-emerald-600" />
+                  <span>Jonli Salomatlik Diagnostikasi & Quota Tahlili</span>
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  AI provayder kalitlarining qolgan kunlik zaxiralari va Edge Nodelarning real-time ulanishi
+                </p>
+              </div>
+
+              <button
+                onClick={handleRunHealthProbe}
+                disabled={probing}
+                className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-2xl bg-gradient-to-r from-[#00d68f] to-[#059669] hover:from-[#00c483] hover:to-[#04825b] text-slate-950 font-bold text-xs shadow-md shadow-emerald-500/20 transition-all cursor-pointer shrink-0"
+              >
+                <Radio className={`w-4 h-4 ${probing ? 'animate-ping' : ''}`} />
+                <span>{probing ? 'Diagnostika qilinmoqda...' : '🩺 Jonli Diagnostika O\'tkazish'}</span>
+              </button>
+            </div>
+
+            {/* Provider Key Quotas Table */}
+            <div className="bg-white rounded-3xl border border-[#dce8e2] p-5 sm:p-6 shadow-sm space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 tracking-tight">
+                    AI Provayder Kalitlari Quota & Tahminiy Qolgan So'rovlar
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Har bir kalitning kunlik bepul limiti va bugun qolgan taxminiy quvvati
+                  </p>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-100 text-slate-400 uppercase tracking-wider font-semibold text-[11px]">
+                      <th className="py-3 px-3">AI Provayder</th>
+                      <th className="py-3 px-3">Kalit</th>
+                      <th className="py-3 px-3">Kunlik Limit</th>
+                      <th className="py-3 px-3">Ishlatildi</th>
+                      <th className="py-3 px-3">Tahminiy Qolgan So'rov</th>
+                      <th className="py-3 px-3">Qolgan Zaxira %</th>
+                      <th className="py-3 px-3">Yangilanish Vaqti</th>
+                      <th className="py-3 px-3">Holat</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 font-medium">
+                    {keyQuotas.map((item) => (
+                      <tr key={item.keyId} className="hover:bg-slate-50/70 transition-colors">
+                        <td className="py-3.5 px-3">
+                          <div className="font-bold text-slate-900">{item.providerName}</div>
+                          <span className="text-[10px] font-mono text-slate-400 uppercase">{item.provider}</span>
+                        </td>
+                        <td className="py-3.5 px-3 font-mono text-[11px] text-slate-600">
+                          {item.maskedKey}
+                        </td>
+                        <td className="py-3.5 px-3 font-mono font-semibold text-slate-800">
+                          {item.dailyRequestsLimit.toLocaleString()} req/kun
+                        </td>
+                        <td className="py-3.5 px-3 font-mono text-slate-600">
+                          {item.usedRequests.toLocaleString()} req
+                        </td>
+                        <td className="py-3.5 px-3">
+                          <div className="font-bold font-mono text-emerald-700 text-sm">
+                            ~{item.remainingRequests.toLocaleString()} req
+                          </div>
+                          <div className="text-[10px] text-slate-400">
+                            ~{item.remainingTokens.toLocaleString()} token zaxira
+                          </div>
+                        </td>
+                        <td className="py-3.5 px-3 w-36">
+                          <div className="flex items-center justify-between text-[11px] font-bold mb-1">
+                            <span className={item.percentRemaining > 20 ? 'text-emerald-700' : 'text-amber-600'}>
+                              {item.percentRemaining}%
+                            </span>
+                          </div>
+                          <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all ${
+                                item.percentRemaining > 20 ? 'bg-[#00d68f]' : 'bg-amber-500'
+                              }`}
+                              style={{ width: `${item.percentRemaining}%` }}
+                            />
+                          </div>
+                        </td>
+                        <td className="py-3.5 px-3 text-slate-500 text-[11px]">
+                          {item.resetInfo}
+                        </td>
+                        <td className="py-3.5 px-3">
+                          {item.healthStatus === 'healthy' ? (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                              <CheckCircle2 className="w-3 h-3" />
+                              FAOL
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                              <AlertTriangle className="w-3 h-3" />
+                              {item.healthStatus.toUpperCase()}
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Server VDS System Health Specs */}
+            {healthSummary?.systemInfo && (
+              <div className="bg-white rounded-3xl border border-[#dce8e2] p-5 sm:p-6 shadow-sm space-y-4">
+                <h3 className="text-sm font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                  <HardDrive className="w-4 h-4 text-slate-700" />
+                  <span>VDS Server & Tizim Resurslari</span>
+                </h3>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200">
+                    <span className="text-[11px] text-slate-400 uppercase font-bold">Node.js Versiyasi</span>
+                    <div className="font-mono text-sm font-bold text-slate-900 mt-0.5">
+                      {healthSummary.systemInfo.nodeVersion}
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200">
+                    <span className="text-[11px] text-slate-400 uppercase font-bold">Xotira Sarfi (RAM)</span>
+                    <div className="font-mono text-sm font-bold text-emerald-600 mt-0.5">
+                      {healthSummary.systemInfo.memoryUsageMb} MB / {healthSummary.systemInfo.totalMemoryMb} MB
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200">
+                    <span className="text-[11px] text-slate-400 uppercase font-bold">Server Ish Vaqti (Uptime)</span>
+                    <div className="font-mono text-sm font-bold text-slate-900 mt-0.5">
+                      {Math.floor(healthSummary.systemInfo.uptimeSeconds / 3600)}s {Math.floor((healthSummary.systemInfo.uptimeSeconds % 3600) / 60)}d
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200">
+                    <span className="text-[11px] text-slate-400 uppercase font-bold">Operatsion Tizim</span>
+                    <div className="font-mono text-sm font-bold text-slate-900 mt-0.5">
+                      {healthSummary.systemInfo.platform} ({healthSummary.systemInfo.arch})
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TAB 3: EDGE HOSTING NODES */}
         {activeTab === 'nodes' && (
           <div className="space-y-6">
             {/* Add Node Form */}
@@ -855,7 +1096,7 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* TAB 3: PROVIDER KEYS */}
+        {/* TAB 4: PROVIDER KEYS */}
         {activeTab === 'providers' && (
           <div className="space-y-6">
             {/* Add Provider Key Form */}
@@ -950,7 +1191,7 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* TAB 4: USERS MANAGEMENT */}
+        {/* TAB 5: USERS MANAGEMENT */}
         {activeTab === 'users' && (
           <div className="bg-white rounded-3xl border border-[#dce8e2] p-5 sm:p-6 shadow-sm space-y-4">
             <h2 className="text-base font-bold text-slate-900 tracking-tight">
