@@ -117,9 +117,10 @@ Rules:
     console.warn('[PromptSynthesizer] LLM synthesis skipped, using visual dictionary fallback:', err);
   }
 
-  // 2. Intelligent Keyword Dictionary Fallback
+  // 2. Intelligent Keyword Dictionary Fallback (Whole words only)
   for (const [key, visualDescription] of Object.entries(UZ_RU_VISUAL_MAP)) {
-    if (inputLower.includes(key)) {
+    const wordRegex = new RegExp(`(^|\\s|[.,!?;])${key}($|\\s|[.,!?;])`, 'i');
+    if (wordRegex.test(inputLower)) {
       return `${visualDescription}, 8k resolution, photorealistic, cinematic studio lighting, highly detailed, masterpiece`;
     }
   }
