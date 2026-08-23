@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     const rawCdnUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${width}&height=${height}&model=flux&seed=${randomSeed}&nologo=true&enhance=true`;
     const fallbackCdnUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${width}&height=${height}&model=turbo&seed=${randomSeed}&nologo=true`;
     
-    const proxyUrl = `/api/v1/images/proxy?url=${encodeURIComponent(rawCdnUrl)}&fallback=${encodeURIComponent(fallbackCdnUrl)}`;
+    const proxyUrl = `/api/v1/images/proxy?prompt=${encodedPrompt}&url=${encodeURIComponent(rawCdnUrl)}&fallback=${encodeURIComponent(fallbackCdnUrl)}`;
 
     return NextResponse.json({
       success: true,

@@ -14,24 +14,63 @@ export async function GET(req: NextRequest) {
     }
 
     const decodedUrl = decodeURIComponent(imageUrl);
+    const promptParam = searchParams.get('prompt');
     let imageBuffer: ArrayBuffer | null = null;
     let contentType = 'image/jpeg';
 
-    // 1. Try Primary High-Res Pipeline (with 35s timeout)
-    try {
-      const response = await fetch(decodedUrl, {
-        headers: {
-          'User-Agent': 'iportal-image-engine/1.0',
-        },
-        signal: AbortSignal.timeout(35000),
-      });
+    const cfAccountId = process.env.CLOUDFLARE_ACCOUNT_ID;
+    const cfToken = process.env.CLOUDFLARE_API_TOKEN;
 
-      if (response.ok) {
-        imageBuffer = await response.arrayBuffer();
-        contentType = response.headers.get('content-type') || 'image/jpeg';
+    // 0. Primary High-Speed Cloudflare Workers AI Flux-1-Schnell Pipeline (<2s latency)
+    if (cfAccountId && cfToken) {
+      try {
+        const promptMatch = decodedUrl.match(/\/prompt\/([^?]+)/);
+        const promptText = promptParam ? decodeURIComponent(promptParam) : (promptMatch ? decodeURIComponent(promptMatch[1]) : '');
+        if (promptText) {
+          const cfRes = await fetch(
+            `https://api.cloudflare.com/client/v4/accounts/${cfAccountId}/ai/run/@cf/black-forest-labs/flux-1-schnell`,
+            {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${cfToken}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ prompt: promptText }),
+              signal: AbortSignal.timeout(15000),
+            }
+          );
+
+          if (cfRes.ok) {
+            const cfData = await cfRes.json().catch(() => ({}));
+            if (cfData.result?.image) {
+              const base64Str = cfData.result.image;
+              imageBuffer = Buffer.from(base64Str, 'base64').buffer;
+              contentType = 'image/jpeg';
+            }
+          }
+        }
+      } catch (cfErr) {
+        console.warn('[ImageProxy] Cloudflare Flux generation failed, falling back to CDN:', cfErr);
       }
-    } catch (primaryErr) {
-      console.warn('[ImageProxy] Primary image fetch timed out or failed, attempting high-speed fallback:', primaryErr);
+    }
+
+    // 1. Fallback High-Res Pipeline (if Cloudflare not available or failed)
+    if (!imageBuffer) {
+      try {
+        const response = await fetch(decodedUrl, {
+          headers: {
+            'User-Agent': 'iportal-image-engine/1.0',
+          },
+          signal: AbortSignal.timeout(20000),
+        });
+
+        if (response.ok) {
+          imageBuffer = await response.arrayBuffer();
+          contentType = response.headers.get('content-type') || 'image/jpeg';
+        }
+      } catch (primaryErr) {
+        console.warn('[ImageProxy] Secondary image fetch timed out or failed, attempting high-speed fallback:', primaryErr);
+      }
     }
 
     // 2. Try High-Speed Fallback Pipeline (Turbo model - 1.5s rendering)
