@@ -71,6 +71,7 @@ function getInitialData(): StoreData {
   addKeysFromEnv('mistral', 'MISTRAL_API_KEY');
   addKeysFromEnv('cloudflare', 'CLOUDFLARE_AI_KEYS');
   addKeysFromEnv('cloudflare', 'CLOUDFLARE_API_KEY');
+  addKeysFromEnv('cloudflare', 'CLOUDFLARE_API_TOKEN');
   addKeysFromEnv('huggingface', 'HUGGINGFACE_API_KEYS');
   addKeysFromEnv('huggingface', 'HUGGINGFACE_API_KEY');
 
