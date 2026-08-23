@@ -1451,14 +1451,19 @@ server.listen(process.env.PORT || 8080);`}
               </h2>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {nodes.map((node, nodeIdx) => {
+                {nodes.map((node) => {
+                  const isCfNode = node.type === 'cloudflare' || node.id.includes('cloudflare');
+                  const nonCfNodes = nodes.filter(n => n.type !== 'cloudflare' && !n.id.includes('cloudflare'));
+                  const nodeIdxInNonCf = nonCfNodes.findIndex(n => n.id === node.id);
+
                   // Find all keys assigned to this node
                   const boundKeys = providers.filter((k) => {
-                    if (k.provider === 'cloudflare') return false; // Cloudflare uses its own direct backbone
+                    if (isCfNode) return k.provider === 'cloudflare';
+                    if (k.provider === 'cloudflare') return false;
                     if (k.assignedNodeId) return k.assignedNodeId === node.id;
                     const sameProvKeys = providers.filter(p => p.provider === k.provider);
                     const keyIdx = sameProvKeys.findIndex(p => p.id === k.id);
-                    return (keyIdx % nodes.length) === nodeIdx;
+                    return (keyIdx % Math.max(1, nonCfNodes.length)) === Math.max(0, nodeIdxInNonCf);
                   });
 
                   return (
