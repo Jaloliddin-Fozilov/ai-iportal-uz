@@ -9,12 +9,13 @@ export async function GET(req: NextRequest) {
     const imageUrl = searchParams.get('url');
     const fallbackUrl = searchParams.get('fallback');
 
-    if (!imageUrl) {
-      return new NextResponse('Missing image url', { status: 400 });
+    const promptParam = searchParams.get('prompt');
+
+    if (!imageUrl && !promptParam) {
+      return new NextResponse('Missing image url or prompt', { status: 400 });
     }
 
-    const decodedUrl = decodeURIComponent(imageUrl);
-    const promptParam = searchParams.get('prompt');
+    const decodedUrl = imageUrl ? decodeURIComponent(imageUrl) : '';
     let imageBuffer: ArrayBuffer | null = null;
     let contentType = 'image/jpeg';
 
