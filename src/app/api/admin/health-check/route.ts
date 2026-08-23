@@ -66,6 +66,18 @@ export async function GET(req: NextRequest) {
       const estimatedKeyRequests = Math.round((pStats.requestsCount || 0) * shareRatio) + (k.successCount || 0);
       const estimatedKeyTokens = Math.round((pStats.totalTokens || 0) * shareRatio);
 
+      let assignedHosting = '⚡️ Vercel Edge US-East / Deno (Auto)';
+      let assignedHostingUrl = '';
+      if (k.provider === 'cloudflare') {
+        assignedHosting = '☁️ Cloudflare Global Edge (Direct)';
+      } else if (k.assignedNodeId) {
+        const found = store.workerNodes.find(n => n.id === k.assignedNodeId);
+        if (found) {
+          assignedHosting = `${found.name} (${found.type.toUpperCase()})`;
+          assignedHostingUrl = found.url;
+        }
+      }
+
       return calculateKeyQuota(
         k.provider,
         k.id,
@@ -73,7 +85,9 @@ export async function GET(req: NextRequest) {
         k.status,
         estimatedKeyRequests,
         estimatedKeyTokens,
-        k.realQuota
+        k.realQuota,
+        assignedHosting,
+        assignedHostingUrl
       );
     });
 

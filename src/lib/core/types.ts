@@ -141,5 +141,6 @@ export interface ProviderKeyItem {
   successCount: number;
   failCount: number;
   lastUsedAt?: number;
+  assignedNodeId?: string;
   realQuota?: RealQuotaData;
 }

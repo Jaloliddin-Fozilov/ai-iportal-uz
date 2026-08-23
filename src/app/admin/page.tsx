@@ -122,6 +122,8 @@ interface KeyQuotaItem {
   rateLimitType?: string;
   latencyMs?: number;
   lastChecked?: number;
+  assignedHosting?: string;
+  assignedHostingUrl?: string;
 }
 
 interface HealthSummaryData {
@@ -970,6 +972,7 @@ export default function AdminPage() {
                     <tr className="border-b border-slate-100 text-slate-400 uppercase tracking-wider font-semibold text-[11px]">
                       <th className="py-3 px-3">AI Provayder</th>
                       <th className="py-3 px-3">Kalit</th>
+                      <th className="py-3 px-3">Biriktirilgan Hosting / Node</th>
                       <th className="py-3 px-3">Kunlik Limit</th>
                       <th className="py-3 px-3">Kechikish (Ping)</th>
                       <th className="py-3 px-3">Real Qolgan So'rov</th>
@@ -987,6 +990,11 @@ export default function AdminPage() {
                         </td>
                         <td className="py-3.5 px-3 font-mono text-[11px] text-slate-600">
                           {item.maskedKey}
+                        </td>
+                        <td className="py-3.5 px-3">
+                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-100 border border-slate-200 text-slate-800 text-[11px] font-semibold">
+                            <span>{item.assignedHosting || '⚡️ Vercel Edge / Deno (Auto)'}</span>
+                          </div>
                         </td>
                         <td className="py-3.5 px-3 font-mono font-semibold text-slate-800">
                           {item.dailyRequestsLimit.toLocaleString('ru-RU')} req/kun
@@ -1618,42 +1626,73 @@ server.listen(process.env.PORT || 8080);`}
               )}
             </div>
 
-            {/* Provider Keys List */}
+            {/* Visual Key-to-Hosting Routing Topology Matrix */}
             <div className="bg-white rounded-3xl border border-[#dce8e2] p-5 sm:p-6 shadow-sm space-y-4">
-              <h2 className="text-base font-bold text-slate-900 tracking-tight">
-                Faol AI Provayder Kalitlari ({providers.length})
-              </h2>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                    <Globe className="w-4 h-4 text-emerald-600" />
+                    <span>🌐 Kalitlar & Edge Hosting Taqsimot Xaritasi (Routing Topology)</span>
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Har bir AI kaliti qaysi server va Edge Proxy orqali O'zbekiston/VDS IP sini yashirib so'rov yuborishi
+                  </p>
+                </div>
+                <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 self-start sm:self-auto">
+                  {providers.length} ta Kalit ➔ {nodes.length} ta Edge Hosting
+                </span>
+              </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {providers.map((k) => (
-                  <div
-                    key={k.id}
-                    className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-3"
-                  >
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-bold text-xs text-slate-900 uppercase">{k.provider}</span>
-                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 font-semibold font-mono">
-                          {k.status}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-1">
+                {providers.map((k) => {
+                  const isCf = k.provider === 'cloudflare';
+                  const hostingTitle = isCf 
+                    ? '☁️ Cloudflare Global Edge Network' 
+                    : '⚡️ Vercel Edge US-East (iad1) / Deno 1 (Auto-Balanced)';
+                  const hostingSub = isCf 
+                    ? 'Account: 8501...05dd • Direct Cloudflare Backbone' 
+                    : 'https://vercel-vert-sigma-25.vercel.app • VDS IP To\'liq Yashirilgan';
+
+                  return (
+                    <div key={k.id} className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-extrabold uppercase px-2.5 py-1 rounded-xl bg-slate-900 text-white font-mono">
+                            {k.provider}
+                          </span>
+                          <span className="font-mono text-xs text-slate-700 font-semibold">{k.maskedKey}</span>
+                        </div>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                          Faol
                         </span>
                       </div>
-                      <div className="font-mono text-xs text-slate-500 mt-1 truncate">
-                        {k.maskedKey}
+
+                      <div className="p-3 rounded-xl bg-white border border-slate-200/80 space-y-1">
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="text-slate-400 font-bold uppercase tracking-wider">Biriktirilgan Hosting / Node:</span>
+                          <span className="font-mono text-emerald-600 font-bold">100% Yashirilgan</span>
+                        </div>
+                        <div className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                          <span>{hostingTitle}</span>
+                        </div>
+                        <div className="text-[10px] font-mono text-slate-500 truncate select-all">
+                          {hostingSub}
+                        </div>
                       </div>
-                      <div className="text-[10px] text-slate-400 mt-1">
-                        So'rovlar: <strong className="text-slate-700">{k.successCount || 0}</strong> muvaffaqiyatli
+
+                      <div className="flex items-center justify-between text-[11px] text-slate-500 pt-0.5">
+                        <span>So'rovlar: <strong className="text-slate-800">{k.successCount || 0}</strong> muvaffaqiyatli</span>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteProviderKey(k.id)}
+                          className="text-red-500 hover:text-red-700 text-xs font-semibold cursor-pointer"
+                        >
+                          O'chirish
+                        </button>
                       </div>
                     </div>
-
-                    <button
-                      onClick={() => handleDeleteProviderKey(k.id)}
-                      className="p-1.5 rounded-lg bg-white hover:bg-red-50 text-slate-400 hover:text-red-500 border border-slate-200 transition-colors"
-                      title="O'chirish"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </div>

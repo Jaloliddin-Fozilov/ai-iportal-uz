@@ -113,6 +113,8 @@ export interface CalculatedKeyQuota {
   rateLimitType?: string;
   latencyMs?: number;
   lastChecked?: number;
+  assignedHosting?: string;
+  assignedHostingUrl?: string;
 }
 
 export function calculateKeyQuota(
@@ -122,7 +124,9 @@ export function calculateKeyQuota(
   status: string,
   usedRequests: number,
   usedTokens: number,
-  realQuota?: RealQuotaData
+  realQuota?: RealQuotaData,
+  assignedHosting?: string,
+  assignedHostingUrl?: string
 ): CalculatedKeyQuota {
   const provKey = provider.toLowerCase();
   const info = PROVIDER_FREE_QUOTAS[provKey] || {
@@ -196,5 +200,7 @@ export function calculateKeyQuota(
     rateLimitType: realQuota?.rateLimitType,
     latencyMs: realQuota?.latencyMs,
     lastChecked: realQuota?.lastChecked,
+    assignedHosting: assignedHosting || (provKey === 'cloudflare' ? '☁️ Cloudflare Global Edge' : '⚡️ Vercel Edge US-East / Deno (Auto)'),
+    assignedHostingUrl: assignedHostingUrl,
   };
 }
