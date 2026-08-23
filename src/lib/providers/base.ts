@@ -127,7 +127,8 @@ export abstract class BaseProvider {
         headers,
         body: JSON.stringify(payload),
       },
-      node
+      node,
+      keyItem
     );
 
     const latency = Date.now() - startTime;

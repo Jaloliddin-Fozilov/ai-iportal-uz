@@ -1646,12 +1646,21 @@ server.listen(process.env.PORT || 8080);`}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-1">
                 {providers.map((k) => {
                   const isCf = k.provider === 'cloudflare';
+                  const sameProvKeys = providers.filter(p => p.provider === k.provider);
+                  const keyIdx = sameProvKeys.findIndex(p => p.id === k.id);
+                  const assignedNode = isCf 
+                    ? null 
+                    : (nodes.length > 0 ? nodes[Math.max(0, keyIdx) % nodes.length] : null);
+
                   const hostingTitle = isCf 
                     ? '☁️ Cloudflare Global Edge Network' 
-                    : '⚡️ Vercel Edge US-East (iad1) / Deno 1 (Auto-Balanced)';
+                    : (assignedNode ? `${assignedNode.name}` : '⚡️ Vercel Edge US-East (iad1)');
                   const hostingSub = isCf 
                     ? 'Account: 8501...05dd • Direct Cloudflare Backbone' 
-                    : 'https://vercel-vert-sigma-25.vercel.app • VDS IP To\'liq Yashirilgan';
+                    : (assignedNode ? `${assignedNode.url} • VDS IP To'liq Yashirilgan` : 'https://vercel-vert-sigma-25.vercel.app • VDS IP To\'liq Yashirilgan');
+                  const regionBadge = isCf 
+                    ? 'Global Anycast' 
+                    : (assignedNode?.type === 'render' ? 'Germaniya (Frankfurt)' : assignedNode?.type === 'deno' ? 'Global (Deno)' : 'AQSH (Washington DC)');
 
                   return (
                     <div key={k.id} className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200 space-y-3">
@@ -1663,13 +1672,13 @@ server.listen(process.env.PORT || 8080);`}
                           <span className="font-mono text-xs text-slate-700 font-semibold">{k.maskedKey}</span>
                         </div>
                         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
-                          Faol
+                          {regionBadge}
                         </span>
                       </div>
 
                       <div className="p-3 rounded-xl bg-white border border-slate-200/80 space-y-1">
                         <div className="flex items-center justify-between text-[11px]">
-                          <span className="text-slate-400 font-bold uppercase tracking-wider">Biriktirilgan Hosting / Node:</span>
+                          <span className="text-slate-400 font-bold uppercase tracking-wider">Alohida Biriktirilgan Hosting:</span>
                           <span className="font-mono text-emerald-600 font-bold">100% Yashirilgan</span>
                         </div>
                         <div className="text-xs font-bold text-slate-800 flex items-center gap-1.5">

@@ -62,14 +62,39 @@ export class LoadBalancer {
   }
 
   /**
+   * Select a dedicated worker node for a specific key (Distributes keys across distinct hosting nodes)
+   */
+  static selectNodeForKey(keyItem?: ProviderKeyItem | null): WorkerNode | null {
+    const store = loadStore();
+    const allNodes = store.workerNodes.filter(n => CircuitBreaker.isNodeAvailable(n) && n.status !== 'offline');
+    if (allNodes.length === 0) return null;
+
+    if (keyItem?.assignedNodeId) {
+      const found = allNodes.find(n => n.id === keyItem.assignedNodeId);
+      if (found) return found;
+    }
+
+    if (keyItem) {
+      const allKeysForProvider = store.providerKeys.filter(k => k.provider === keyItem.provider);
+      const keyIdx = allKeysForProvider.findIndex(k => k.id === keyItem.id);
+      if (keyIdx >= 0) {
+        return allNodes[keyIdx % allNodes.length];
+      }
+    }
+
+    return this.selectNode();
+  }
+
+  /**
    * Ultra-fast Edge Fetch with Connection Keep-Alive and Fast Timeout Fallback
    */
   static async executeFetch(
     targetUrl: string,
     options: RequestInit,
-    preferNode?: WorkerNode | null
+    preferNode?: WorkerNode | null,
+    keyItem?: ProviderKeyItem | null
   ): Promise<{ response: Response; usedNode: WorkerNode | null }> {
-    const node = preferNode !== undefined ? preferNode : this.selectNode();
+    const node = preferNode !== undefined ? preferNode : this.selectNodeForKey(keyItem);
 
     // If no worker node configured or available, make direct request
     if (!node) {

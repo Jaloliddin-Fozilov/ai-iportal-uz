@@ -66,7 +66,7 @@ export async function GET(req: NextRequest) {
       const estimatedKeyRequests = Math.round((pStats.requestsCount || 0) * shareRatio) + (k.successCount || 0);
       const estimatedKeyTokens = Math.round((pStats.totalTokens || 0) * shareRatio);
 
-      let assignedHosting = '⚡️ Vercel Edge US-East / Deno (Auto)';
+      let assignedHosting = '⚡️ Vercel Edge US-East (iad1)';
       let assignedHostingUrl = '';
       if (k.provider === 'cloudflare') {
         assignedHosting = '☁️ Cloudflare Global Edge (Direct)';
@@ -75,6 +75,13 @@ export async function GET(req: NextRequest) {
         if (found) {
           assignedHosting = `${found.name} (${found.type.toUpperCase()})`;
           assignedHostingUrl = found.url;
+        }
+      } else if (store.workerNodes.length > 0) {
+        const keyIndex = sameProvKeys.findIndex(pk => pk.id === k.id);
+        const assignedNode = store.workerNodes[Math.max(0, keyIndex) % store.workerNodes.length];
+        if (assignedNode) {
+          assignedHosting = `${assignedNode.name}`;
+          assignedHostingUrl = assignedNode.url;
         }
       }
 
