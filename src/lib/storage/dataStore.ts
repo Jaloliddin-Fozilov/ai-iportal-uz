@@ -15,8 +15,40 @@ const DATA_FILE = path.join(DATA_DIR, 'store.json');
 // In-memory cache
 let inMemoryStore: StoreData | null = null;
 
+function loadDirectEnv(): Record<string, string> {
+  const envMap: Record<string, string> = { ...(process.env as Record<string, string>) };
+  const envFiles = ['.env.local', '.env.production', '.env'];
+
+  for (const envFile of envFiles) {
+    const fullPath = path.join(/*turbopackIgnore: true*/ process.cwd(), envFile);
+    if (fs.existsSync(fullPath)) {
+      try {
+        const content = fs.readFileSync(fullPath, 'utf-8');
+        const lines = content.split('\n');
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed || trimmed.startsWith('#')) continue;
+          const eqIdx = trimmed.indexOf('=');
+          if (eqIdx > 0) {
+            const k = trimmed.slice(0, eqIdx).trim();
+            const v = trimmed.slice(eqIdx + 1).trim().replace(/^["']|["']$/g, '');
+            if (k && v) {
+              envMap[k] = v;
+              process.env[k] = v; // sync with process.env
+            }
+          }
+        }
+      } catch (e) {
+        console.warn(`[DataStore] Failed to read ${envFile}:`, e);
+      }
+    }
+  }
+  return envMap;
+}
+
 function getInitialData(): StoreData {
-  const masterKey = process.env.IPORTAL_MASTER_KEY || 'ip-master-secret-key-change-me';
+  const directEnv = loadDirectEnv();
+  const masterKey = directEnv.IPORTAL_MASTER_KEY || 'ip-master-secret-key-change-me';
 
   const defaultApiKeys: ApiKeyItem[] = [
     {
@@ -42,18 +74,20 @@ function getInitialData(): StoreData {
   const providerKeys: ProviderKeyItem[] = [];
 
   const addKeysFromEnv = (provider: ProviderId, envVar: string) => {
-    const raw = process.env[envVar] || '';
+    const raw = directEnv[envVar] || '';
     const keys = raw.split(',').map(k => k.trim()).filter(Boolean);
     keys.forEach((k, idx) => {
-      providerKeys.push({
-        id: `${provider}-env-${idx + 1}`,
-        provider,
-        key: k,
-        maskedKey: maskKey(k),
-        status: 'active',
-        successCount: 0,
-        failCount: 0,
-      });
+      if (!providerKeys.some(existing => existing.key === k)) {
+        providerKeys.push({
+          id: `${provider}-env-${idx + 1}`,
+          provider,
+          key: k,
+          maskedKey: maskKey(k),
+          status: 'active',
+          successCount: 0,
+          failCount: 0,
+        });
+      }
     });
   };
 
@@ -77,7 +111,7 @@ function getInitialData(): StoreData {
 
   // Parse Worker Nodes from ENV (e.g. WORKER_URLS=https://node1.workers.dev,https://node2.deno.dev)
   const workerNodes: WorkerNode[] = [];
-  const vercelProxy = process.env.VERCEL_PROXY_URL || 'https://vercel-vert-sigma-25.vercel.app/api/proxy';
+  const vercelProxy = directEnv.VERCEL_PROXY_URL || 'https://vercel-vert-sigma-25.vercel.app/api/proxy';
   if (vercelProxy) {
     workerNodes.push({
       id: 'node-vercel-edge-1',
@@ -127,8 +161,6 @@ export function maskKey(key: string): string {
 }
 
 export function loadStore(): StoreData {
-  if (inMemoryStore) return inMemoryStore;
-
   const initial = getInitialData();
 
   try {
