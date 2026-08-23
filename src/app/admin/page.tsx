@@ -1451,50 +1451,90 @@ server.listen(process.env.PORT || 8080);`}
               </h2>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {nodes.map((node) => (
-                  <div
-                    key={node.id}
-                    className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200 hover:border-emerald-300 transition-all space-y-3"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-xs uppercase">
-                          {node.type.slice(0, 2)}
+                {nodes.map((node, nodeIdx) => {
+                  // Find all keys assigned to this node
+                  const boundKeys = providers.filter((k) => {
+                    if (k.provider === 'cloudflare') return false; // Cloudflare uses its own direct backbone
+                    if (k.assignedNodeId) return k.assignedNodeId === node.id;
+                    const sameProvKeys = providers.filter(p => p.provider === k.provider);
+                    const keyIdx = sameProvKeys.findIndex(p => p.id === k.id);
+                    return (keyIdx % nodes.length) === nodeIdx;
+                  });
+
+                  return (
+                    <div
+                      key={node.id}
+                      className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200 hover:border-emerald-300 transition-all space-y-3"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-xs uppercase">
+                            {node.type.slice(0, 2)}
+                          </div>
+                          <div>
+                            <div className="font-bold text-xs text-slate-900">{node.name}</div>
+                            <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">
+                              {node.type}
+                            </span>
+                          </div>
                         </div>
-                        <div>
-                          <div className="font-bold text-xs text-slate-900">{node.name}</div>
-                          <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">
-                            {node.type}
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => handlePingNode(node.url)}
+                            className="px-2.5 py-1 rounded-lg bg-white hover:bg-slate-200 text-slate-700 text-[11px] font-bold border border-slate-200 transition-colors cursor-pointer"
+                          >
+                            Ping Test
+                          </button>
+                          <button
+                            onClick={() => handleDeleteNode(node.id)}
+                            className="p-1.5 rounded-lg bg-white hover:bg-red-50 text-slate-400 hover:text-red-500 border border-slate-200 transition-colors cursor-pointer"
+                            title="O'chirish"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="p-2.5 rounded-xl bg-white border border-slate-200 font-mono text-[11px] text-slate-600 truncate select-all">
+                        {node.url}
+                      </div>
+
+                      {/* Biriktirilgan AI Provayderlar & Kalitlar */}
+                      <div className="p-3 rounded-xl bg-white/90 border border-slate-200 space-y-1.5">
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="text-slate-400 font-bold uppercase tracking-wider">Ushbu Hostingdagi AI Kalitlar:</span>
+                          <span className="text-[10px] font-mono font-bold text-emerald-700">
+                            {boundKeys.length > 0 ? `${boundKeys.length} ta faol kalit` : 'Zaxira (Kutmoqda)'}
                           </span>
                         </div>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => handlePingNode(node.url)}
-                          className="px-2.5 py-1 rounded-lg bg-white hover:bg-slate-200 text-slate-700 text-[11px] font-bold border border-slate-200 transition-colors"
-                        >
-                          Ping Test
-                        </button>
-                        <button
-                          onClick={() => handleDeleteNode(node.id)}
-                          className="p-1.5 rounded-lg bg-white hover:bg-red-50 text-slate-400 hover:text-red-500 border border-slate-200 transition-colors"
-                          title="O'chirish"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
 
-                    <div className="p-2.5 rounded-xl bg-white border border-slate-200 font-mono text-[11px] text-slate-600 truncate select-all">
-                      {node.url}
-                    </div>
+                        {boundKeys.length > 0 ? (
+                          <div className="flex flex-wrap gap-1.5 pt-0.5">
+                            {boundKeys.map((bk) => (
+                              <div
+                                key={bk.id}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-900 text-white text-[11px] font-mono shadow-sm"
+                              >
+                                <span className="font-bold uppercase text-emerald-400">{bk.provider}</span>
+                                <span className="text-slate-300">({bk.maskedKey})</span>
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-[11px] text-slate-500 italic">
+                            ⚡️ Zaxira Node — Yangi qo'shiladigan AI kalitlar avtomatik ushbu hostingga ulanadi
+                          </div>
+                        )}
+                      </div>
 
-                    <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1">
-                      <span>Holat: <strong className={node.status === 'offline' ? 'text-red-500' : 'text-emerald-600'}>{node.status === 'offline' ? 'Offline' : 'Online (Active)'}</strong></span>
-                      <span>Kechikish: <strong className="font-mono text-slate-900">{node.latencyMs ? `${node.latencyMs} ms` : 'Faol'}</strong></span>
+                      <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1">
+                        <span>Holat: <strong className={node.status === 'offline' ? 'text-red-500' : 'text-emerald-600'}>{node.status === 'offline' ? 'Offline' : 'Online (Active)'}</strong></span>
+                        <span>Kechikish: <strong className="font-mono text-slate-900">{node.latencyMs ? `${node.latencyMs} ms` : 'Faol'}</strong></span>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </div>
