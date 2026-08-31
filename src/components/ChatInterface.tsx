@@ -24,8 +24,6 @@ import { Sidebar } from './Sidebar';
 import { ChatMessageItem } from './ChatMessageItem';
 import { ChatInput } from './ChatInput';
 import { AuthModal } from './AuthModal';
-import { ApiKeysModal } from './ApiKeysModal';
-import { DocsModal } from './DocsModal';
 import { LibraryModal } from './LibraryModal';
 import { AIOrb } from './AIOrb';
 import { 
@@ -53,8 +51,6 @@ export const ChatInterface: React.FC = () => {
 
   // Modals
   const [authModalOpen, setAuthModalOpen] = useState(false);
-  const [apiKeysModalOpen, setApiKeysModalOpen] = useState(false);
-  const [docsModalOpen, setDocsModalOpen] = useState(false);
   const [libraryModalOpen, setLibraryModalOpen] = useState(false);
 
   // User auth state
@@ -529,8 +525,6 @@ export const ChatInterface: React.FC = () => {
           onSelectSession={handleSelectSession}
           onNewChat={handleNewChat}
           onDeleteSession={handleDeleteSession}
-          onOpenApiKeys={() => setApiKeysModalOpen(true)}
-          onOpenDocs={() => setDocsModalOpen(true)}
           onOpenAuth={() => setAuthModalOpen(true)}
           onOpenImageMode={handleStartImageMode}
           onOpenLibraryModal={() => setLibraryModalOpen(true)}
@@ -562,51 +556,44 @@ export const ChatInterface: React.FC = () => {
               </div>
             </div>
 
-            {/* Right Controls: Clean Profile & Settings */}
+            {/* Right Controls: Clean Profile & Navigation */}
             <div className="flex items-center gap-2">
               <Link
                 href="/docs"
                 className="hidden sm:flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#f3f7f5] hover:bg-[#e7f0ec] text-slate-700 text-xs font-bold transition-colors cursor-pointer border border-[#e2ece6]"
               >
                 <BookOpen className="w-3.5 h-3.5 text-cyan-600" />
-                <span>API Docs</span>
+                <span>API Hujjatlari</span>
               </Link>
 
               <Link
                 href="/dashboard"
-                className="hidden md:flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#f3f7f5] hover:bg-[#e7f0ec] text-slate-700 text-xs font-bold transition-colors cursor-pointer border border-[#e2ece6]"
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#f3f7f5] hover:bg-[#e7f0ec] text-slate-700 text-xs font-bold transition-colors cursor-pointer border border-[#e2ece6]"
               >
                 <BarChart3 className="w-3.5 h-3.5 text-purple-600" />
-                <span>Dashboard & Billing</span>
+                <span>Developer & Billing</span>
               </Link>
 
-              <button
-                onClick={() => setApiKeysModalOpen(true)}
-                className="hidden sm:flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#f3f7f5] hover:bg-[#e7f0ec] text-slate-700 text-xs font-bold transition-colors cursor-pointer border border-[#e2ece6]"
-              >
-                <Key className="w-3.5 h-3.5 text-amber-500" />
-                <span>API Keys</span>
-              </button>
-
               {currentUser ? (
-                <div 
-                  onClick={() => setApiKeysModalOpen(true)}
-                  className="flex items-center gap-2 pl-1 cursor-pointer"
+                <Link 
+                  href="/dashboard"
+                  className="flex items-center gap-2 pl-1 cursor-pointer group"
+                  title="Dasturchi Profiliga O'tish"
                 >
-                  <div className="w-8 h-8 rounded-full bg-slate-800 text-white flex items-center justify-center text-xs font-bold shadow-xs">
+                  <div className="w-8 h-8 rounded-full bg-slate-800 group-hover:bg-slate-700 text-white flex items-center justify-center text-xs font-bold shadow-xs transition-colors">
                     {currentUser.name?.[0]?.toUpperCase() || 'U'}
                   </div>
-                  <span className="text-xs font-semibold text-slate-700 hidden lg:inline truncate max-w-[100px]">
+                  <span className="text-xs font-semibold text-slate-700 hidden lg:inline truncate max-w-[100px] group-hover:text-emerald-700 transition-colors">
                     {currentUser.name}
                   </span>
-                </div>
+                </Link>
               ) : (
                 <button
                   onClick={() => setAuthModalOpen(true)}
                   className="flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-sm transition-all cursor-pointer"
                 >
                   <User className="w-3.5 h-3.5" />
-                  <span>Sign In</span>
+                  <span>Kirish / Ro'yxatdan O'tish</span>
                 </button>
               )}
             </div>
@@ -742,18 +729,6 @@ export const ChatInterface: React.FC = () => {
         isOpen={authModalOpen}
         onClose={() => setAuthModalOpen(false)}
         onSuccess={handleAuthSuccess}
-      />
-
-      <ApiKeysModal
-        isOpen={apiKeysModalOpen}
-        onClose={() => setApiKeysModalOpen(false)}
-        currentUser={currentUser}
-        onOpenAuth={() => setAuthModalOpen(true)}
-      />
-
-      <DocsModal
-        isOpen={docsModalOpen}
-        onClose={() => setDocsModalOpen(false)}
       />
 
       <LibraryModal

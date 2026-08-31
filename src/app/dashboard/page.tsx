@@ -338,10 +338,10 @@ export async function POST(req: Request) {
         <div className="flex items-center gap-4">
           <Link
             href="/"
-            className="flex items-center gap-2.5 p-1.5 -ml-1.5 rounded-xl hover:bg-slate-100 text-slate-700 transition-colors"
+            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 transition-all text-xs font-bold shadow-2xs group"
           >
-            <ArrowLeft className="w-4 h-4" />
-            <span className="text-xs font-bold hidden sm:inline">Chatinga Qaytish</span>
+            <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" />
+            <span>Asosiy Muloqot Markazi</span>
           </Link>
 
           <div className="h-5 w-px bg-slate-200" />

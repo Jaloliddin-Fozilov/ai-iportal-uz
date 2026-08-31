@@ -31,8 +31,8 @@ interface SidebarProps {
   onSelectSession: (id: string) => void;
   onNewChat: () => void;
   onDeleteSession: (id: string, e: React.MouseEvent) => void;
-  onOpenApiKeys: () => void;
-  onOpenDocs: () => void;
+  onOpenApiKeys?: () => void;
+  onOpenDocs?: () => void;
   onOpenAuth: () => void;
   onOpenImageMode: () => void;
   onOpenLibraryModal: () => void;
@@ -258,28 +258,28 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {/* Settings Drawer / Accordion */}
           {showDevMenu && (
             <div className="p-2 bg-white rounded-2xl border border-slate-200 space-y-1 shadow-md mb-2 animate-in fade-in">
-              <button
+              <Link
+                href="/dashboard"
                 onClick={() => {
-                  onOpenApiKeys();
                   setShowDevMenu(false);
                   if (window.innerWidth < 768) onClose();
                 }}
                 className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors text-left"
               >
                 <Key className="w-3.5 h-3.5 text-amber-500" />
-                <span>Developer API Keys</span>
-              </button>
-              <button
+                <span>Developer & Billing Markazi</span>
+              </Link>
+              <Link
+                href="/docs"
                 onClick={() => {
-                  onOpenDocs();
                   setShowDevMenu(false);
                   if (window.innerWidth < 768) onClose();
                 }}
                 className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors text-left"
               >
                 <BookOpen className="w-3.5 h-3.5 text-cyan-600" />
-                <span>API Documentation</span>
-              </button>
+                <span>Rasmiy API Hujjatlari</span>
+              </Link>
               {currentUser?.role === 'admin' && (
                 <Link
                   href="/admin"
