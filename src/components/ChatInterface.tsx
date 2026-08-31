@@ -16,7 +16,8 @@ import {
   Image as ImageIcon,
   RotateCw,
   User,
-  Settings
+  Settings,
+  BarChart3
 } from 'lucide-react';
 import Link from 'next/link';
 import { Sidebar } from './Sidebar';
@@ -569,6 +570,14 @@ export const ChatInterface: React.FC = () => {
               >
                 <BookOpen className="w-3.5 h-3.5 text-cyan-600" />
                 <span>API Docs</span>
+              </Link>
+
+              <Link
+                href="/dashboard"
+                className="hidden md:flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#f3f7f5] hover:bg-[#e7f0ec] text-slate-700 text-xs font-bold transition-colors cursor-pointer border border-[#e2ece6]"
+              >
+                <BarChart3 className="w-3.5 h-3.5 text-purple-600" />
+                <span>Dashboard & Billing</span>
               </Link>
 
               <button

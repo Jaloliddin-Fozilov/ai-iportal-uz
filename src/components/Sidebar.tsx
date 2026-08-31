@@ -16,7 +16,8 @@ import {
   ChevronRight,
   Sparkles,
   User,
-  Settings
+  Settings,
+  BarChart3
 } from 'lucide-react';
 import Link from 'next/link';
 import { ChatSession } from '@/lib/storage/clientChatStore';
@@ -190,6 +191,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <div className="flex items-center justify-between w-full">
               <span>API & Docs</span>
               <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-cyan-100 text-cyan-800 font-bold">Portal</span>
+            </div>
+          </Link>
+
+          {/* [Developer & Billing Dashboard] */}
+          <Link
+            href="/dashboard"
+            onClick={() => {
+              if (window.innerWidth < 768) onClose();
+            }}
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-white hover:shadow-xs transition-all text-left cursor-pointer group"
+          >
+            <BarChart3 className="w-4 h-4 text-purple-600 group-hover:scale-110 transition-transform" />
+            <div className="flex items-center justify-between w-full">
+              <span>Billing Dashboard</span>
+              <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-purple-100 text-purple-800 font-bold">New</span>
             </div>
           </Link>
         </div>
