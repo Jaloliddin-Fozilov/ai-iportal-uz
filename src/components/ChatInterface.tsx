@@ -563,6 +563,14 @@ export const ChatInterface: React.FC = () => {
 
             {/* Right Controls: Clean Profile & Settings */}
             <div className="flex items-center gap-2">
+              <Link
+                href="/docs"
+                className="hidden sm:flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#f3f7f5] hover:bg-[#e7f0ec] text-slate-700 text-xs font-bold transition-colors cursor-pointer border border-[#e2ece6]"
+              >
+                <BookOpen className="w-3.5 h-3.5 text-cyan-600" />
+                <span>API Docs</span>
+              </Link>
+
               <button
                 onClick={() => setApiKeysModalOpen(true)}
                 className="hidden sm:flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#f3f7f5] hover:bg-[#e7f0ec] text-slate-700 text-xs font-bold transition-colors cursor-pointer border border-[#e2ece6]"

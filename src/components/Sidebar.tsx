@@ -177,6 +177,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <span className="text-[10px] text-slate-400 font-mono">30d</span>
             </div>
           </button>
+
+          {/* [API & Docs Portal] */}
+          <Link
+            href="/docs"
+            onClick={() => {
+              if (window.innerWidth < 768) onClose();
+            }}
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-white hover:shadow-xs transition-all text-left cursor-pointer group"
+          >
+            <BookOpen className="w-4 h-4 text-cyan-600 group-hover:scale-110 transition-transform" />
+            <div className="flex items-center justify-between w-full">
+              <span>API & Docs</span>
+              <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-cyan-100 text-cyan-800 font-bold">Portal</span>
+            </div>
+          </Link>
         </div>
 
         {/* 3. Chat History List */}
