@@ -110,8 +110,12 @@ export interface ApiKeyItem {
   createdAt: number;
   lastUsedAt?: number;
   requestsCount: number;
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
   status: 'active' | 'revoked';
   rateLimitPerMin?: number;
+  scope?: 'all' | 'chat' | 'images';
 }
 
 export interface RealQuotaData {

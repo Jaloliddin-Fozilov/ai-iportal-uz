@@ -38,6 +38,7 @@ import {
   Play
 } from 'lucide-react';
 import Link from 'next/link';
+import { calculateBillingMetrics } from '@/lib/core/billingCalculator';
 
 interface UserItem {
   id: string;
@@ -645,6 +646,64 @@ export default function AdminPage() {
             </div>
           </div>
         </div>
+
+        {/* Global Financial Savings & Commercial Billing Hero Banner */}
+        {(() => {
+          const globalPrompt = stats?.totalPromptTokens || 0;
+          const globalCompletion = stats?.totalCompletionTokens || 0;
+          const globalReqs = stats?.totalRequests || 0;
+          const globalBilling = calculateBillingMetrics(globalPrompt, globalCompletion, globalReqs);
+
+          return (
+            <div className="p-5 sm:p-6 rounded-3xl bg-gradient-to-br from-slate-950 via-slate-900 to-[#07130e] text-white border border-emerald-500/30 shadow-2xl relative overflow-hidden space-y-4">
+              <div className="absolute -top-16 -right-16 w-52 h-52 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="space-y-1">
+                  <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <DollarSign className="w-4 h-4" />
+                    Klaster Bo'yicha Tijoriy AI Tariflariga Nisbatan Tejalgan Mablag'
+                  </span>
+                  <div className="flex items-baseline gap-2.5">
+                    <span className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight font-mono">
+                      {globalBilling.formattedTotalSavedUsd}
+                    </span>
+                    <span className="text-sm font-semibold text-emerald-400 font-mono">
+                      ({globalBilling.formattedTotalSavedUzs})
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="px-3 py-1.5 rounded-xl bg-emerald-950/80 border border-emerald-500/30 text-emerald-300 font-mono text-xs font-bold">
+                    ⚡️ 100% Free Edge Clustered
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-slate-800/80 text-xs font-mono">
+                <div className="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800 space-y-0.5">
+                  <span className="text-[10px] text-slate-400 uppercase">OpenAI GPT-4o da</span>
+                  <div className="font-bold text-slate-200">{globalBilling.formattedOpenAiCost}</div>
+                </div>
+
+                <div className="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800 space-y-0.5">
+                  <span className="text-[10px] text-slate-400 uppercase">Claude 3.5 da</span>
+                  <div className="font-bold text-purple-300">{globalBilling.formattedClaudeCost}</div>
+                </div>
+
+                <div className="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800 space-y-0.5">
+                  <span className="text-[10px] text-slate-400 uppercase">DeepSeek API da</span>
+                  <div className="font-bold text-cyan-300">{globalBilling.formattedDeepSeekCost}</div>
+                </div>
+
+                <div className="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800 space-y-0.5">
+                  <span className="text-[10px] text-slate-400 uppercase">Bizda Xarajat</span>
+                  <div className="font-bold text-emerald-400">$0.00 (Bepul)</div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Tab Switcher */}
         <div className="flex items-center gap-1.5 p-1.5 bg-white rounded-2xl border border-[#dce8e2] w-fit shadow-xs flex-wrap">

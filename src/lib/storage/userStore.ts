@@ -239,6 +239,9 @@ export function deductUserBalance(
     const keyItem = user.apiKeys.find(k => k.id === apiKeyId);
     if (keyItem) {
       keyItem.requestsCount += 1;
+      keyItem.promptTokens = (keyItem.promptTokens || 0) + promptTokens;
+      keyItem.completionTokens = (keyItem.completionTokens || 0) + completionTokens;
+      keyItem.totalTokens = (keyItem.totalTokens || 0) + promptTokens + completionTokens;
       keyItem.lastUsedAt = Date.now();
     }
   }

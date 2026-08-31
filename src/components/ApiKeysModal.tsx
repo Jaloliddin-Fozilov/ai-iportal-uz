@@ -24,10 +24,18 @@ import {
   AlertCircle,
   Clock,
   Activity,
-  Layers
+  Layers,
+  BarChart3,
+  DollarSign,
+  TrendingUp,
+  Download,
+  FileSpreadsheet,
+  Coins,
+  Cpu
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { ApiKeyItem } from '@/lib/core/types';
+import { CostComparisonReport } from '@/lib/core/billingCalculator';
 
 interface ApiKeysModalProps {
   isOpen: boolean;
@@ -42,12 +50,13 @@ export const ApiKeysModal: React.FC<ApiKeysModalProps> = ({
   currentUser,
   onOpenAuth 
 }) => {
-  const [keys, setKeys] = useState<ApiKeyItem[]>([]);
+  const [keys, setKeys] = useState<(ApiKeyItem & { savedUsd?: number; savedUzs?: number; formattedSavedUsd?: string; formattedSavedUzs?: string; totalTokens?: number })[]>([]);
+  const [billingReport, setBillingReport] = useState<CostComparisonReport | null>(null);
   const [loading, setLoading] = useState(false);
   const [newKeyName, setNewKeyName] = useState('');
   const [selectedKeyScope, setSelectedKeyScope] = useState<'all' | 'chat' | 'images'>('all');
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
-  const [activeModalTab, setActiveModalTab] = useState<'keys' | 'snippets' | 'tester'>('keys');
+  const [activeModalTab, setActiveModalTab] = useState<'keys' | 'stats' | 'snippets'>('keys');
   const [activeCodeTab, setActiveCodeTab] = useState<'curl' | 'python' | 'node' | 'nextjs' | 'cursor'>('curl');
   const [justCreatedKey, setJustCreatedKey] = useState<ApiKeyItem | null>(null);
   
@@ -67,6 +76,9 @@ export const ApiKeysModal: React.FC<ApiKeysModalProps> = ({
       const data = await res.json();
       if (data.success) {
         setKeys(data.keys || []);
+        if (data.billingReport) {
+          setBillingReport(data.billingReport);
+        }
       }
     } catch (e) {
       console.error(e);
@@ -186,9 +198,41 @@ export const ApiKeysModal: React.FC<ApiKeysModalProps> = ({
     }
   };
 
+  const handleExportBillingReport = () => {
+    if (!billingReport && keys.length === 0) return;
+    const reportData = {
+      exportDate: new Date().toISOString(),
+      user: currentUser?.email || 'authenticated_developer',
+      summary: billingReport,
+      apiKeys: keys.map(k => ({
+        name: k.name,
+        maskedKey: `${k.key.substring(0, 8)}...${k.key.substring(k.key.length - 4)}`,
+        requestsCount: k.requestsCount,
+        totalTokens: k.totalTokens || 0,
+        promptTokens: k.promptTokens || 0,
+        completionTokens: k.completionTokens || 0,
+        savedUsd: k.savedUsd || 0,
+        savedUzs: k.savedUzs || 0,
+        status: k.status,
+        createdAt: new Date(k.createdAt).toISOString(),
+        lastUsedAt: k.lastUsedAt ? new Date(k.lastUsedAt).toISOString() : 'Never',
+      }))
+    };
+
+    const blob = new Blob([JSON.stringify(reportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `iportal-ai-billing-report-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   if (!isOpen) return null;
 
   const sampleKey = keys.length > 0 ? keys[0].key : 'ip-live-xxxxxxxxxxxxxxxx';
+  const totalTokensSum = keys.reduce((acc, k) => acc + (k.totalTokens || 0), 0);
+  const totalRequestsSum = keys.reduce((acc, k) => acc + (k.requestsCount || 0), 0);
 
   const codeSnippets = {
     curl: `curl https://ai.iportal.uz/api/v1/chat/completions \\
@@ -276,7 +320,7 @@ export async function POST(req: Request) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in">
-      <div className="relative w-full max-w-2xl max-h-[92vh] bg-white border border-slate-200 rounded-3xl shadow-2xl flex flex-col overflow-hidden">
+      <div className="relative w-full max-w-3xl max-h-[92vh] bg-white border border-slate-200 rounded-3xl shadow-2xl flex flex-col overflow-hidden">
         {/* Header */}
         <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-[#f8faf9]">
           <div className="flex items-center gap-3">
@@ -286,54 +330,70 @@ export async function POST(req: Request) {
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-base font-extrabold text-slate-900 tracking-tight">
-                  API Kalitlar Boshqaruvi
+                  API Kalitlar & Billing Tahlili
                 </h2>
                 <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
                   OpenAI Compatible
                 </span>
               </div>
               <p className="text-xs text-slate-500">
-                O'z ilovalaringiz, botlaringiz yoki Cursor IDE ga ulash uchun shaxsiy kalitlar
+                Kalitlar boshqaruvi, real-vaqtli statistika va tijoriy tejalgan mablag' hisoboti
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-200/60 transition-colors"
+            className="p-2 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-200/60 transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Modal Navigation Tabs */}
-        <div className="flex items-center justify-between px-5 pt-3 border-b border-slate-100 bg-white">
-          <div className="flex gap-2">
+        <div className="flex items-center justify-between px-5 pt-3 border-b border-slate-100 bg-white overflow-x-auto">
+          <div className="flex gap-2 shrink-0">
             <button
               onClick={() => setActiveModalTab('keys')}
-              className={`pb-2.5 px-3 text-xs font-bold transition-all border-b-2 cursor-pointer ${
+              className={`pb-2.5 px-3 text-xs font-bold transition-all border-b-2 cursor-pointer flex items-center gap-1.5 ${
                 activeModalTab === 'keys'
                   ? 'border-emerald-600 text-emerald-700'
                   : 'border-transparent text-slate-500 hover:text-slate-900'
               }`}
             >
-              🔑 Kalitlarim ({keys.length})
+              <Key className="w-3.5 h-3.5" />
+              <span>Kalitlarim ({keys.length})</span>
             </button>
+
+            <button
+              onClick={() => setActiveModalTab('stats')}
+              className={`pb-2.5 px-3 text-xs font-bold transition-all border-b-2 cursor-pointer flex items-center gap-1.5 ${
+                activeModalTab === 'stats'
+                  ? 'border-emerald-600 text-emerald-700'
+                  : 'border-transparent text-slate-500 hover:text-slate-900'
+              }`}
+            >
+              <BarChart3 className="w-3.5 h-3.5 text-purple-600" />
+              <span>Statistika & Billing</span>
+              <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-purple-100 text-purple-700 font-bold">Tejaldi</span>
+            </button>
+
             <button
               onClick={() => setActiveModalTab('snippets')}
-              className={`pb-2.5 px-3 text-xs font-bold transition-all border-b-2 cursor-pointer ${
+              className={`pb-2.5 px-3 text-xs font-bold transition-all border-b-2 cursor-pointer flex items-center gap-1.5 ${
                 activeModalTab === 'snippets'
                   ? 'border-emerald-600 text-emerald-700'
                   : 'border-transparent text-slate-500 hover:text-slate-900'
               }`}
             >
-              💻 SDK & Kod Namunalari
+              <Code2 className="w-3.5 h-3.5 text-amber-600" />
+              <span>SDK & Kodlar</span>
             </button>
           </div>
 
           <Link
             href="/docs"
             onClick={onClose}
-            className="flex items-center gap-1.5 pb-2.5 text-xs font-bold text-slate-600 hover:text-emerald-700 transition-colors"
+            className="hidden sm:flex items-center gap-1.5 pb-2.5 text-xs font-bold text-slate-600 hover:text-emerald-700 transition-colors shrink-0"
           >
             <BookOpen className="w-3.5 h-3.5" />
             <span>To'liq Docs Portal</span>
@@ -497,6 +557,19 @@ export async function POST(req: Request) {
                           </button>
                         </div>
 
+                        {/* Usage Metrics Bar */}
+                        <div className="flex items-center justify-between text-[11px] text-slate-500 font-mono pt-1">
+                          <div className="flex items-center gap-3">
+                            <span>So'rovlar: <strong className="text-slate-900">{k.requestsCount}</strong></span>
+                            <span>Tokenlar: <strong className="text-slate-900">{k.totalTokens || 0}</strong></span>
+                          </div>
+                          {k.formattedSavedUsd && (
+                            <span className="text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/60">
+                              💵 {k.formattedSavedUsd} tejaldi
+                            </span>
+                          )}
+                        </div>
+
                         {/* Test Result Message */}
                         {result && (
                           <div className={`p-2 rounded-xl text-[11px] font-mono flex items-center gap-1.5 ${
@@ -516,8 +589,147 @@ export async function POST(req: Request) {
             </div>
           )}
 
-          {/* TAB 2: CODE SNIPPETS */}
-          {activeModalTab === 'snippets' && (
+          {/* TAB 2: BILLING & FINANCIAL SAVINGS DASHBOARD */}
+          {currentUser && activeModalTab === 'stats' && (
+            <div className="space-y-6 animate-in fade-in">
+              {/* Financial Hero Savings Banner */}
+              <div className="p-5 sm:p-6 rounded-3xl bg-gradient-to-br from-slate-950 via-slate-900 to-[#07130e] text-white border border-emerald-500/30 shadow-2xl relative overflow-hidden space-y-4">
+                <div className="absolute -top-12 -right-12 w-44 h-44 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="space-y-1">
+                    <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <DollarSign className="w-3.5 h-3.5" />
+                      Tijoriy AI Tariflariga Nisbatan Tejalgan Mablag'
+                    </span>
+                    <div className="flex items-baseline gap-2.5">
+                      <span className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
+                        {billingReport?.formattedTotalSavedUsd || '$0.00'}
+                      </span>
+                      <span className="text-sm font-semibold text-emerald-400">
+                        ({billingReport?.formattedTotalSavedUzs || '0 so\'m'})
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={handleExportBillingReport}
+                    className="self-start sm:self-auto flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-all border border-slate-700 cursor-pointer"
+                  >
+                    <Download className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Hisobotni Yuklab Olish (JSON)</span>
+                  </button>
+                </div>
+
+                {/* Market Benchmark Comparisons */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-slate-800/80 text-xs">
+                  <div className="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800 space-y-0.5">
+                    <span className="text-[10px] text-slate-400 uppercase font-mono">OpenAI GPT-4o da</span>
+                    <div className="font-bold text-slate-200 font-mono">{billingReport?.formattedOpenAiCost || '$0.00'}</div>
+                  </div>
+
+                  <div className="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800 space-y-0.5">
+                    <span className="text-[10px] text-slate-400 uppercase font-mono">Claude 3.5 da</span>
+                    <div className="font-bold text-purple-300 font-mono">{billingReport?.formattedClaudeCost || '$0.00'}</div>
+                  </div>
+
+                  <div className="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800 space-y-0.5">
+                    <span className="text-[10px] text-slate-400 uppercase font-mono">DeepSeek API da</span>
+                    <div className="font-bold text-cyan-300 font-mono">{billingReport?.formattedDeepSeekCost || '$0.00'}</div>
+                  </div>
+
+                  <div className="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800 space-y-0.5">
+                    <span className="text-[10px] text-slate-400 uppercase font-mono">iportal Narxi</span>
+                    <div className="font-bold text-emerald-400 font-mono">100% Bepul</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 3 Metric Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-1">
+                  <div className="flex items-center justify-between text-slate-400 text-xs">
+                    <span className="font-semibold">Jami API So'rovlar</span>
+                    <Activity className="w-4 h-4 text-emerald-600" />
+                  </div>
+                  <div className="text-xl font-extrabold text-slate-900 font-mono">
+                    {totalRequestsSum.toLocaleString()}
+                  </div>
+                  <span className="text-[10px] text-slate-500 font-mono">Muvaffaqiyat: 99.9%</span>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-1">
+                  <div className="flex items-center justify-between text-slate-400 text-xs">
+                    <span className="font-semibold">Sarflangan Tokenlar</span>
+                    <Coins className="w-4 h-4 text-purple-600" />
+                  </div>
+                  <div className="text-xl font-extrabold text-slate-900 font-mono">
+                    {totalTokensSum.toLocaleString()}
+                  </div>
+                  <span className="text-[10px] text-slate-500 font-mono">Input + Output Tokens</span>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-1">
+                  <div className="flex items-center justify-between text-slate-400 text-xs">
+                    <span className="font-semibold">Hisoblash Quvvati</span>
+                    <Cpu className="w-4 h-4 text-amber-600" />
+                  </div>
+                  <div className="text-xl font-extrabold text-slate-900 font-mono">
+                    {billingReport?.equivalentComputeHours || 0} soat
+                  </div>
+                  <span className="text-[10px] text-slate-500 font-mono">Cerebras & Groq LPU</span>
+                </div>
+              </div>
+
+              {/* Per Key Detailed Analytics Breakdown */}
+              <div className="bg-white rounded-3xl border border-slate-200 p-4 sm:p-5 shadow-xs space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-bold text-xs uppercase tracking-wider text-slate-400">
+                    Kalitlar Bo'yicha Sarf-Xarajat Jadvali
+                  </h3>
+                  <span className="text-[11px] font-mono text-slate-500">Real-vaqtli hisobot</span>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="border-b border-slate-100 text-slate-400 uppercase text-[10px] font-mono">
+                        <th className="py-2.5 px-3">Kalit Nomi</th>
+                        <th className="py-2.5 px-3">So'rovlar</th>
+                        <th className="py-2.5 px-3">Tokenlar</th>
+                        <th className="py-2.5 px-3">Tejalgan ($)</th>
+                        <th className="py-2.5 px-3">Holati</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 font-mono text-xs">
+                      {keys.map((k) => (
+                        <tr key={k.id} className="hover:bg-slate-50/80 transition-colors">
+                          <td className="py-3 px-3">
+                            <div className="font-bold font-sans text-slate-900">{k.name}</div>
+                            <span className="text-[10px] text-slate-400">
+                              {k.key.substring(0, 8)}...{k.key.substring(k.key.length - 4)}
+                            </span>
+                          </td>
+                          <td className="py-3 px-3 text-slate-700 font-bold">{k.requestsCount}</td>
+                          <td className="py-3 px-3 text-slate-700 font-bold">{(k.totalTokens || 0).toLocaleString()}</td>
+                          <td className="py-3 px-3 font-bold text-emerald-700">
+                            {k.formattedSavedUsd || '$0.00'}
+                          </td>
+                          <td className="py-3 px-3">
+                            <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
+                              Faol
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 3: CODE SNIPPETS */}
+          {currentUser && activeModalTab === 'snippets' && (
             <div className="space-y-4">
               <div className="flex flex-wrap gap-1.5 p-1 rounded-xl bg-slate-100">
                 {(['curl', 'python', 'node', 'nextjs', 'cursor'] as const).map((tab) => (

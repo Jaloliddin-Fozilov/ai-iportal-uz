@@ -13,13 +13,42 @@ function getAuthUser(req: NextRequest) {
   return findUserById(payload.userId);
 }
 
+import { calculateBillingMetrics } from '@/lib/core/billingCalculator';
+
 export async function GET(req: NextRequest) {
   const user = getAuthUser(req);
   if (!user) {
     return NextResponse.json({ success: false, error: 'Avtorizatsiyadan o\'tilmagan' }, { status: 401 });
   }
 
-  return NextResponse.json({ success: true, keys: user.apiKeys, balance: user.balance });
+  const totalPrompt = user.apiKeys.reduce((acc, k) => acc + (k.promptTokens || 0), 0);
+  const totalCompletion = user.apiKeys.reduce((acc, k) => acc + (k.completionTokens || 0), 0);
+  const totalReqs = user.apiKeys.reduce((acc, k) => acc + (k.requestsCount || 0), 0);
+  const billingReport = calculateBillingMetrics(totalPrompt, totalCompletion, totalReqs);
+
+  const keysWithSavings = user.apiKeys.map(k => {
+    const kPrompt = k.promptTokens || 0;
+    const kComp = k.completionTokens || 0;
+    const kReqs = k.requestsCount || 0;
+    const kMetrics = calculateBillingMetrics(kPrompt, kComp, kReqs);
+    return {
+      ...k,
+      savedUsd: kMetrics.totalSavedUsd,
+      savedUzs: kMetrics.totalSavedUzs,
+      formattedSavedUsd: kMetrics.formattedTotalSavedUsd,
+      formattedSavedUzs: kMetrics.formattedTotalSavedUzs,
+      totalTokens: kPrompt + kComp,
+    };
+  });
+
+  return NextResponse.json({ 
+    success: true, 
+    keys: keysWithSavings, 
+    balance: user.balance,
+    totalSpent: user.totalSpent,
+    totalRequests: user.totalRequests,
+    billingReport,
+  });
 }
 
 export async function POST(req: NextRequest) {
