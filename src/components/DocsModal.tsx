@@ -91,14 +91,26 @@ main();`;
   const cursorExample = `{
   "models": [
     {
-      "name": "iportal 1.0 Flagship",
+      "name": "iportal 1.0 (Flagship Core)",
       "model": "iportal-ai",
       "baseUrl": "https://ai.iportal.uz/api/v1",
       "apiKey": "<YOUR_API_KEY>"
     },
     {
-      "name": "iportal DeepSeek R1",
-      "model": "iportal-ai-deepseek",
+      "name": "iportal Reasoning (Neural Logic)",
+      "model": "iportal-ai-reasoning",
+      "baseUrl": "https://ai.iportal.uz/api/v1",
+      "apiKey": "<YOUR_API_KEY>"
+    },
+    {
+      "name": "iportal Turbo (Ultra-Fast 1000 tok/s)",
+      "model": "iportal-ai-fast",
+      "baseUrl": "https://ai.iportal.uz/api/v1",
+      "apiKey": "<YOUR_API_KEY>"
+    },
+    {
+      "name": "iportal Code Master",
+      "model": "iportal-ai-coder",
       "baseUrl": "https://ai.iportal.uz/api/v1",
       "apiKey": "<YOUR_API_KEY>"
     }

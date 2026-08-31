@@ -26,12 +26,14 @@ import {
   FileCode,
   Laptop,
   Server,
-  Database
+  Database,
+  Shield,
+  HeartHandshake
 } from 'lucide-react';
 import { AIOrb } from '@/components/AIOrb';
 
 export default function DocsPage() {
-  const [activeSection, setActiveSection] = useState<'quickstart' | 'models' | 'chat' | 'images' | 'sdks' | 'cursor' | 'errors' | 'playground'>('quickstart');
+  const [activeSection, setActiveSection] = useState<'quickstart' | 'models' | 'safeguards' | 'chat' | 'images' | 'sdks' | 'cursor' | 'errors' | 'playground'>('quickstart');
   const [activeSdkTab, setActiveSdkTab] = useState<'curl' | 'python' | 'node' | 'nextjs' | 'go' | 'php'>('curl');
   const [searchQuery, setSearchQuery] = useState('');
   const [copiedSnippet, setCopiedSnippet] = useState<string | null>(null);
@@ -39,7 +41,7 @@ export default function DocsPage() {
   // Playground state
   const [playModel, setPlayModel] = useState('iportal-ai');
   const [playKey, setPlayKey] = useState('');
-  const [playPrompt, setPlayPrompt] = useState('Hello iportal AI! How do you help developers build scalable AI applications?');
+  const [playPrompt, setPlayPrompt] = useState('Salom iportal AI! Dasturchilarga qanday yordam bera olasiz?');
   const [playResponse, setPlayResponse] = useState('');
   const [playLoading, setPlayLoading] = useState(false);
   const [playLatency, setPlayLatency] = useState<number | null>(null);
@@ -137,14 +139,14 @@ export default function DocsPage() {
 
     python: `from openai import OpenAI
 
-# Initialize the OpenAI client pointing to iportal-ai
+# Initialize OpenAI client pointing directly to iportal-ai
 client = OpenAI(
     base_url="https://ai.iportal.uz/api/v1",
     api_key="<YOUR_API_KEY>"
 )
 
 response = client.chat.completions.create(
-    model="iportal-ai",  # or "iportal-ai-deepseek", "iportal-ai-cerebras"
+    model="iportal-ai",  # or "iportal-ai-reasoning", "iportal-ai-coder", "iportal-ai-fast"
     messages=[
         {"role": "system", "content": "You are a senior full-stack AI engineer."},
         {"role": "user", "content": "Explain React 19 Server Actions vs API Routes with examples."}
@@ -159,16 +161,17 @@ for chunk in response:
 
     node: `import OpenAI from "openai";
 
-const openai = new OpenAI({
+const client = new OpenAI({
   baseURL: "https://ai.iportal.uz/api/v1",
   apiKey: process.env.IPORTAL_API_KEY || "<YOUR_API_KEY>",
 });
 
 async function main() {
-  const stream = await openai.chat.completions.create({
-    model: "iportal-ai-coder",
+  const stream = await client.chat.completions.create({
+    model: "iportal-ai",
     messages: [
-      { role: "user", content: "Write a high-performance Redis cache layer in TypeScript." }
+      { role: "system", content: "You are an expert TypeScript architect." },
+      { role: "user", content: "Create an async rate-limiter using Redis token bucket." },
     ],
     stream: true,
   });
@@ -180,10 +183,10 @@ async function main() {
 
 main();`,
 
-    nextjs: `// app/api/chat/route.ts (Next.js 15+ App Router)
+    nextjs: `// app/api/chat/route.ts
 import OpenAI from "openai";
 
-const openai = new OpenAI({
+const client = new OpenAI({
   baseURL: "https://ai.iportal.uz/api/v1",
   apiKey: process.env.IPORTAL_API_KEY,
 });
@@ -191,7 +194,7 @@ const openai = new OpenAI({
 export async function POST(req: Request) {
   const { messages } = await req.json();
 
-  const response = await openai.chat.completions.create({
+  const response = await client.chat.completions.create({
     model: "iportal-ai",
     messages,
     stream: true,
@@ -252,7 +255,7 @@ func main() {
 }`,
 
     php: `<?php
-// PHP cURL or Guzzle example for iportal-ai
+// PHP cURL example for iportal-ai API
 $ch = curl_init("https://ai.iportal.uz/api/v1/chat/completions");
 
 $payload = [
@@ -281,20 +284,20 @@ echo $response;
   const cursorSettings = `{
   "models": [
     {
-      "name": "iportal-ai Flagship (Llama 3.3 70B)",
+      "name": "iportal 1.0 (Flagship Core)",
       "model": "iportal-ai",
       "baseUrl": "https://ai.iportal.uz/api/v1",
       "apiKey": "<YOUR_API_KEY>"
     },
     {
-      "name": "iportal DeepSeek R1 (Reasoning)",
-      "model": "iportal-ai-deepseek",
+      "name": "iportal Reasoning (Neural Logic)",
+      "model": "iportal-ai-reasoning",
       "baseUrl": "https://ai.iportal.uz/api/v1",
       "apiKey": "<YOUR_API_KEY>"
     },
     {
-      "name": "iportal Cerebras CS-3 (1000 tok/s)",
-      "model": "iportal-ai-cerebras",
+      "name": "iportal Turbo (Ultra-Fast 1000 tok/s)",
+      "model": "iportal-ai-fast",
       "baseUrl": "https://ai.iportal.uz/api/v1",
       "apiKey": "<YOUR_API_KEY>"
     },
@@ -311,7 +314,7 @@ echo $response;
   -H "Content-Type: application/json" \\
   -H "Authorization: Bearer <YOUR_API_KEY>" \\
   -d '{
-    "prompt": "A futuristic cyberpunk sports car in rainy neon street, 8k resolution, cinematic lighting",
+    "prompt": "Samarqand Registon maydoni zamonaviy neon yoritgichlarda, 8k fotorealistik, yuqori aniqlik",
     "width": 1024,
     "height": 1024
   }'`;
@@ -349,11 +352,11 @@ echo $response;
 
         <div className="flex items-center gap-3">
           <Link
-            href="/admin"
-            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all"
+            href="/dashboard"
+            className="hidden sm:flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 text-xs font-bold transition-all border border-purple-200"
           >
-            <ShieldCheck className="w-3.5 h-3.5 text-purple-600" />
-            <span>Admin Markazi</span>
+            <Key className="w-3.5 h-3.5 text-purple-600" />
+            <span>Dashboard & Keys</span>
           </Link>
 
           <button
@@ -410,7 +413,22 @@ echo $response;
               >
                 <div className="flex items-center gap-2.5">
                   <Cpu className={`w-4 h-4 ${activeSection === 'models' ? 'text-[#00d68f]' : 'text-purple-600'}`} />
-                  <span>Mavjud AI Modellar</span>
+                  <span>Mavjud iportal AI Modellar</span>
+                </div>
+                <ChevronRight className="w-3.5 h-3.5 opacity-60" />
+              </button>
+
+              <button
+                onClick={() => setActiveSection('safeguards')}
+                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-left transition-all cursor-pointer ${
+                  activeSection === 'safeguards' 
+                    ? 'bg-slate-900 text-white font-bold shadow-sm' 
+                    : 'text-slate-700 hover:bg-slate-200/60'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <ShieldCheck className={`w-4 h-4 ${activeSection === 'safeguards' ? 'text-[#00d68f]' : 'text-emerald-600'}`} />
+                  <span>Axloqiy Me'yorlar & Xavfsizlik</span>
                 </div>
                 <ChevronRight className="w-3.5 h-3.5 opacity-60" />
               </button>
@@ -549,7 +567,7 @@ echo $response;
                   </div>
                   <h3 className="font-bold text-xs text-slate-900">API Kalitini Oling</h3>
                   <p className="text-[11px] text-slate-500">
-                    Saytda ro'yxatdan o'ting va shaxsiy <code className="text-emerald-700 font-mono">ip-live-xxxx</code> API kalitingizni 1-klikda yarating.
+                    Saytda ro'yxatdan o'ting va shaxsiy <code className="text-emerald-700 font-mono">ip-live-xxxx</code> API kalitingizni 1-klikda bepul yarating.
                   </p>
                 </div>
 
@@ -569,7 +587,7 @@ echo $response;
                   </div>
                   <h3 className="font-bold text-xs text-slate-900">Neyron AI Quvvatidan Foydalaning</h3>
                   <p className="text-[11px] text-slate-500">
-                    Llama 3.3 70B, DeepSeek R1 va Cerebras chiplarida soniyasiga 1000 ta token tezligida javob oling.
+                    iportal xususiy modellari yordamida soniyasiga 1000 ta token tezligida barqaror va xavfsiz javob oling.
                   </p>
                 </div>
               </div>
@@ -602,13 +620,13 @@ echo $response;
               <div className="space-y-2">
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-50 border border-purple-200 text-purple-800 text-xs font-bold">
                   <Cpu className="w-3.5 h-3.5" />
-                  <span>Keng Qamrovli Klaster</span>
+                  <span>iportal Neyron Klasteri</span>
                 </div>
                 <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">
-                  Mavjud AI Modellar va Ularning Quvvati
+                  Mavjud iportal AI Modellar Catalogi
                 </h2>
                 <p className="text-sm text-slate-600">
-                  Platformamizda matn yaratish, dasturlash, mantiqiy xulosalar chiqarish (reasoning) va rasm generatsiyasi uchun maxsus optimallashtirilgan modellar mavjud.
+                  Platformamizda matn yaratish, dasturlash, mantiqiy xulosalar chiqarish (reasoning) va fotorealistik tasvir generatsiyasi uchun maxsus modellar mavjud.
                 </p>
               </div>
 
@@ -619,9 +637,9 @@ echo $response;
                     <span className="font-mono text-xs font-bold px-2.5 py-1 rounded-lg bg-slate-900 text-white">
                       iportal-ai
                     </span>
-                    <span className="text-[11px] font-bold text-emerald-600">Flagship</span>
+                    <span className="text-[11px] font-bold text-emerald-600">Flagship Core</span>
                   </div>
-                  <h3 className="font-bold text-slate-900 text-sm">iportal 1.0 Flagship (Llama 3.3 70B)</h3>
+                  <h3 className="font-bold text-slate-900 text-sm">iportal 1.0 (Flagship Core)</h3>
                   <p className="text-xs text-slate-500">
                     Barcha umumiy vazifalar, murakkab tahlil, o'zbek/rus/ingliz tillarida suhbatlashish uchun asosiy universal model.
                   </p>
@@ -632,36 +650,55 @@ echo $response;
                   </div>
                 </div>
 
-                {/* DeepSeek R1 */}
+                {/* Reasoning */}
                 <div className="p-5 rounded-3xl bg-white border border-purple-200 bg-purple-50/20 shadow-sm space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="font-mono text-xs font-bold px-2.5 py-1 rounded-lg bg-purple-900 text-white">
-                      iportal-ai-deepseek
+                      iportal-ai-reasoning
                     </span>
-                    <span className="text-[11px] font-bold text-purple-700">Fikrlovchi (CoT)</span>
+                    <span className="text-[11px] font-bold text-purple-700">Neural Logic</span>
                   </div>
-                  <h3 className="font-bold text-slate-900 text-sm">DeepSeek R1 (Full Reasoning 671B)</h3>
+                  <h3 className="font-bold text-slate-900 text-sm">iportal Reasoning (Neural Logic)</h3>
                   <p className="text-xs text-slate-500">
-                    Matematika, algoritmik kodlash va qadam-baqadam mantiqiy fikrlash (Chain-of-Thought) uchun mo'ljallangan model.
+                    Matematika, algoritmik tahlil va qadam-baqadam mantiqiy fikrlash (Chain-of-Thought) modeli.
                   </p>
                   <div className="grid grid-cols-3 gap-2 pt-2 border-t border-purple-100 text-[11px] font-mono text-slate-600">
-                    <div>Kontekst: <strong>64k</strong></div>
+                    <div>Kontekst: <strong>128k</strong></div>
                     <div>Fikrlash: <strong>&lt;think&gt;</strong></div>
                     <div>Narxi: <strong className="text-emerald-600">Bepul</strong></div>
                   </div>
                 </div>
 
-                {/* Cerebras CS-3 */}
+                {/* Code Master */}
+                <div className="p-5 rounded-3xl bg-white border border-cyan-200 bg-cyan-50/20 shadow-sm space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-xs font-bold px-2.5 py-1 rounded-lg bg-cyan-900 text-white">
+                      iportal-ai-coder
+                    </span>
+                    <span className="text-[11px] font-bold text-cyan-700">Code Master</span>
+                  </div>
+                  <h3 className="font-bold text-slate-900 text-sm">iportal Code Master</h3>
+                  <p className="text-xs text-slate-500">
+                    Dasturiy arxitektura, to'liq kod sintezi, refaktoring va dasturlash muammolarini hal qilishga mo'ljallangan yadro.
+                  </p>
+                  <div className="grid grid-cols-3 gap-2 pt-2 border-t border-cyan-100 text-[11px] font-mono text-slate-600">
+                    <div>Kontekst: <strong>128k</strong></div>
+                    <div>Tezlik: <strong>~300 tok/s</strong></div>
+                    <div>Narxi: <strong className="text-emerald-600">Bepul</strong></div>
+                  </div>
+                </div>
+
+                {/* Turbo Fast */}
                 <div className="p-5 rounded-3xl bg-white border border-amber-200 bg-amber-50/20 shadow-sm space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="font-mono text-xs font-bold px-2.5 py-1 rounded-lg bg-amber-900 text-white">
-                      iportal-ai-cerebras
+                      iportal-ai-fast
                     </span>
                     <span className="text-[11px] font-bold text-amber-700">1000 tok/sek</span>
                   </div>
-                  <h3 className="font-bold text-slate-900 text-sm">Cerebras Wafer-Scale CS-3</h3>
+                  <h3 className="font-bold text-slate-900 text-sm">iportal Turbo (Ultra-Fast)</h3>
                   <p className="text-xs text-slate-500">
-                    Dunyodagi eng tezkor LPU chipi orqali soniyaning ulushlarida real-vaqtli javob beruvchi ultra-tezkor model.
+                    Soniyaning ulushlarida (&lt;180ms) real-vaqtli javob beruvchi sub-soniyali ultra-tezkor neyron model.
                   </p>
                   <div className="grid grid-cols-3 gap-2 pt-2 border-t border-amber-100 text-[11px] font-mono text-slate-600">
                     <div>Kechikish: <strong>&lt;180ms</strong></div>
@@ -671,23 +708,71 @@ echo $response;
                 </div>
 
                 {/* Flux Neural Image */}
-                <div className="p-5 rounded-3xl bg-white border border-pink-200 bg-pink-50/20 shadow-sm space-y-3">
+                <div className="p-5 rounded-3xl bg-white border border-pink-200 bg-pink-50/20 shadow-sm space-y-3 md:col-span-2">
                   <div className="flex items-center justify-between">
                     <span className="font-mono text-xs font-bold px-2.5 py-1 rounded-lg bg-pink-900 text-white">
                       iportal-image
                     </span>
-                    <span className="text-[11px] font-bold text-pink-700">FLUX.1 Schnell</span>
+                    <span className="text-[11px] font-bold text-pink-700">Vision Studio</span>
                   </div>
-                  <h3 className="font-bold text-slate-900 text-sm">Cloudflare GPU Neural Image Engine</h3>
+                  <h3 className="font-bold text-slate-900 text-sm">iportal Image Studio (Neural Vision)</h3>
                   <p className="text-xs text-slate-500">
-                    O'zbek, rus va ingliz tillaridagi matnlarni 1.5 soniyada 8k fotorealistik tasvirlarga aylantirib beruvchi neyron generator.
+                    O'zbek, rus va ingliz tillaridagi matnlarni 1.5 soniyada yuqori aniqlikdagi fotorealistik tasvirlarga aylantirib beruvchi neyron generator.
                   </p>
                   <div className="grid grid-cols-3 gap-2 pt-2 border-t border-pink-100 text-[11px] font-mono text-slate-600">
                     <div>Format: <strong>1024x1024</strong></div>
                     <div>Tezlik: <strong>~1.5s</strong></div>
-                    <div>GPU: <strong>Cloudflare</strong></div>
+                    <div>Narxi: <strong className="text-emerald-600">Bepul</strong></div>
                   </div>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* SECTION: SAFEGUARDS & ETHICAL FRAMEWORK */}
+          {activeSection === 'safeguards' && (
+            <div className="space-y-6 animate-in fade-in">
+              <div className="space-y-2">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold">
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  <span>Milliy & Axloqiy Xavfsizlik Asosi</span>
+                </div>
+                <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">
+                  Axloqiy Me'yorlar, Islomiy Qadriyatlar va Qonuniy Kafolat
+                </h2>
+                <p className="text-sm text-slate-600 leading-relaxed">
+                  iportal-ai platformasi barcha neyron so'rovlarda (veb-chat hamda API kalitlar orqali yuborilgan barcha murojaatlarda) o'rnatilgan <strong>majburiy bazaviy axloqiy va qonuniy me'yorlar tizimi</strong> asosida ishlaydi.
+                </p>
+              </div>
+
+              <div className="p-6 rounded-3xl bg-white border border-emerald-200 shadow-sm space-y-4">
+                <h3 className="text-base font-bold text-emerald-950 flex items-center gap-2">
+                  <HeartHandshake className="w-5 h-5 text-emerald-600" />
+                  <span>Qat'iy Axloqiy va Diniy Tamoyillar:</span>
+                </h3>
+
+                <ul className="space-y-2.5 text-xs text-slate-700 leading-relaxed">
+                  <li className="flex items-start gap-2.5">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <span><strong>Islom dini qadriyatlari:</strong> Tizim Islom dini axloqiy tamoyillari hamda O'zbekiston Respublikasi qonunlariga so'zsiz rioya qiladi.</span>
+                  </li>
+                  <li className="flex items-start gap-2.5">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <span><strong>Taqiqlangan sohalar:</strong> Qimor o'yinlari, bukmekerlik, sudxo'rlik/ribo, firibgarlik, aldov, behayo va fahsh kontent, spirtli ichimliklar, giyohvandlik moddalari, odamlarga zarar yetkazish, o'z joniga qasd qilish, ekstremizm va zararli dasturlar bo'yicha HECH QANDAY yordam ko'rsatilmaydi.</span>
+                  </li>
+                  <li className="flex items-start gap-2.5">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <span><strong>Xushmuomala rad javobi:</strong> Agar so'rov taqiqlangan mavzularga daxldor bo'lsa, tizim o'ta bosiq, xushmuomala va qat'iy ohangda rad javobini beradi.</span>
+                  </li>
+                  <li className="flex items-start gap-2.5">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <span><strong>O'zbek tiliga ehtirom:</strong> O'zbek tilidagi murojaatlarga toza, adabiy, ravon va to'liq imlo qoidalariga mos tilda javob beriladi.</span>
+                  </li>
+                  <li className="flex items-start gap-2.5">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <span><strong>Brend mustaqilligi:</strong> iportal-ai iportal.uz platformasining mustaqil sun'iy intellekti sifatida o'z nufuzini saqlaydi.</span>
+                  </li>
+                </ul>
               </div>
             </div>
           )}
@@ -726,7 +811,7 @@ echo $response;
                         <td className="py-3 px-3 font-mono font-bold text-emerald-700">model</td>
                         <td className="py-3 px-3 text-slate-500 font-mono text-[11px]">string</td>
                         <td className="py-3 px-3"><span className="text-rose-600 font-bold">Ha</span></td>
-                        <td className="py-3 px-3 text-slate-600">Model identifikatori: <code>iportal-ai</code>, <code>iportal-ai-deepseek</code>, <code>iportal-ai-cerebras</code></td>
+                        <td className="py-3 px-3 text-slate-600">Model identifikatori: <code>iportal-ai</code>, <code>iportal-ai-reasoning</code>, <code>iportal-ai-coder</code>, <code>iportal-ai-fast</code></td>
                       </tr>
                       <tr>
                         <td className="py-3 px-3 font-mono font-bold text-emerald-700">messages</td>
@@ -771,7 +856,7 @@ echo $response;
                   POST /api/v1/images/generate
                 </h2>
                 <p className="text-sm text-slate-600">
-                  Cloudflare Workers AI GPU klasteri orqali fotorealistik tasvirlar yaratish.
+                  iportal Image Studio orqali yuqori aniqlikdagi fotorealistik tasvirlar yaratish.
                 </p>
               </div>
 
@@ -802,49 +887,46 @@ echo $response;
               <div className="space-y-2">
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-xs font-bold">
                   <Code2 className="w-3.5 h-3.5" />
-                  <span>Ko'p Tilli SDK Qo'llanma</span>
+                  <span>Dasturlash Tillari & SDKs</span>
                 </div>
                 <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">
-                  Turli Dasturlash Tillarida Ulanish
+                  Ko'p Tillik Dasturlash SDK Namunalari
                 </h2>
                 <p className="text-sm text-slate-600">
-                  O'zingizga qulay texnologiya stekini tanlang va bir zumda loyihangizga ulang.
+                  O'zingizga qulay dasturlash tilini tanlang va tayyor integratsiya kodini loyihangizga ko'chirib oling.
                 </p>
               </div>
 
               {/* Language Tabs */}
-              <div className="flex flex-wrap gap-2 p-1.5 rounded-2xl bg-white border border-slate-200">
+              <div className="flex flex-wrap gap-2 p-1.5 rounded-2xl bg-slate-100">
                 {(['curl', 'python', 'node', 'nextjs', 'go', 'php'] as const).map((tab) => (
                   <button
                     key={tab}
                     onClick={() => setActiveSdkTab(tab)}
-                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer uppercase ${
+                    className={`px-4 py-2 rounded-xl text-xs font-bold uppercase transition-all cursor-pointer ${
                       activeSdkTab === tab 
-                        ? 'bg-slate-900 text-white shadow-sm' 
-                        : 'text-slate-600 hover:bg-slate-100'
+                        ? 'bg-white text-slate-900 shadow-xs' 
+                        : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
-                    {tab === 'node' ? 'Node.js / TS' : tab === 'nextjs' ? 'Next.js 15+' : tab}
+                    {tab === 'node' ? 'Node.js' : tab === 'nextjs' ? 'Next.js 15' : tab === 'go' ? 'Golang' : tab === 'php' ? 'PHP' : tab}
                   </button>
                 ))}
               </div>
 
               {/* Code Snippet Box */}
               <div className="bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
-                <div className="px-4 py-3 bg-slate-900 border-b border-slate-800 flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-xs text-slate-300 font-mono font-semibold">
-                    <FileCode className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>{activeSdkTab.toUpperCase()} Integratsiya Kodi</span>
-                  </div>
+                <div className="px-5 py-3 bg-slate-900 border-b border-slate-800 flex items-center justify-between text-xs">
+                  <span className="font-mono text-slate-300 font-semibold">{activeSdkTab.toUpperCase()} Integration Snippet</span>
                   <button
                     onClick={() => copyToClipboard(codeSnippets[activeSdkTab], `sdk-${activeSdkTab}`)}
-                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs transition-colors cursor-pointer"
+                    className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors cursor-pointer"
                   >
                     {copiedSnippet === `sdk-${activeSdkTab}` ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                    <span>{copiedSnippet === `sdk-${activeSdkTab}` ? 'Nusxalandi' : 'Kodni Nusxalash'}</span>
+                    <span>{copiedSnippet === `sdk-${activeSdkTab}` ? 'Nusxalandi' : 'Nusxalash'}</span>
                   </button>
                 </div>
-                <pre className="p-4 text-xs font-mono text-emerald-300 overflow-x-auto leading-relaxed">
+                <pre className="p-5 text-xs font-mono text-emerald-300 overflow-x-auto leading-relaxed">
                   {codeSnippets[activeSdkTab]}
                 </pre>
               </div>
@@ -857,42 +939,30 @@ echo $response;
               <div className="space-y-2">
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 border border-blue-200 text-blue-800 text-xs font-bold">
                   <Laptop className="w-3.5 h-3.5" />
-                  <span>IDE Integratsiyasi</span>
+                  <span>AI Dasturchi Muhiti</span>
                 </div>
                 <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">
-                  Cursor IDE, Windsurf & VS Code Ulanishi
+                  Cursor IDE & VS Code Integratsiyasi
                 </h2>
                 <p className="text-sm text-slate-600">
-                  Cursor IDE yoki VS Code kengaytmalarida iportal-ai modellarini to'g'ridan-to'g'ri AI Coder sifatida ishlatish bo'yicha ko'rsatma.
+                  Cursor IDE sozlamalariga <code className="text-emerald-700 font-mono">https://ai.iportal.uz/api/v1</code> manzilini kiriting va kod yozishda iportal AI kuchidan foydalaning.
                 </p>
               </div>
 
-              <div className="space-y-4">
-                <div className="p-4 rounded-2xl bg-white border border-slate-200 space-y-2 text-xs text-slate-700">
-                  <h4 className="font-bold text-slate-900">Cursor IDE da sozlash tartibi:</h4>
-                  <ol className="list-decimal list-inside space-y-1.5 pl-1">
-                    <li>Cursor IDE ni oching va <strong>Settings &rarr; Models</strong> bo'limiga kiring.</li>
-                    <li><strong>OpenAI API Key</strong> bo'limiga shaxsiy <code className="text-emerald-700 font-mono">ip-live-xxxx</code> kalitingizni kiriting.</li>
-                    <li><strong>Override OpenAI Base URL</strong> bo'limiga <code className="text-emerald-700 font-mono">https://ai.iportal.uz/api/v1</code> kiriting.</li>
-                    <li>Model nomi sifatida <code className="text-emerald-700 font-mono">iportal-ai</code> yoki <code className="text-emerald-700 font-mono">iportal-ai-deepseek</code> ni qo'shing.</li>
-                  </ol>
+              <div className="bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
+                <div className="px-5 py-3 bg-slate-900 border-b border-slate-800 flex items-center justify-between text-xs">
+                  <span className="font-mono text-slate-300 font-semibold">Cursor settings.json konfiguratsiyasi</span>
+                  <button
+                    onClick={() => copyToClipboard(cursorSettings, 'cursor-cfg')}
+                    className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors cursor-pointer"
+                  >
+                    {copiedSnippet === 'cursor-cfg' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copiedSnippet === 'cursor-cfg' ? 'Nusxalandi' : 'Nusxalash'}</span>
+                  </button>
                 </div>
-
-                <div className="bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
-                  <div className="px-4 py-3 bg-slate-900 border-b border-slate-800 flex items-center justify-between">
-                    <span className="text-xs text-slate-300 font-mono font-semibold">settings.json configuration</span>
-                    <button
-                      onClick={() => copyToClipboard(cursorSettings, 'cursor-conf')}
-                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs transition-colors cursor-pointer"
-                    >
-                      {copiedSnippet === 'cursor-conf' ? <Check className="w-3.5 h-3.5 text-blue-400" /> : <Copy className="w-3.5 h-3.5" />}
-                      <span>{copiedSnippet === 'cursor-conf' ? 'Nusxalandi' : 'Nusxalash'}</span>
-                    </button>
-                  </div>
-                  <pre className="p-4 text-xs font-mono text-blue-300 overflow-x-auto leading-relaxed">
-                    {cursorSettings}
-                  </pre>
-                </div>
+                <pre className="p-5 text-xs font-mono text-blue-300 overflow-x-auto leading-relaxed">
+                  {cursorSettings}
+                </pre>
               </div>
             </div>
           )}
@@ -903,47 +973,33 @@ echo $response;
               <div className="space-y-2">
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-50 border border-rose-200 text-rose-800 text-xs font-bold">
                   <AlertTriangle className="w-3.5 h-3.5" />
-                  <span>Xatoliklar & Cheklovlar</span>
+                  <span>Xatolik Kodlari</span>
                 </div>
                 <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">
-                  Status Kodlar & Xatoliklarni Boshqarish
+                  Status Kodlari & Limitlar
                 </h2>
                 <p className="text-sm text-slate-600">
-                  API so'rovlarida yuzaga kelishi mumkin bo'lgan javob kodlari va ularning yechimi.
+                  Standart HTTP status javoblari va ularning ma'nolari.
                 </p>
               </div>
 
-              <div className="space-y-3">
-                <div className="p-4 rounded-2xl bg-white border border-slate-200 space-y-1">
-                  <div className="flex items-center gap-2 font-mono text-xs font-bold">
-                    <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">200 OK</span>
-                    <span className="text-slate-900">Muvaffaqiyatli Javob</span>
+              <div className="bg-white rounded-3xl border border-slate-200 p-5 shadow-xs space-y-4">
+                <div className="space-y-3 font-mono text-xs">
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-between">
+                    <div>
+                      <strong className="text-emerald-700">200 OK</strong> — Muvaffaqiyatli so'rov.
+                    </div>
                   </div>
-                  <p className="text-[11px] text-slate-600">So'rov to'g'ri qayta ishlandi va neyron model javob qaytardi.</p>
-                </div>
-
-                <div className="p-4 rounded-2xl bg-white border border-slate-200 space-y-1">
-                  <div className="flex items-center gap-2 font-mono text-xs font-bold">
-                    <span className="px-2 py-0.5 rounded bg-rose-100 text-rose-800">401 Unauthorized</span>
-                    <span className="text-slate-900">Noto'g'ri API Kalit</span>
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-between">
+                    <div>
+                      <strong className="text-amber-700">401 Unauthorized</strong> — Noto'g'ri yoki yaroqsiz API kalit.
+                    </div>
                   </div>
-                  <p className="text-[11px] text-slate-600">Authorization headeri kiritilmagan yoki API kalit bekor qilingan.</p>
-                </div>
-
-                <div className="p-4 rounded-2xl bg-white border border-slate-200 space-y-1">
-                  <div className="flex items-center gap-2 font-mono text-xs font-bold">
-                    <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-800">429 Rate Limit Exceeded</span>
-                    <span className="text-slate-900">Minutlik So'rov Limiti</span>
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-between">
+                    <div>
+                      <strong className="text-rose-700">429 Too Many Requests</strong> — Daqiqalik limitdan oshib ketildi.
+                    </div>
                   </div>
-                  <p className="text-[11px] text-slate-600">Minutiga 120 tadan ko'p so'rov yuborilganda yuzaga keladi. <code className="font-mono">Retry-After</code> headerida kutish vaqti ko'rsatiladi.</p>
-                </div>
-
-                <div className="p-4 rounded-2xl bg-white border border-slate-200 space-y-1">
-                  <div className="flex items-center gap-2 font-mono text-xs font-bold">
-                    <span className="px-2 py-0.5 rounded bg-purple-100 text-purple-800">500 Provider Load</span>
-                    <span className="text-slate-900">Klaster Avto-Qayta Urinish</span>
-                  </div>
-                  <p className="text-[11px] text-slate-600">Tizim avtomatik tarzda ikkinchi zaxira klaster provayderiga (SambaNova, Cerebras, Vercel) o'tkazadi.</p>
                 </div>
               </div>
             </div>
@@ -955,101 +1011,94 @@ echo $response;
               <div className="space-y-2">
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold">
                   <Play className="w-3.5 h-3.5 fill-current" />
-                  <span>Jonli Interaktiv Sinov Maydoni</span>
+                  <span>Jonli Interaktiv Sinov</span>
                 </div>
                 <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">
-                  API Test Console (Playground)
+                  API Test Playground
                 </h2>
                 <p className="text-sm text-slate-600">
-                  Brauzerdan chiqmasdan to'g'ridan-to'g'ri API so'rovini sinab ko'ring va jonli oqim (streaming) tezligini o'lchang.
+                  Brauzerdan chiqmasdan real-vaqtli SSE streaming so'rovlarini sinab ko'ring.
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Control Form */}
-                <div className="p-5 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-4">
-                  <h3 className="font-bold text-xs uppercase tracking-wider text-slate-400">So'rov Sozlamalari</h3>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-700">AI Model</label>
+              <div className="p-5 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                      Model
+                    </label>
                     <select
                       value={playModel}
                       onChange={(e) => setPlayModel(e.target.value)}
-                      className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-800"
+                      className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono font-bold text-slate-800"
                     >
-                      <option value="iportal-ai">iportal 1.0 Flagship (Llama 3.3 70B)</option>
-                      <option value="iportal-ai-deepseek">DeepSeek R1 (Full Reasoning 671B)</option>
-                      <option value="iportal-ai-cerebras">Cerebras CS-3 (1000 tok/s Ultra-Fast)</option>
+                      <option value="iportal-ai">iportal 1.0 (Flagship)</option>
+                      <option value="iportal-ai-reasoning">iportal Reasoning (Neural Logic)</option>
                       <option value="iportal-ai-coder">iportal Code Master</option>
-                      <option value="iportal-ai-fast">iportal Turbo 8B (Sub-Second)</option>
+                      <option value="iportal-ai-fast">iportal Turbo (Ultra-Fast 1000 tok/s)</option>
                     </select>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-700">API Key (Ixtiyoriy - Demo uchun bo'sh qoldiring)</label>
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                      API Kalitingiz (ixtiyoriy)
+                    </label>
                     <input
-                      type="password"
+                      type="text"
                       value={playKey}
                       onChange={(e) => setPlayKey(e.target.value)}
-                      placeholder="ip-live-xxxxxxxxxxxxxxxx"
-                      className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono text-slate-900"
+                      placeholder="ip-live-xxxxxxxx"
+                      className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono text-slate-800 placeholder-slate-400"
                     />
                   </div>
+                </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-700">User Prompt</label>
-                    <textarea
-                      rows={4}
-                      value={playPrompt}
-                      onChange={(e) => setPlayPrompt(e.target.value)}
-                      className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 resize-y"
-                    />
+                <div>
+                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                    Prompt (Savolingiz)
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={playPrompt}
+                    onChange={(e) => setPlayPrompt(e.target.value)}
+                    className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 font-sans resize-y"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3 text-xs font-mono">
+                    {playStatus && (
+                      <span className={`font-bold ${playStatus === 200 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                        HTTP {playStatus}
+                      </span>
+                    )}
+                    {playLatency && (
+                      <span className="text-slate-500">
+                        ⚡️ {playLatency} ms
+                      </span>
+                    )}
                   </div>
 
                   <button
                     onClick={handleTestPlayground}
-                    disabled={playLoading || !playPrompt.trim()}
-                    className="w-full py-3 rounded-xl bg-[#00d68f] hover:bg-[#00bf80] text-slate-950 font-bold text-xs shadow-md transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
+                    disabled={playLoading}
+                    className="px-5 py-2 rounded-xl bg-[#00d68f] hover:bg-[#00bf80] text-slate-950 font-bold text-xs shadow-sm transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
                   >
                     {playLoading ? (
-                      <div className="w-4 h-4 rounded-full border-2 border-slate-950 border-t-transparent animate-spin" />
+                      <div className="w-3.5 h-3.5 rounded-full border-2 border-slate-950 border-t-transparent animate-spin" />
                     ) : (
-                      <Play className="w-4 h-4 fill-slate-950" />
+                      <Play className="w-3.5 h-3.5 fill-current" />
                     )}
-                    <span>{playLoading ? 'Neyron So\'rov Qayta Ishlanmoqda...' : 'So\'rov Yuborish (Send Request)'}</span>
+                    <span>{playLoading ? 'Yuborilmoqda...' : 'Yuborish & Sinash'}</span>
                   </button>
                 </div>
 
-                {/* Live Output */}
-                <div className="p-5 rounded-3xl bg-slate-950 border border-slate-800 text-slate-100 shadow-xl flex flex-col space-y-3 min-h-[300px]">
-                  <div className="flex items-center justify-between pb-2 border-b border-slate-800 text-xs">
-                    <div className="flex items-center gap-2 font-mono">
-                      <Terminal className="w-3.5 h-3.5 text-emerald-400" />
-                      <span>Live Response Output</span>
-                    </div>
-
-                    <div className="flex items-center gap-2 text-[11px] font-mono">
-                      {playStatus && (
-                        <span className={`px-2 py-0.5 rounded font-bold ${playStatus === 200 ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-rose-950 text-rose-400 border border-rose-800'}`}>
-                          HTTP {playStatus}
-                        </span>
-                      )}
-                      {playLatency !== null && (
-                        <span className="text-slate-400 font-bold">
-                          ⚡️ {playLatency} ms
-                        </span>
-                      )}
-                    </div>
+                {/* Output Box */}
+                {playResponse && (
+                  <div className="mt-4 p-4 rounded-2xl bg-slate-950 border border-slate-800 text-xs font-mono text-emerald-300 whitespace-pre-wrap max-h-80 overflow-y-auto leading-relaxed">
+                    {playResponse}
                   </div>
-
-                  <div className="flex-1 overflow-y-auto font-mono text-xs text-emerald-300 leading-relaxed whitespace-pre-wrap select-text">
-                    {playResponse || (
-                      <span className="text-slate-600 italic">
-                        {playLoading ? 'Kutilmoqda...' : 'Chap tomondan prompt yozib "So\'rov Yuborish" tugmasini bosing...'}
-                      </span>
-                    )}
-                  </div>
-                </div>
+                )}
               </div>
             </div>
           )}

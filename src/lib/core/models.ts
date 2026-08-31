@@ -7,9 +7,20 @@ export const IPORTAL_MODELS: AIModelMeta[] = [
     provider: 'groq',
     realModelId: 'openai/gpt-oss-120b',
     category: 'smart',
-    description: 'Flagship neural model for all-round intelligence, deep analysis, and general tasks.',
+    description: 'iportal universal flagman neyron modeli. Murakkab tahlil, muloqot va barcha vazifalar uchun asosiy yadro.',
     contextWindow: 131072,
     speed: '~350 tok/s',
+    isFree: true,
+  },
+  {
+    id: 'iportal-ai-reasoning',
+    name: 'iportal Reasoning (Neural Logic)',
+    provider: 'groq',
+    realModelId: 'qwen/qwen3.6-27b',
+    category: 'reasoning',
+    description: 'Qadam-baqadam mantiqiy fikrlash, matematika, algoritmik tahlil va chuqur xulosalar chiqarish modeli.',
+    contextWindow: 131072,
+    speed: '~250 tok/s',
     isFree: true,
   },
   {
@@ -18,31 +29,20 @@ export const IPORTAL_MODELS: AIModelMeta[] = [
     provider: 'groq',
     realModelId: 'openai/gpt-oss-120b',
     category: 'code',
-    description: 'Specialized for software engineering, system architecture, refactoring, and debugging.',
+    description: 'Dasturiy arxitektura, to\'liq kod sintezi, refaktoring va dasturlash muammolarini yechish modeli.',
     contextWindow: 131072,
     speed: '~300 tok/s',
     isFree: true,
   },
   {
-    id: 'iportal-ai-reasoning',
-    name: 'iportal Logic & Math',
-    provider: 'groq',
-    realModelId: 'qwen/qwen3.6-27b',
-    category: 'reasoning',
-    description: 'Step-by-step chain-of-thought model for complex mathematics, logic, and scientific analysis.',
-    contextWindow: 131072,
-    speed: '~250 tok/s',
-    isFree: true,
-  },
-  {
     id: 'iportal-ai-fast',
-    name: 'iportal Turbo',
+    name: 'iportal Turbo (Ultra-Fast)',
     provider: 'groq',
     realModelId: 'openai/gpt-oss-20b',
     category: 'fast',
-    description: 'Ultra high-speed responses (800+ tok/s). Best for quick answers and lightweight assistance.',
+    description: 'Sub-soniyali ultra yuqori tezlikdagi neyron yadro (1000 tok/s). Tezkor savol-javoblar uchun eng qulay.',
     contextWindow: 131072,
-    speed: '~800 tok/s',
+    speed: '1000 tok/s',
     isFree: true,
   },
   {
@@ -51,7 +51,7 @@ export const IPORTAL_MODELS: AIModelMeta[] = [
     provider: 'groq',
     realModelId: 'openai/gpt-oss-120b',
     category: 'smart',
-    description: 'Deep research engine for long-document synthesis, detailed reporting, and thorough reviews.',
+    description: 'Kengaytirilgan chuqur tadqiqot, katta hajmli hujjatlar sintezi va professional hisobotlar modeli.',
     contextWindow: 131072,
     speed: '~320 tok/s',
     isFree: true,
@@ -62,9 +62,9 @@ export const IPORTAL_MODELS: AIModelMeta[] = [
     provider: 'huggingface',
     realModelId: 'flux-1-schnell',
     category: 'general',
-    description: 'Neural image generation core. Generates high-resolution visuals directly in your chat.',
+    description: 'Fotorealistik 8k neyron tasvir generatsiyasi dvigateli. 1.5 soniyada yuqori aniqlikdagi rasmlar yaratadi.',
     contextWindow: 4096,
-    speed: '~3 sec/img',
+    speed: '~1.5 sec/img',
     isFree: true,
   },
 ];
@@ -73,6 +73,12 @@ export function findModel(modelId: string): AIModelMeta {
   const normalized = modelId.toLowerCase();
   if (normalized === 'image-flux' || normalized === 'flux' || normalized === 'iportal-image') {
     return IPORTAL_MODELS.find(m => m.id === 'iportal-image') || IPORTAL_MODELS[0];
+  }
+  if (normalized === 'iportal-ai-deepseek' || normalized === 'iportal-reasoning') {
+    return IPORTAL_MODELS.find(m => m.id === 'iportal-ai-reasoning') || IPORTAL_MODELS[0];
+  }
+  if (normalized === 'iportal-ai-cerebras' || normalized === 'iportal-turbo') {
+    return IPORTAL_MODELS.find(m => m.id === 'iportal-ai-fast') || IPORTAL_MODELS[0];
   }
   const found = IPORTAL_MODELS.find(m => m.id.toLowerCase() === normalized);
   if (found) return found;
