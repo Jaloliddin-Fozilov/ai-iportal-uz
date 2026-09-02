@@ -8,12 +8,14 @@ export class CloudflareAIProvider extends BaseProvider {
 
   resolveModel(requestedModel: string): string {
     const map: Record<string, string> = {
-      'iportal-ai': '@cf/meta/llama-3.3-70b-instruct',
-      'iportal-ai-fast': '@cf/meta/llama-3.1-8b-instruct',
-      'iportal-ai-reasoning': '@cf/deepseek-ai/deepseek-r1-distill-qwen-32b',
-      'cloudflare/llama-3.3-70b': '@cf/meta/llama-3.3-70b-instruct',
+      'iportal-ai': '@cf/mistralai/mistral-small-3.1-24b-instruct',
+      'iportal-ai-fast': '@cf/openai/gpt-oss-20b',
+      'iportal-ai-reasoning': '@cf/qwen/qwq-32b',
+      'iportal-ai-coder': '@cf/mistralai/mistral-small-3.1-24b-instruct',
+      'iportal-ai-pro': '@cf/mistralai/mistral-small-3.1-24b-instruct',
+      'cloudflare/llama-3.3-70b': '@cf/mistralai/mistral-small-3.1-24b-instruct',
     };
-    return map[requestedModel] || '@cf/meta/llama-3.3-70b-instruct';
+    return map[requestedModel] || '@cf/mistralai/mistral-small-3.1-24b-instruct';
   }
 
   async chat(

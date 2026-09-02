@@ -148,20 +148,29 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Smart Sliding Window: If chat history is huge (> 18,000 chars / ~4,500 tokens), preserve the latest turns
+    // Smart Sliding Window: Prevent TPM/413 overflows with intelligent context compression
     const systemSafeguard = composeSystemMessages(userCustomPrompt);
     let trimmedDialogue: ChatMessage[] = nonSystemMessages;
 
-    const maxHistoryChars = 18000;
-    const totalChars = nonSystemMessages.reduce((acc, m) => acc + (m.content?.length || 0), 0);
+    // Safety guard on individual messages: prevent a single giant message (>12,000 chars) from exceeding TPM
+    for (const msg of trimmedDialogue) {
+      if (msg.content && msg.content.length > 12000) {
+        const head = msg.content.slice(0, 6000);
+        const tail = msg.content.slice(-6000);
+        msg.content = `${head}\n\n... [Katta hajmdagi matn xotira barqarorligi uchun ixchamlashtirildi] ...\n\n${tail}`;
+      }
+    }
 
-    if (totalChars > maxHistoryChars && nonSystemMessages.length > 2) {
-      const lastMsg = nonSystemMessages[nonSystemMessages.length - 1];
+    const maxHistoryChars = 14000;
+    const totalChars = trimmedDialogue.reduce((acc, m) => acc + (m.content?.length || 0), 0);
+
+    if (totalChars > maxHistoryChars && trimmedDialogue.length > 2) {
+      const lastMsg = trimmedDialogue[trimmedDialogue.length - 1];
       let currentLen = (lastMsg.content?.length || 0);
       const kept: ChatMessage[] = [];
 
-      for (let i = nonSystemMessages.length - 2; i >= 0; i--) {
-        const msg = nonSystemMessages[i];
+      for (let i = trimmedDialogue.length - 2; i >= 0; i--) {
+        const msg = trimmedDialogue[i];
         const len = msg.content?.length || 0;
         if (currentLen + len > maxHistoryChars) break;
         kept.unshift(msg);

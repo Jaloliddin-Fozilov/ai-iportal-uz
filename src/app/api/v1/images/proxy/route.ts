@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
                 'Content-Type': 'application/json',
               },
               body: JSON.stringify({ prompt: promptText }),
-              signal: AbortSignal.timeout(15000),
+              signal: AbortSignal.timeout(28000),
             }
           );
 

@@ -124,26 +124,15 @@ function getInitialData(): StoreData {
     });
   }
 
-  const cfAccountId = directEnv.CLOUDFLARE_ACCOUNT_ID;
-  if (cfAccountId) {
-    workerNodes.push({
-      id: 'node-cloudflare-edge-1',
-      name: 'Cloudflare Global Edge AI & Backbone',
-      type: 'cloudflare',
-      url: `https://api.cloudflare.com/client/v4/accounts/${cfAccountId}/ai`,
-      secret: directEnv.CLOUDFLARE_API_TOKEN || '',
-      status: 'online',
-      failureCount: 0,
-    });
-  }
-
   const rawWorkers = process.env.WORKER_URLS || '';
   const urls = rawWorkers.split(',').map(u => u.trim()).filter(Boolean);
   urls.forEach((u, idx) => {
+    // Skip known dead or non-proxy nodes
+    if (u.includes('deno.dev') || u.includes('cloudflare.com')) return;
     if (workerNodes.some(n => n.url === u)) return;
+
     let type: WorkerNode['type'] = 'custom';
     if (u.includes('workers.dev')) type = 'cloudflare';
-    else if (u.includes('deno.dev')) type = 'deno';
     else if (u.includes('vercel.app')) type = 'vercel';
     else if (u.includes('netlify.app')) type = 'netlify';
     else if (u.includes('onrender.com')) type = 'render';

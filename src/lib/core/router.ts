@@ -41,23 +41,23 @@ class MasterRouter {
     const primary = meta.provider;
 
     if (requestedModel === 'iportal-ai' || requestedModel === 'default') {
-      return ['groq', 'gemini', 'sambanova', 'cerebras', 'openrouter', 'mistral', 'cloudflare', 'huggingface'];
+      return ['groq', 'cloudflare', 'openrouter', 'gemini'];
     }
     if (requestedModel === 'iportal-ai-fast') {
-      return ['cerebras', 'groq', 'gemini', 'sambanova', 'openrouter'];
+      return ['groq', 'cloudflare', 'openrouter', 'cerebras'];
     }
     if (requestedModel === 'iportal-ai-reasoning') {
-      return ['sambanova', 'groq', 'openrouter', 'cloudflare', 'gemini'];
+      return ['cloudflare', 'groq', 'openrouter'];
     }
     if (requestedModel === 'iportal-ai-pro') {
-      return ['gemini', 'groq', 'sambanova', 'openrouter', 'cerebras'];
+      return ['cloudflare', 'groq', 'openrouter'];
     }
     if (requestedModel === 'iportal-ai-coder') {
-      return ['sambanova', 'groq', 'openrouter', 'mistral', 'gemini'];
+      return ['groq', 'cloudflare', 'openrouter'];
     }
 
     // Default fallback order with primary first
-    const allProviders: ProviderId[] = ['groq', 'gemini', 'sambanova', 'cerebras', 'openrouter', 'mistral', 'cloudflare', 'huggingface'];
+    const allProviders: ProviderId[] = ['groq', 'cloudflare', 'openrouter', 'gemini'];
     return [primary, ...allProviders.filter(p => p !== primary)];
   }
 
