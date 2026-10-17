@@ -150,7 +150,7 @@ export default function AdminPage() {
   const [activeTab, setActiveTab] = useState<'stats' | 'health' | 'nodes' | 'providers' | 'users'>('stats');
   const [authToken, setAuthToken] = useState<string>('');
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [adminEmail, setAdminEmail] = useState<string>('admin@iportal.uz');
+  const [adminEmail, setAdminEmail] = useState<string>('');
   const [adminPassword, setAdminPassword] = useState<string>('');
   const [loginError, setLoginError] = useState<string | null>(null);
 
@@ -275,7 +275,7 @@ export default function AdminPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          email: adminEmail.trim() || 'admin@iportal.uz', 
+          email: adminEmail.trim(), 
           password: adminPassword 
         }),
       });
@@ -287,7 +287,7 @@ export default function AdminPage() {
         setIsAuthenticated(true);
         await fetchAdminData(data.token);
       } else if (data.success && data.user.role !== 'admin') {
-        setLoginError('Ushbu hisobda administrator huquqi mavjud emas. Iltimos, admin@iportal.uz orqali kiring.');
+        setLoginError('Ushbu hisobda administrator huquqi mavjud emas.');
       } else {
         setLoginError(data.error || 'Noto\'g\'ri admin paroli');
       }
@@ -551,23 +551,22 @@ export default function AdminPage() {
               </label>
               <input
                 type="email"
-                required
                 value={adminEmail}
                 onChange={(e) => setAdminEmail(e.target.value)}
-                placeholder="admin@iportal.uz"
+                placeholder="Admin email..."
                 className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#00d68f]"
               />
             </div>
             <div className="space-y-1.5">
               <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
-                Admin Paroli yoki Master Kalit
+                Admin Paroli
               </label>
               <input
                 type="password"
                 required
                 value={adminPassword}
                 onChange={(e) => setAdminPassword(e.target.value)}
-                placeholder="Admin paroli yoki Master kalit..."
+                placeholder="Parol..."
                 className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#00d68f]"
               />
             </div>
@@ -581,15 +580,10 @@ export default function AdminPage() {
             </button>
           </form>
 
-          <div className="pt-2 text-center space-y-2">
-            <p className="text-[11px] text-slate-400">
-              💡 Asosiy login: <code className="text-slate-600 font-mono font-bold">admin@iportal.uz</code>
-            </p>
-            <div>
-              <Link href="/" className="text-xs text-slate-500 hover:text-slate-800 transition-colors">
-                ← Bosh sahifaga qaytish
-              </Link>
-            </div>
+          <div className="pt-2 text-center">
+            <Link href="/" className="text-xs text-slate-500 hover:text-slate-800 transition-colors">
+              ← Bosh sahifaga qaytish
+            </Link>
           </div>
         </div>
       </div>
