@@ -15,6 +15,7 @@ import {
   Layers, 
   ArrowLeft, 
   Lock,
+  LogOut,
   Edit2,
   Check,
   BarChart3,
@@ -149,6 +150,7 @@ export default function AdminPage() {
   const [activeTab, setActiveTab] = useState<'stats' | 'health' | 'nodes' | 'providers' | 'users'>('stats');
   const [authToken, setAuthToken] = useState<string>('');
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [adminEmail, setAdminEmail] = useState<string>('admin@iportal.uz');
   const [adminPassword, setAdminPassword] = useState<string>('');
   const [loginError, setLoginError] = useState<string | null>(null);
 
@@ -197,38 +199,49 @@ export default function AdminPage() {
     setLoading(true);
     try {
       const [usersRes, provRes, nodeRes, statsRes, healthRes] = await Promise.all([
-        fetch('/api/admin/users', { headers: { Authorization: `Bearer ${token}` } }),
-        fetch('/api/providers', { headers: { Authorization: `Bearer ${token}` } }),
-        fetch('/api/nodes', { headers: { Authorization: `Bearer ${token}` } }),
-        fetch('/api/admin/stats', { headers: { Authorization: `Bearer ${token}` } }),
-        fetch('/api/admin/health-check', { headers: { Authorization: `Bearer ${token}` } }),
+        fetch('/api/admin/users', { headers: { Authorization: `Bearer ${token}` } }).catch(() => null),
+        fetch('/api/providers', { headers: { Authorization: `Bearer ${token}` } }).catch(() => null),
+        fetch('/api/nodes', { headers: { Authorization: `Bearer ${token}` } }).catch(() => null),
+        fetch('/api/admin/stats', { headers: { Authorization: `Bearer ${token}` } }).catch(() => null),
+        fetch('/api/admin/health-check', { headers: { Authorization: `Bearer ${token}` } }).catch(() => null),
       ]);
 
-      const usersData = await usersRes.json();
-      const provData = await provRes.json();
-      const nodeData = await nodeRes.json();
-      const statsData = await statsRes.json();
-      const healthData = await healthRes.json();
-
-      if (usersData.success) {
-        setUsers(usersData.users || []);
-        setIsAuthenticated(true);
-      } else {
+      if (usersRes && usersRes.ok) {
+        const usersData = await usersRes.json().catch(() => ({}));
+        if (usersData.success) {
+          setUsers(usersData.users || []);
+          setIsAuthenticated(true);
+        } else {
+          setIsAuthenticated(false);
+        }
+      } else if (usersRes && (usersRes.status === 401 || usersRes.status === 403)) {
         setIsAuthenticated(false);
       }
 
-      if (provData.success) setProviders(provData.keys || []);
-      if (nodeData.success) setNodes(nodeData.nodes || []);
-      if (statsData.success) setStats(statsData.stats || null);
-      if (healthData.success) {
-        setKeyQuotas(healthData.keyQuotas || []);
-        setHealthSummary({
-          ...healthData.summary,
-          systemInfo: healthData.systemInfo,
-        });
+      if (provRes && provRes.ok) {
+        const provData = await provRes.json().catch(() => ({}));
+        if (provData.success) setProviders(provData.keys || []);
+      }
+      if (nodeRes && nodeRes.ok) {
+        const nodeData = await nodeRes.json().catch(() => ({}));
+        if (nodeData.success) setNodes(nodeData.nodes || []);
+      }
+      if (statsRes && statsRes.ok) {
+        const statsData = await statsRes.json().catch(() => ({}));
+        if (statsData.success) setStats(statsData.stats || null);
+      }
+      if (healthRes && healthRes.ok) {
+        const healthData = await healthRes.json().catch(() => ({}));
+        if (healthData.success) {
+          setKeyQuotas(healthData.keyQuotas || []);
+          setHealthSummary({
+            ...healthData.summary,
+            systemInfo: healthData.systemInfo,
+          });
+        }
       }
     } catch (e) {
-      setIsAuthenticated(false);
+      console.error('fetchAdminData error:', e);
     } finally {
       setLoading(false);
     }
@@ -256,24 +269,41 @@ export default function AdminPage() {
   const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError(null);
+    setLoading(true);
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: 'admin@iportal.uz', password: adminPassword }),
+        body: JSON.stringify({ 
+          email: adminEmail.trim() || 'admin@iportal.uz', 
+          password: adminPassword 
+        }),
       });
       const data = await res.json();
       if (data.success && data.user.role === 'admin') {
         localStorage.setItem('iportal_auth_token', data.token);
+        localStorage.setItem('iportal_current_user', JSON.stringify(data.user));
         setAuthToken(data.token);
         setIsAuthenticated(true);
-        fetchAdminData(data.token);
+        await fetchAdminData(data.token);
+      } else if (data.success && data.user.role !== 'admin') {
+        setLoginError('Ushbu hisobda administrator huquqi mavjud emas. Iltimos, admin@iportal.uz orqali kiring.');
       } else {
         setLoginError(data.error || 'Noto\'g\'ri admin paroli');
       }
     } catch (err: any) {
-      setLoginError(err.message || 'Xatolik');
+      setLoginError(err.message || 'Xatolik yuz berdi');
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('iportal_auth_token');
+    localStorage.removeItem('iportal_current_user');
+    setAuthToken('');
+    setIsAuthenticated(false);
+    setAdminPassword('');
   };
 
   const handleAddBalance = async (userId: string) => {
@@ -506,37 +536,60 @@ export default function AdminPage() {
               <Lock className="w-6 h-6 stroke-[2.2]" />
             </div>
             <h1 className="text-xl font-bold text-slate-900 tracking-tight">iportal-ai Admin Panel</h1>
-            <p className="text-xs text-slate-500">Tizim va statistikani boshqarish uchun admin parolini kiriting</p>
+            <p className="text-xs text-slate-500">Tizim va statistikani boshqarish uchun admin hisobingizga kiring</p>
           </div>
 
           <form onSubmit={handleAdminLogin} className="space-y-4">
             {loginError && (
-              <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 font-medium">
+              <div className="p-3.5 rounded-2xl bg-red-50 border border-red-200 text-xs text-red-700 font-medium">
                 {loginError}
               </div>
             )}
-            <div>
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
+                Admin Email
+              </label>
+              <input
+                type="email"
+                required
+                value={adminEmail}
+                onChange={(e) => setAdminEmail(e.target.value)}
+                placeholder="admin@iportal.uz"
+                className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#00d68f]"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
+                Admin Paroli yoki Master Kalit
+              </label>
               <input
                 type="password"
                 required
                 value={adminPassword}
                 onChange={(e) => setAdminPassword(e.target.value)}
-                placeholder="Admin parolini kiriting..."
+                placeholder="Admin paroli yoki Master kalit..."
                 className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#00d68f]"
               />
             </div>
             <button
               type="submit"
-              className="w-full py-3 rounded-xl bg-[#00d68f] hover:bg-[#00bf80] text-slate-950 font-bold text-xs shadow-md transition-all cursor-pointer"
+              disabled={loading}
+              className="w-full py-3.5 rounded-xl bg-[#00d68f] hover:bg-[#00bf80] text-slate-950 font-bold text-xs shadow-md transition-all cursor-pointer flex items-center justify-center gap-2"
             >
-              Admin Paneliga Kirish
+              {loading && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+              <span>Admin Paneliga Kirish</span>
             </button>
           </form>
 
-          <div className="text-center">
-            <Link href="/" className="text-xs text-slate-500 hover:text-slate-800 transition-colors">
-              ← Bosh sahifaga qaytish
-            </Link>
+          <div className="pt-2 text-center space-y-2">
+            <p className="text-[11px] text-slate-400">
+              💡 Asosiy login: <code className="text-slate-600 font-mono font-bold">admin@iportal.uz</code>
+            </p>
+            <div>
+              <Link href="/" className="text-xs text-slate-500 hover:text-slate-800 transition-colors">
+                ← Bosh sahifaga qaytish
+              </Link>
+            </div>
           </div>
         </div>
       </div>
@@ -580,6 +633,14 @@ export default function AdminPage() {
             >
               <span>Maxfiy Webmail</span>
             </Link>
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 text-xs font-bold transition-all cursor-pointer"
+              title="Admin seansidan chiqish"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span>Chiqish</span>
+            </button>
           </div>
         </div>
 
