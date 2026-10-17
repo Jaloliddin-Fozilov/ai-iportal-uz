@@ -33,10 +33,12 @@ import {
   Laptop,
   FileCode,
   User,
-  ShieldCheck
+  ShieldCheck,
+  LogOut
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { AIOrb } from '@/components/AIOrb';
+import { AuthModal } from '@/components/AuthModal';
 import { ApiKeyItem } from '@/lib/core/types';
 import { CostComparisonReport } from '@/lib/core/billingCalculator';
 
@@ -56,10 +58,12 @@ export default function DashboardPage() {
   const [testingKeyId, setTestingKeyId] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<{ id: string; success: boolean; latency: number; message: string } | null>(null);
 
-  const token = typeof window !== 'undefined' ? localStorage.getItem('iportal_auth_token') || '' : '';
+  const [authToken, setAuthToken] = useState<string>('');
+  const [authModalOpen, setAuthModalOpen] = useState<boolean>(false);
 
-  const fetchUserData = async () => {
-    if (!token) {
+  const fetchUserData = async (tokenToUse?: string) => {
+    const activeToken = tokenToUse || authToken || (typeof window !== 'undefined' ? localStorage.getItem('iportal_auth_token') || '' : '');
+    if (!activeToken || activeToken === '[object Object]') {
       setLoading(false);
       return;
     }
@@ -67,18 +71,24 @@ export default function DashboardPage() {
     try {
       // 1. Fetch User Profile
       const meRes = await fetch('/api/auth/me', {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${activeToken}` }
       });
-      const meData = await meRes.json();
+      const meData = await meRes.json().catch(() => ({}));
       if (meData.success && meData.user) {
         setCurrentUser(meData.user);
+        localStorage.setItem('iportal_current_user', JSON.stringify(meData.user));
+      } else {
+        localStorage.removeItem('iportal_auth_token');
+        localStorage.removeItem('iportal_current_user');
+        setCurrentUser(null);
+        setAuthToken('');
       }
 
       // 2. Fetch Keys & Billing Report
       const keysRes = await fetch('/api/user/keys', {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${activeToken}` }
       });
-      const keysData = await keysRes.json();
+      const keysData = await keysRes.json().catch(() => ({}));
       if (keysData.success) {
         setKeys(keysData.keys || []);
         if (keysData.billingReport) {
@@ -93,19 +103,54 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
-    fetchUserData();
-  }, [token]);
+    const savedToken = typeof window !== 'undefined' ? localStorage.getItem('iportal_auth_token') || '' : '';
+    if (savedToken && savedToken !== '[object Object]') {
+      setAuthToken(savedToken);
+      fetchUserData(savedToken);
+    } else if (savedToken === '[object Object]') {
+      localStorage.removeItem('iportal_auth_token');
+      localStorage.removeItem('iportal_current_user');
+      setLoading(false);
+    } else {
+      setLoading(false);
+    }
+  }, []);
+
+  const handleAuthSuccess = (arg1: any, arg2: any) => {
+    const user = typeof arg1 === 'object' && arg1 !== null ? arg1 : arg2;
+    const token = typeof arg1 === 'string' ? arg1 : arg2;
+
+    if (token) {
+      setAuthToken(token);
+      localStorage.setItem('iportal_auth_token', token);
+      fetchUserData(token);
+    }
+    if (user) {
+      setCurrentUser(user);
+      localStorage.setItem('iportal_current_user', JSON.stringify(user));
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('iportal_auth_token');
+    localStorage.removeItem('iportal_current_user');
+    setAuthToken('');
+    setCurrentUser(null);
+    setKeys([]);
+    setBillingReport(null);
+  };
 
   const handleCreateKey = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newKeyName.trim() || !token) return;
+    const activeToken = authToken || localStorage.getItem('iportal_auth_token') || '';
+    if (!newKeyName.trim() || !activeToken) return;
 
     try {
       const res = await fetch('/api/user/keys', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${activeToken}`,
         },
         body: JSON.stringify({ 
           name: newKeyName.trim(),
@@ -130,10 +175,11 @@ export default function DashboardPage() {
 
   const handleDeleteKey = async (id: string) => {
     if (!confirm('Ushbu API kalitni bekor qilish va o\'chirishga ishonchingiz komilmi?')) return;
+    const activeToken = authToken || localStorage.getItem('iportal_auth_token') || '';
     try {
       const res = await fetch(`/api/user/keys?id=${id}`, { 
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${activeToken}` }
       });
       const data = await res.json();
       if (data.success) {
@@ -381,6 +427,16 @@ export async function POST(req: Request) {
             </Link>
           )}
 
+          {!currentUser && (
+            <button
+              onClick={() => setAuthModalOpen(true)}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-all cursor-pointer shadow-sm"
+            >
+              <User className="w-3.5 h-3.5" />
+              <span>Kirish / Ro'yxatdan O'tish</span>
+            </button>
+          )}
+
           {currentUser && (
             <div className="flex items-center gap-2 pl-2">
               <div className="w-8 h-8 rounded-full bg-slate-800 text-white flex items-center justify-center text-xs font-bold shadow-xs">
@@ -389,6 +445,13 @@ export async function POST(req: Request) {
               <span className="text-xs font-semibold text-slate-700 hidden lg:inline truncate max-w-[120px]">
                 {currentUser.name}
               </span>
+              <button
+                onClick={handleLogout}
+                className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors ml-1 cursor-pointer"
+                title="Chiqish (Logout)"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+              </button>
             </div>
           )}
         </div>
@@ -410,13 +473,15 @@ export async function POST(req: Request) {
                 Shaxsiy API kalitlaringizni boshqarish, so'rovlar statistikasini kuzatish va tejalgan mablag' hisobotini olish uchun tizimga kiring.
               </p>
             </div>
-            <Link
-              href="/"
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-lg transition-all cursor-pointer"
-            >
-              <LogIn className="w-4 h-4" />
-              <span>Asosiy Sahifada Kirish / Ro'yxatdan O'tish</span>
-            </Link>
+            <div className="flex items-center justify-center gap-3 flex-wrap">
+              <button
+                onClick={() => setAuthModalOpen(true)}
+                className="inline-flex items-center gap-2 px-6 py-3.5 rounded-2xl bg-[#00d68f] hover:bg-[#00bf80] text-slate-950 font-bold text-xs shadow-lg transition-all cursor-pointer"
+              >
+                <LogIn className="w-4 h-4" />
+                <span>Tizimga Kirish / Ro'yxatdan O'tish</span>
+              </button>
+            </div>
           </div>
         )}
 
@@ -465,7 +530,7 @@ export async function POST(req: Request) {
 
               <div className="flex items-center gap-2">
                 <button
-                  onClick={fetchUserData}
+                  onClick={() => fetchUserData()}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold transition-all cursor-pointer shadow-2xs"
                   title="Yangilash"
                 >
@@ -880,6 +945,12 @@ export async function POST(req: Request) {
           </>
         )}
       </main>
+
+      <AuthModal
+        isOpen={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+        onSuccess={handleAuthSuccess}
+      />
     </div>
   );
 }

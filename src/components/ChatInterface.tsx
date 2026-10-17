@@ -76,9 +76,18 @@ export const ChatInterface: React.FC = () => {
     setSystemPrompt(savedSysPrompt);
 
     const savedToken = localStorage.getItem('iportal_auth_token') || '';
-    if (savedToken) {
+    if (savedToken && savedToken !== '[object Object]') {
       setAuthToken(savedToken);
+      const savedUserStr = localStorage.getItem('iportal_current_user');
+      if (savedUserStr) {
+        try {
+          setCurrentUser(JSON.parse(savedUserStr));
+        } catch (_) {}
+      }
       fetchUserData(savedToken);
+    } else if (savedToken === '[object Object]') {
+      localStorage.removeItem('iportal_auth_token');
+      localStorage.removeItem('iportal_current_user');
     }
 
     // Set a random initial rotation
@@ -86,6 +95,14 @@ export const ChatInterface: React.FC = () => {
   }, []);
 
   const fetchUserData = async (token: string) => {
+    if (!token || token === '[object Object]') {
+      localStorage.removeItem('iportal_auth_token');
+      localStorage.removeItem('iportal_current_user');
+      setAuthToken('');
+      setCurrentUser(null);
+      return;
+    }
+
     try {
       const res = await fetch('/api/auth/me', {
         headers: { Authorization: `Bearer ${token}` },
@@ -93,8 +110,10 @@ export const ChatInterface: React.FC = () => {
       const data = await res.json();
       if (data.success && data.user) {
         setCurrentUser(data.user);
+        localStorage.setItem('iportal_current_user', JSON.stringify(data.user));
       } else {
         localStorage.removeItem('iportal_auth_token');
+        localStorage.removeItem('iportal_current_user');
         setAuthToken('');
         setCurrentUser(null);
       }
@@ -103,14 +122,24 @@ export const ChatInterface: React.FC = () => {
     }
   };
 
-  const handleAuthSuccess = (token: string, user: any) => {
-    setAuthToken(token);
-    setCurrentUser(user);
-    localStorage.setItem('iportal_auth_token', token);
+  const handleAuthSuccess = (arg1: any, arg2: any) => {
+    // Robustly handle both (user, token) and (token, user) signatures
+    const user = typeof arg1 === 'object' && arg1 !== null ? arg1 : arg2;
+    const token = typeof arg1 === 'string' ? arg1 : arg2;
+
+    if (token && typeof token === 'string') {
+      setAuthToken(token);
+      localStorage.setItem('iportal_auth_token', token);
+    }
+    if (user && typeof user === 'object') {
+      setCurrentUser(user);
+      localStorage.setItem('iportal_current_user', JSON.stringify(user));
+    }
   };
 
   const handleLogout = () => {
     localStorage.removeItem('iportal_auth_token');
+    localStorage.removeItem('iportal_current_user');
     setAuthToken('');
     setCurrentUser(null);
   };
