@@ -28,7 +28,7 @@ export async function transcribeAudio(params: {
   language?: string;
   prompt?: string;
 }): Promise<TranscribeResult> {
-  const { buffer, filename = 'audio.mp3', mimeType = 'audio/mpeg', language = 'uz', prompt } = params;
+  const { buffer, filename = 'audio.mp3', mimeType = 'audio/mpeg', language, prompt } = params;
   const uint8 = new Uint8Array(buffer);
 
   // 1. Try ElevenLabs Scribe STT if an active key is available

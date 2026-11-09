@@ -66,11 +66,32 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       audioChunksRef.current = [];
-      const mediaRecorder = new MediaRecorder(stream);
+
+      // Detect supported audio mimeType across Safari (Mac/iOS), Chrome, Firefox
+      let selectedMimeType = '';
+      if (typeof MediaRecorder !== 'undefined') {
+        const candidateTypes = [
+          'audio/webm;codecs=opus',
+          'audio/webm',
+          'audio/mp4',
+          'audio/aac',
+          'audio/ogg;codecs=opus',
+          'audio/wav',
+        ];
+        for (const type of candidateTypes) {
+          if (MediaRecorder.isTypeSupported(type)) {
+            selectedMimeType = type;
+            break;
+          }
+        }
+      }
+
+      const options = selectedMimeType ? { mimeType: selectedMimeType } : undefined;
+      const mediaRecorder = new MediaRecorder(stream, options);
       mediaRecorderRef.current = mediaRecorder;
 
       mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) {
+        if (e.data && e.data.size > 0) {
           audioChunksRef.current.push(e.data);
         }
       };
@@ -78,14 +99,23 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       mediaRecorder.onstop = async () => {
         stream.getTracks().forEach((track) => track.stop());
         if (audioChunksRef.current.length === 0) return;
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+
+        const actualMime = mediaRecorder.mimeType || selectedMimeType || 'audio/webm';
+        const audioBlob = new Blob(audioChunksRef.current, { type: actualMime });
+
+        let ext = 'webm';
+        if (actualMime.includes('mp4') || actualMime.includes('m4a')) ext = 'mp4';
+        else if (actualMime.includes('aac')) ext = 'aac';
+        else if (actualMime.includes('ogg')) ext = 'ogg';
+        else if (actualMime.includes('wav')) ext = 'wav';
+
         setIsTranscribing(true);
 
         try {
           const formData = new FormData();
-          formData.append('file', audioBlob, 'voice.webm');
+          formData.append('file', audioBlob, `voice.${ext}`);
           formData.append('model', 'iportal-audio-stt');
-          formData.append('language', 'uz');
+          // Note: Automatic language detection: supports Uzbek, Russian, English, or mixed speech seamlessly!
 
           const userToken = typeof window !== 'undefined' ? localStorage.getItem('iportal_auth_token') || '' : '';
           const res = await fetch('/api/v1/audio/transcriptions', {
@@ -101,6 +131,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             if (data.text) {
               setInput((prev) => (prev ? `${prev} ${data.text}` : data.text));
             }
+          } else {
+            const errData = await res.json().catch(() => ({}));
+            console.error('Transcription error response:', errData);
           }
         } catch (err) {
           console.error('STT transcription error:', err);
@@ -109,7 +142,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         }
       };
 
-      mediaRecorder.start();
+      // Collect audio chunks every 250ms for smooth stream buffering
+      mediaRecorder.start(250);
       setIsRecording(true);
     } catch (err) {
       console.error('Microphone access denied:', err);

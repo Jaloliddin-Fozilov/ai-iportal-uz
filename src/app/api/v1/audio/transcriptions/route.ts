@@ -45,20 +45,22 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 2. Authentication Check
+    // 2. Authentication Check (Supports API keys, Master Key, and JWT session tokens)
     const authHeader = req.headers.get('authorization') || '';
     const userSessionToken = req.headers.get('x-user-token') || '';
     const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+    const rawToken = token || userSessionToken;
 
     let authenticatedUserId: string | null = null;
     let usedApiKeyId: string | undefined = undefined;
     let isMasterKey = false;
 
-    if (token) {
-      if (token === process.env.IPORTAL_MASTER_KEY || token === 'ip-master-secret-key-change-me') {
+    if (rawToken) {
+      if (rawToken === process.env.IPORTAL_MASTER_KEY || rawToken === 'ip-master-secret-key-change-me') {
         isMasterKey = true;
-      } else {
-        const { user, keyItem } = findUserByApiKey(token);
+      } else if (rawToken.startsWith('ip-live-') || rawToken.startsWith('ip-')) {
+        // API Key
+        const { user, keyItem } = findUserByApiKey(rawToken);
         if (user && keyItem) {
           authenticatedUserId = user.id;
           usedApiKeyId = keyItem.id;
@@ -75,12 +77,12 @@ export async function POST(req: NextRequest) {
             );
           }
         } else {
-          const { valid } = validateApiKey(token);
+          const { valid } = validateApiKey(rawToken);
           if (!valid) {
             return NextResponse.json(
               {
                 error: {
-                  message: 'Noto\'g\'ri yoki bekor qilingan API Key. Yangi kalitni https://ai.iportal.uz dan oling.',
+                  message: 'Noto\'g\'ri API kalit.',
                   type: 'invalid_request_error',
                   code: 'invalid_api_key',
                 },
@@ -89,13 +91,14 @@ export async function POST(req: NextRequest) {
             );
           }
         }
-      }
-    } else if (userSessionToken) {
-      const { valid, payload } = verifySessionToken(userSessionToken);
-      if (valid && payload) {
-        const user = findUserById(payload.userId);
-        if (user) {
-          authenticatedUserId = user.id;
+      } else {
+        // JWT session token
+        const { valid, payload } = verifySessionToken(rawToken);
+        if (valid && payload) {
+          const user = findUserById(payload.userId);
+          if (user) {
+            authenticatedUserId = user.id;
+          }
         }
       }
     }
@@ -104,7 +107,8 @@ export async function POST(req: NextRequest) {
     const formData = await req.formData();
     const file = formData.get('file') as File | null;
     const model = (formData.get('model') as string) || 'iportal-audio-stt';
-    const language = (formData.get('language') as string) || 'uz';
+    const rawLang = (formData.get('language') as string) || '';
+    const language = (rawLang && rawLang !== 'auto' && rawLang !== 'multilingual') ? rawLang : undefined;
     const prompt = (formData.get('prompt') as string) || undefined;
     const responseFormat = (formData.get('response_format') as string) || 'json';
 
