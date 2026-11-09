@@ -108,6 +108,8 @@ function getInitialData(): StoreData {
   addKeysFromEnv('cloudflare', 'CLOUDFLARE_API_TOKEN');
   addKeysFromEnv('huggingface', 'HUGGINGFACE_API_KEYS');
   addKeysFromEnv('huggingface', 'HUGGINGFACE_API_KEY');
+  addKeysFromEnv('elevenlabs', 'ELEVENLABS_API_KEYS');
+  addKeysFromEnv('elevenlabs', 'ELEVENLABS_API_KEY');
 
   // Parse Worker Nodes from ENV (e.g. WORKER_URLS=https://node1.workers.dev,https://node2.deno.dev)
   const workerNodes: WorkerNode[] = [];
@@ -348,6 +350,7 @@ export function detectProviderFromKey(key: string, fallback: ProviderId = 'groq'
   if (k.startsWith('csk-')) return 'cerebras';
   if (k.startsWith('sk-or-')) return 'openrouter';
   if (k.startsWith('hf_')) return 'huggingface';
+  if (k.startsWith('sk_') || k.startsWith('xi-') || k.startsWith('xi_')) return 'elevenlabs';
   if (k.startsWith('sn_') || k.length === 64) return 'sambanova';
   return fallback;
 }

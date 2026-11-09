@@ -1708,6 +1708,7 @@ server.listen(process.env.PORT || 8080);`}
                       <option value="mistral">Mistral AI</option>
                       <option value="cloudflare">Cloudflare Workers AI</option>
                       <option value="huggingface">HuggingFace Hub</option>
+                      <option value="elevenlabs">ElevenLabs (Audio STT & TTS)</option>
                     </select>
                   </div>
 
@@ -1756,6 +1757,7 @@ server.listen(process.env.PORT || 8080);`}
                           <option value="mistral">Mistral</option>
                           <option value="cloudflare">Cloudflare AI</option>
                           <option value="huggingface">HuggingFace (hf_)</option>
+                          <option value="elevenlabs">ElevenLabs (sk_ / xi-)</option>
                         </select>
                       </div>
                     </div>

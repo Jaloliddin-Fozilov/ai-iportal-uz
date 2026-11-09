@@ -28,12 +28,14 @@ import {
   Server,
   Database,
   Shield,
-  HeartHandshake
+  HeartHandshake,
+  Mic,
+  Volume2
 } from 'lucide-react';
 import { AIOrb } from '@/components/AIOrb';
 
 export default function DocsPage() {
-  const [activeSection, setActiveSection] = useState<'quickstart' | 'models' | 'safeguards' | 'chat' | 'images' | 'sdks' | 'cursor' | 'errors' | 'playground'>('quickstart');
+  const [activeSection, setActiveSection] = useState<'quickstart' | 'models' | 'safeguards' | 'chat' | 'images' | 'audio' | 'sdks' | 'cursor' | 'errors' | 'playground'>('quickstart');
   const [activeSdkTab, setActiveSdkTab] = useState<'curl' | 'python' | 'node' | 'nextjs' | 'go' | 'php'>('curl');
   const [searchQuery, setSearchQuery] = useState('');
   const [copiedSnippet, setCopiedSnippet] = useState<string | null>(null);
@@ -464,6 +466,21 @@ echo $response;
               </button>
 
               <button
+                onClick={() => setActiveSection('audio')}
+                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-left transition-all cursor-pointer ${
+                  activeSection === 'audio' 
+                    ? 'bg-slate-900 text-white font-bold shadow-sm' 
+                    : 'text-slate-700 hover:bg-slate-200/60'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <Mic className={`w-4 h-4 ${activeSection === 'audio' ? 'text-[#00d68f]' : 'text-violet-600'}`} />
+                  <span>Audio Studio (STT & TTS)</span>
+                </div>
+                <ChevronRight className="w-3.5 h-3.5 opacity-60" />
+              </button>
+
+              <button
                 onClick={() => setActiveSection('sdks')}
                 className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-left transition-all cursor-pointer ${
                   activeSection === 'sdks' 
@@ -877,6 +894,106 @@ echo $response;
                 <pre className="p-4 text-xs font-mono text-pink-300 overflow-x-auto leading-relaxed">
                   {imageCurl}
                 </pre>
+              </div>
+            </div>
+          )}
+
+          {/* SECTION: AUDIO (STT & TTS) */}
+          {activeSection === 'audio' && (
+            <div className="space-y-6 animate-in fade-in">
+              <div className="space-y-2">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-violet-50 border border-violet-200 text-violet-800 text-xs font-bold">
+                  <Mic className="w-3.5 h-3.5" />
+                  <span>Speech-to-Text & Text-to-Speech</span>
+                </div>
+                <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">
+                  Audio & Voice Studio API
+                </h2>
+                <p className="text-sm text-slate-600">
+                  OpenAI standartidagi yuqori aniqlikdagi Ovozni matnga aylantirish (STT) va Matnni tabiiy inson ovoziga sintez qilish (TTS) xizmati.
+                </p>
+              </div>
+
+              {/* Endpoint 1: STT */}
+              <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-xs space-y-4">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-800 font-mono text-xs font-bold">POST</span>
+                    <code className="text-sm font-bold text-slate-900">/api/v1/audio/transcriptions</code>
+                  </div>
+                  <span className="text-xs text-slate-500 font-mono">Model: iportal-audio-stt</span>
+                </div>
+
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Audio faylni (mp3, wav, ogg, webm, m4a) yuborib, o'zbek, rus yoki ingliz tilidagi aniq matn transkripsiyasini sub-soniyali tezlikda qabul qiling.
+                </p>
+
+                <div className="bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden">
+                  <div className="px-4 py-2.5 bg-slate-900 border-b border-slate-800 flex items-center justify-between">
+                    <span className="text-xs text-slate-300 font-mono font-semibold">cURL Namuna (Speech-to-Text)</span>
+                    <button
+                      onClick={() => copyToClipboard(`curl https://ai.iportal.uz/api/v1/audio/transcriptions \\
+  -H "Authorization: Bearer YOUR_IPORTAL_API_KEY" \\
+  -F "file=@audio.mp3" \\
+  -F "model=iportal-audio-stt" \\
+  -F "language=uz"`, 'audio-stt-curl')}
+                      className="p-1 rounded text-slate-400 hover:text-white"
+                    >
+                      {copiedSnippet === 'audio-stt-curl' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+                  <pre className="p-4 text-xs font-mono text-emerald-300 overflow-x-auto">
+{`curl https://ai.iportal.uz/api/v1/audio/transcriptions \\
+  -H "Authorization: Bearer YOUR_IPORTAL_API_KEY" \\
+  -F "file=@audio.mp3" \\
+  -F "model=iportal-audio-stt" \\
+  -F "language=uz"`}
+                  </pre>
+                </div>
+              </div>
+
+              {/* Endpoint 2: TTS */}
+              <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-xs space-y-4">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2.5 py-1 rounded-lg bg-blue-100 text-blue-800 font-mono text-xs font-bold">POST</span>
+                    <code className="text-sm font-bold text-slate-900">/api/v1/audio/speech</code>
+                  </div>
+                  <span className="text-xs text-slate-500 font-mono">Model: iportal-audio-tts</span>
+                </div>
+
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Matnni tabiiy o'zbek ayol (<code>uz-female</code> / Madina) yoki erkak (<code>uz-male</code> / Sardor) ovozida yuqori sifatli MP3 audio oqimiga aylantiring.
+                </p>
+
+                <div className="bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden">
+                  <div className="px-4 py-2.5 bg-slate-900 border-b border-slate-800 flex items-center justify-between">
+                    <span className="text-xs text-slate-300 font-mono font-semibold">cURL Namuna (Text-to-Speech)</span>
+                    <button
+                      onClick={() => copyToClipboard(`curl https://ai.iportal.uz/api/v1/audio/speech \\
+  -H "Authorization: Bearer YOUR_IPORTAL_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "model": "iportal-audio-tts",
+    "input": "Assalomu alaykum! iportal ovozli suniy intellekt xizmatiga xush kelibsiz.",
+    "voice": "uz-female"
+  }' --output speech.mp3`, 'audio-tts-curl')}
+                      className="p-1 rounded text-slate-400 hover:text-white"
+                    >
+                      {copiedSnippet === 'audio-tts-curl' ? <Check className="w-3.5 h-3.5 text-blue-400" /> : <Copy className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+                  <pre className="p-4 text-xs font-mono text-blue-300 overflow-x-auto">
+{`curl https://ai.iportal.uz/api/v1/audio/speech \\
+  -H "Authorization: Bearer YOUR_IPORTAL_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "model": "iportal-audio-tts",
+    "input": "Assalomu alaykum! iportal ovozli suniy intellekt xizmatiga xush kelibsiz.",
+    "voice": "uz-female"
+  }' --output speech.mp3`}
+                  </pre>
+                </div>
               </div>
             </div>
           )}

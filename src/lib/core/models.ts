@@ -67,6 +67,28 @@ export const IPORTAL_MODELS: AIModelMeta[] = [
     speed: '~1.5 sec/img',
     isFree: true,
   },
+  {
+    id: 'iportal-audio-stt',
+    name: 'iportal Audio Scribe (STT)',
+    provider: 'elevenlabs',
+    realModelId: 'scribe_v1',
+    category: 'general',
+    description: 'Ovozni yuksak aniqlikda matnga aylantirish (Speech-to-Text). O\'zbek, ingliz va rus tillarida sub-soniyali transkripsiya.',
+    contextWindow: 32000,
+    speed: '~300ms',
+    isFree: true,
+  },
+  {
+    id: 'iportal-audio-tts',
+    name: 'iportal Voice Studio (TTS)',
+    provider: 'elevenlabs',
+    realModelId: 'eleven_multilingual_v2',
+    category: 'general',
+    description: 'Matnni tabiiy o\'zbek va ko\'p tilli inson ovoziga aylantirish (Text-to-Speech). Madina va Sardor neyron ovozlari.',
+    contextWindow: 4096,
+    speed: '~1.0s',
+    isFree: true,
+  },
 ];
 
 export function findModel(modelId: string): AIModelMeta {

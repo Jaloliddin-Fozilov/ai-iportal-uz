@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
@@ -20,7 +20,10 @@ import {
   FileCode, 
   File as FileIcon,
   ShieldAlert,
-  Plus
+  Plus,
+  Volume2,
+  VolumeX,
+  Loader2
 } from 'lucide-react';
 import { CodeBlock } from './CodeBlock';
 import { ChatAttachment } from '@/lib/core/types';
@@ -149,6 +152,9 @@ export const ChatMessageItem: React.FC<ChatMessageProps> = ({
   const [copied, setCopied] = useState(false);
   const [showThinking, setShowThinking] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [isLoadingAudio, setIsLoadingAudio] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const isUser = role === 'user';
 
@@ -216,6 +222,67 @@ export const ChatMessageItem: React.FC<ChatMessageProps> = ({
     }
   };
 
+  const handleToggleAudio = async () => {
+    if (isPlayingAudio && audioRef.current) {
+      audioRef.current.pause();
+      setIsPlayingAudio(false);
+      return;
+    }
+
+    const textToRead = (mainContent || content)
+      .replace(/```[\s\S]*?```/g, '')
+      .replace(/[#*_`]/g, '')
+      .trim();
+    if (!textToRead) return;
+
+    setIsLoadingAudio(true);
+    try {
+      const userToken = typeof window !== 'undefined' ? localStorage.getItem('iportal_auth_token') || '' : '';
+      const res = await fetch('/api/v1/audio/speech', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(userToken ? { 'Authorization': `Bearer ${userToken}`, 'X-User-Token': userToken } : {}),
+        },
+        body: JSON.stringify({
+          input: textToRead.slice(0, 1000),
+          voice: 'uz-female',
+          model: 'iportal-audio-tts',
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error('Ovoz yuklanmadi');
+      }
+
+      const blob = await res.blob();
+      const audioUrl = URL.createObjectURL(blob);
+      const audio = new Audio(audioUrl);
+      audioRef.current = audio;
+
+      audio.onplay = () => {
+        setIsLoadingAudio(false);
+        setIsPlayingAudio(true);
+      };
+
+      audio.onended = () => {
+        setIsPlayingAudio(false);
+        URL.revokeObjectURL(audioUrl);
+      };
+
+      audio.onerror = () => {
+        setIsLoadingAudio(false);
+        setIsPlayingAudio(false);
+      };
+
+      await audio.play();
+    } catch (err) {
+      console.error('Audio play error:', err);
+      setIsLoadingAudio(false);
+      setIsPlayingAudio(false);
+    }
+  };
+
   const handleDownloadImage = async (src: string) => {
     try {
       const response = await fetch(src);
@@ -277,8 +344,29 @@ export const ChatMessageItem: React.FC<ChatMessageProps> = ({
               )}
             </div>
 
-            {/* Quick Actions (Copy / Retry) */}
+            {/* Quick Actions (Copy / Audio / Retry) */}
             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              {!isUser && (
+                <button
+                  type="button"
+                  onClick={handleToggleAudio}
+                  disabled={isLoadingAudio}
+                  className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                    isPlayingAudio
+                      ? 'text-emerald-600 bg-emerald-50'
+                      : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100'
+                  }`}
+                  title={isPlayingAudio ? "Ovozni to'xtatish" : "Ovozda eshitish (TTS)"}
+                >
+                  {isLoadingAudio ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-600" />
+                  ) : isPlayingAudio ? (
+                    <VolumeX className="w-3.5 h-3.5 text-emerald-600 animate-pulse" />
+                  ) : (
+                    <Volume2 className="w-3.5 h-3.5" />
+                  )}
+                </button>
+              )}
               <button
                 onClick={handleCopy}
                 className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"

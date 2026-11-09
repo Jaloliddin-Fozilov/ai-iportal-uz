@@ -76,7 +76,8 @@ export type ProviderId =
   | 'openrouter' 
   | 'mistral' 
   | 'cloudflare' 
-  | 'huggingface';
+  | 'huggingface'
+  | 'elevenlabs';
 
 export interface AIModelMeta {
   id: string;

@@ -259,6 +259,10 @@ export async function POST(req: NextRequest) {
               messages: [{ role: 'user', content: 'hi' }],
               max_tokens: 1,
             });
+          } else if (k.provider === 'elevenlabs') {
+            method = 'GET';
+            probeUrl = 'https://api.elevenlabs.io/v1/user/subscription';
+            probeHeaders = { 'xi-api-key': k.key };
           } else {
             method = 'GET';
             probeUrl = 'https://api.cloudflare.com/client/v4/user/tokens/verify';
@@ -285,6 +289,28 @@ export async function POST(req: NextRequest) {
           const realQuota = extractRealQuota(res.headers, res.status, errorText);
           realQuota.latencyMs = latency;
           realQuota.httpStatus = res.status;
+
+          if (k.provider === 'elevenlabs' && res.ok) {
+            try {
+              const subData = JSON.parse(await res.clone().text());
+              if (subData) {
+                const limit = subData.character_limit || 10000;
+                const used = subData.character_count || 0;
+                realQuota.limitTokens = limit;
+                realQuota.remainingTokens = Math.max(0, limit - used);
+                realQuota.limitRequests = 100;
+                realQuota.remainingRequests = Math.round((realQuota.remainingTokens / (limit || 1)) * 100);
+                if (subData.next_character_count_reset_unix) {
+                  realQuota.resetRequests = new Date(subData.next_character_count_reset_unix * 1000).toLocaleDateString('uz-UZ');
+                }
+                if (subData.status === 'detected_unusual_activity' || realQuota.remainingTokens <= 0) {
+                  realQuota.isRateLimited = true;
+                  realQuota.errorMessage = subData.status === 'detected_unusual_activity' ? 'Unusual Activity (VPN/Proxy)' : 'Limit tugagan';
+                }
+              }
+            } catch (e) {}
+          }
+
           if (errorMessage) realQuota.errorMessage = errorMessage;
 
           k.realQuota = realQuota;

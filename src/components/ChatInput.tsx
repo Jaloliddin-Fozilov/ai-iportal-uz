@@ -15,7 +15,9 @@ import {
   FileCode, 
   UploadCloud, 
   CheckCircle2, 
-  Loader2 
+  Loader2,
+  Mic,
+  MicOff
 } from 'lucide-react';
 import { ModelSelector } from './ModelSelector';
 import { ChatAttachment } from '@/lib/core/types';
@@ -45,8 +47,75 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const [attachments, setAttachments] = useState<ChatAttachment[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+
+  const toggleRecording = async () => {
+    if (isRecording) {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        mediaRecorderRef.current.stop();
+      }
+      setIsRecording(false);
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioChunksRef.current = [];
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          audioChunksRef.current.push(e.data);
+        }
+      };
+
+      mediaRecorder.onstop = async () => {
+        stream.getTracks().forEach((track) => track.stop());
+        if (audioChunksRef.current.length === 0) return;
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        setIsTranscribing(true);
+
+        try {
+          const formData = new FormData();
+          formData.append('file', audioBlob, 'voice.webm');
+          formData.append('model', 'iportal-audio-stt');
+          formData.append('language', 'uz');
+
+          const userToken = typeof window !== 'undefined' ? localStorage.getItem('iportal_auth_token') || '' : '';
+          const res = await fetch('/api/v1/audio/transcriptions', {
+            method: 'POST',
+            headers: {
+              ...(userToken ? { 'Authorization': `Bearer ${userToken}`, 'X-User-Token': userToken } : {}),
+            },
+            body: formData,
+          });
+
+          if (res.ok) {
+            const data = await res.json();
+            if (data.text) {
+              setInput((prev) => (prev ? `${prev} ${data.text}` : data.text));
+            }
+          }
+        } catch (err) {
+          console.error('STT transcription error:', err);
+        } finally {
+          setIsTranscribing(false);
+        }
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+    } catch (err) {
+      console.error('Microphone access denied:', err);
+      alert('Mikrofon ruxsati berilmadi yoki qurilmada mikrofon topilmadi.');
+    }
+  };
 
   const isImageMode = selectedModel === 'iportal-image' || selectedModel === 'image-flux';
 
@@ -266,15 +335,62 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           </div>
         )}
 
-        <div className="flex items-start gap-2">
+        {/* Live Audio Recording & STT Banners */}
+        {isRecording && (
+          <div className="flex items-center justify-between px-3.5 py-2 mb-2 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs font-semibold animate-pulse">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-red-600 animate-ping" />
+              <span>Ovoz yozilmoqda... Gapiring</span>
+            </div>
+            <button
+              type="button"
+              onClick={toggleRecording}
+              className="px-2.5 py-1 rounded-lg bg-red-600 hover:bg-red-700 text-white text-[11px] font-bold cursor-pointer"
+            >
+              Tugatish
+            </button>
+          </div>
+        )}
+
+        {isTranscribing && (
+          <div className="flex items-center gap-2 px-3.5 py-2 mb-2 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-semibold animate-pulse">
+            <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-600" />
+            <span>Audio o'zbek tilida matnga aylantirilmoqda (STT)...</span>
+          </div>
+        )}
+
+        <div className="flex items-start gap-1.5 sm:gap-2">
           {/* Paperclip / Attach File Button */}
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
             className="p-2 rounded-full bg-slate-100 hover:bg-slate-200/80 text-slate-600 hover:text-slate-900 transition-colors shrink-0 mt-0.5 cursor-pointer group"
-            title="Attach images, documents, or code files"
+            title="Fayl, rasm yoki hujjat biriktirish"
           >
             <Paperclip className="w-4 h-4 group-hover:rotate-45 transition-transform" />
+          </button>
+
+          {/* Voice Input (Microphone) Button */}
+          <button
+            type="button"
+            onClick={toggleRecording}
+            disabled={isTranscribing}
+            className={`p-2 rounded-full transition-all shrink-0 mt-0.5 cursor-pointer ${
+              isRecording
+                ? 'bg-red-500 text-white animate-pulse shadow-md shadow-red-500/30'
+                : isTranscribing
+                ? 'bg-amber-100 text-amber-700'
+                : 'bg-slate-100 hover:bg-slate-200/80 text-slate-600 hover:text-slate-900'
+            }`}
+            title={isRecording ? "Ovoz yozishni to'xtatish" : isTranscribing ? "Matnga aylantirilmoqda..." : "Ovozli xabar (Speech-to-Text)"}
+          >
+            {isTranscribing ? (
+              <Loader2 className="w-4 h-4 animate-spin text-amber-600" />
+            ) : isRecording ? (
+              <MicOff className="w-4 h-4" />
+            ) : (
+              <Mic className="w-4 h-4" />
+            )}
           </button>
 
           {/* Textarea */}

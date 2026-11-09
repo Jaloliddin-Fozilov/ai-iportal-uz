@@ -92,6 +92,16 @@ export const PROVIDER_FREE_QUOTAS: Record<string, ProviderQuotaInfo> = {
     resetInterval: 'Har 24 soatda (00:00 UTC)',
     notes: 'Serverless Inference API',
   },
+  elevenlabs: {
+    provider: 'elevenlabs',
+    name: 'ElevenLabs Audio (STT & TTS)',
+    dailyRequestsLimit: 100,
+    dailyTokensLimit: 10000,
+    rateLimitPerMin: 10,
+    tokensPerMin: 2000,
+    resetInterval: 'Oylik hisob (10 000 belgi limit)',
+    notes: 'Scribe STT va Multilingual TTS neyron modeli',
+  },
 };
 
 export interface CalculatedKeyQuota {
