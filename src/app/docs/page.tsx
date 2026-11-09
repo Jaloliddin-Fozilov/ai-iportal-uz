@@ -36,7 +36,7 @@ import { AIOrb } from '@/components/AIOrb';
 
 export default function DocsPage() {
   const [activeSection, setActiveSection] = useState<'quickstart' | 'models' | 'safeguards' | 'chat' | 'images' | 'audio' | 'sdks' | 'cursor' | 'errors' | 'playground'>('quickstart');
-  const [activeSdkTab, setActiveSdkTab] = useState<'curl' | 'python' | 'node' | 'nextjs' | 'go' | 'php'>('curl');
+  const [activeSdkTab, setActiveSdkTab] = useState<'curl' | 'python' | 'node' | 'nextjs' | 'go' | 'php' | 'telegram'>('curl');
   const [searchQuery, setSearchQuery] = useState('');
   const [copiedSnippet, setCopiedSnippet] = useState<string | null>(null);
 
@@ -281,6 +281,59 @@ curl_close($ch);
 
 echo $response;
 ?>`,
+
+    telegram: `# Telegram Bot (aiogram 3) — Ovozli xabar (STT) + iportal Chat AI + Ovozli javob (TTS)
+import io, requests
+from aiogram import Bot, Dispatcher, F
+from aiogram.types import Message, BufferedInputFile
+
+BOT_TOKEN = "YOUR_TELEGRAM_BOT_TOKEN"
+IPORTAL_KEY = "YOUR_IPORTAL_API_KEY"
+BASE_URL = "https://ai.iportal.uz/api/v1"
+
+bot = Bot(token=BOT_TOKEN)
+dp = Dispatcher()
+
+@dp.message(F.voice)
+async def handle_voice(message: Message):
+    # 1. Telegramdan ovoz faylini yuklab olish
+    file_info = await bot.get_file(message.voice.file_id)
+    file_bytes = await bot.download_file(file_info.file_path)
+
+    # 2. iportal STT orqali matnga aylantirish (o'zbek, rus, ingliz yoki aralash nutq avtomatik aniqlanadi)
+    stt_res = requests.post(
+        f"{BASE_URL}/audio/transcriptions",
+        headers={"Authorization": f"Bearer {IPORTAL_KEY}"},
+        files={"file": ("voice.ogg", file_bytes.read(), "audio/ogg")},
+        data={"model": "iportal-audio-stt"}
+    )
+    user_text = stt_res.json().get("text", "")
+    await message.reply(f"🎤 Siz aytdingiz: {user_text}")
+
+    # 3. iportal Chat AI modeliga savolni yo'llash
+    chat_res = requests.post(
+        f"{BASE_URL}/chat/completions",
+        headers={"Authorization": f"Bearer {IPORTAL_KEY}", "Content-Type": "application/json"},
+        json={"model": "iportal-ai", "messages": [{"role": "user", "content": user_text}]}
+    )
+    ai_text = chat_res.json()["choices"][0]["message"]["content"]
+
+    # 4. iportal TTS orqali javobni tabiiy o'zbek ayol ovoziga aylantirish
+    tts_res = requests.post(
+        f"{BASE_URL}/audio/speech",
+        headers={"Authorization": f"Bearer {IPORTAL_KEY}", "Content-Type": "application/json"},
+        json={"model": "iportal-audio-tts", "input": ai_text[:4000], "voice": "uz-female"}
+    )
+
+    # 5. Foydalanuvchiga ovozli xabar sifatida javob qaytarish
+    await message.reply_voice(
+        voice=BufferedInputFile(tts_res.content, filename="response.mp3"),
+        caption=ai_text[:1024]
+    )
+
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(dp.start_polling(bot))`,
   };
 
   const cursorSettings = `{
@@ -904,95 +957,265 @@ echo $response;
               <div className="space-y-2">
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-violet-50 border border-violet-200 text-violet-800 text-xs font-bold">
                   <Mic className="w-3.5 h-3.5" />
-                  <span>Speech-to-Text & Text-to-Speech</span>
+                  <span>Speech-to-Text & Text-to-Speech Studio</span>
                 </div>
                 <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">
-                  Audio & Voice Studio API
+                  Audio & Ovoz Studiyasi API
                 </h2>
                 <p className="text-sm text-slate-600">
-                  OpenAI standartidagi yuqori aniqlikdagi Ovozni matnga aylantirish (STT) va Matnni tabiiy inson ovoziga sintez qilish (TTS) xizmati.
+                  OpenAI standartidagi yuqori aniqlikdagi Ovozni matnga aylantirish (STT) va Matnni tabiiy inson ovoziga sintez qilish (TTS) xizmati. 100% bepul, cheklovlarsiz va sub-soniyali tezlikda.
                 </p>
               </div>
 
               {/* Endpoint 1: STT */}
-              <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-xs space-y-4">
+              <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-xs space-y-5">
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <div className="flex items-center gap-2">
                     <span className="px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-800 font-mono text-xs font-bold">POST</span>
                     <code className="text-sm font-bold text-slate-900">/api/v1/audio/transcriptions</code>
                   </div>
-                  <span className="text-xs text-slate-500 font-mono">Model: iportal-audio-stt</span>
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[11px] font-semibold border border-emerald-200">Avtomatik Til & Code-Switching</span>
+                    <span className="text-xs text-slate-500 font-mono">Model: iportal-audio-stt</span>
+                  </div>
                 </div>
 
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  Audio faylni (mp3, wav, ogg, webm, m4a) yuborib, o'zbek, rus yoki ingliz tilidagi aniq matn transkripsiyasini sub-soniyali tezlikda qabul qiling.
+                  Audio faylni yuborib, o'zbek, rus yoki ingliz tilidagi aniq matn transkripsiyasini sub-soniyali tezlikda qabul qiling. Bitta audioda bir nechta tilda aralash gapirilgan bo'lsa ham (masalan, o'zbekcha, ruscha va inglizcha iboralar aralash bo'lsa) har bir til o'z alifbosida to'liq va aniq tushuniladi.
                 </p>
 
-                <div className="bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden">
-                  <div className="px-4 py-2.5 bg-slate-900 border-b border-slate-800 flex items-center justify-between">
-                    <span className="text-xs text-slate-300 font-mono font-semibold">cURL Namuna (Speech-to-Text)</span>
-                    <button
-                      onClick={() => copyToClipboard(`curl https://ai.iportal.uz/api/v1/audio/transcriptions \\
-  -H "Authorization: Bearer YOUR_IPORTAL_API_KEY" \\
+                {/* STT Parameters */}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="border-b border-slate-100 text-slate-400 uppercase text-[10px] font-mono">
+                        <th className="py-2 px-3">Maydon (FormData)</th>
+                        <th className="py-2 px-3">Turi</th>
+                        <th className="py-2 px-3">Majburiy?</th>
+                        <th className="py-2 px-3">Tavsifi</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 text-slate-700 text-xs">
+                      <tr>
+                        <td className="py-2.5 px-3 font-mono font-bold text-emerald-700">file</td>
+                        <td className="py-2.5 px-3 font-mono text-slate-500">File (Binary)</td>
+                        <td className="py-2.5 px-3 font-bold text-rose-600">Ha</td>
+                        <td className="py-2.5 px-3">Audio fayl (<code>mp3</code>, <code>wav</code>, <code>ogg</code>, <code>m4a</code>, <code>webm</code>). Maksimal hajm: 25MB.</td>
+                      </tr>
+                      <tr>
+                        <td className="py-2.5 px-3 font-mono font-bold text-emerald-700">model</td>
+                        <td className="py-2.5 px-3 font-mono text-slate-500">string</td>
+                        <td className="py-2.5 px-3 text-slate-400">Yo'q</td>
+                        <td className="py-2.5 px-3"><code>iportal-audio-stt</code> yoki <code>whisper-1</code></td>
+                      </tr>
+                      <tr>
+                        <td className="py-2.5 px-3 font-mono font-bold text-emerald-700">language</td>
+                        <td className="py-2.5 px-3 font-mono text-slate-500">string</td>
+                        <td className="py-2.5 px-3 text-slate-400">Yo'q (Ixtiyoriy)</td>
+                        <td className="py-2.5 px-3">Bo'sh qoldirilsa, avtomatik aniqlanadi. Aniq belgilash uchun: <code>uz</code>, <code>ru</code>, <code>en</code>.</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* STT Code Examples */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {/* cURL */}
+                  <div className="bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden">
+                    <div className="px-4 py-2 bg-slate-900 border-b border-slate-800 flex items-center justify-between">
+                      <span className="text-xs text-slate-300 font-mono font-semibold">cURL So'rov</span>
+                      <button
+                        onClick={() => copyToClipboard(`curl https://ai.iportal.uz/api/v1/audio/transcriptions \\
+  -H "Authorization: Bearer <API_KEY>" \\
   -F "file=@audio.mp3" \\
-  -F "model=iportal-audio-stt" \\
-  -F "language=uz"`, 'audio-stt-curl')}
-                      className="p-1 rounded text-slate-400 hover:text-white"
-                    >
-                      {copiedSnippet === 'audio-stt-curl' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                    </button>
-                  </div>
-                  <pre className="p-4 text-xs font-mono text-emerald-300 overflow-x-auto">
+  -F "model=iportal-audio-stt"`, 'audio-stt-curl')}
+                        className="p-1 rounded text-slate-400 hover:text-white"
+                      >
+                        {copiedSnippet === 'audio-stt-curl' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                    <pre className="p-4 text-xs font-mono text-emerald-300 overflow-x-auto">
 {`curl https://ai.iportal.uz/api/v1/audio/transcriptions \\
-  -H "Authorization: Bearer YOUR_IPORTAL_API_KEY" \\
+  -H "Authorization: Bearer <API_KEY>" \\
   -F "file=@audio.mp3" \\
-  -F "model=iportal-audio-stt" \\
-  -F "language=uz"`}
+  -F "model=iportal-audio-stt"`}
+                    </pre>
+                  </div>
+
+                  {/* Python */}
+                  <div className="bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden">
+                    <div className="px-4 py-2 bg-slate-900 border-b border-slate-800 flex items-center justify-between">
+                      <span className="text-xs text-slate-300 font-mono font-semibold">Python (requests)</span>
+                      <button
+                        onClick={() => copyToClipboard(`import requests
+
+res = requests.post(
+    "https://ai.iportal.uz/api/v1/audio/transcriptions",
+    headers={"Authorization": "Bearer <API_KEY>"},
+    files={"file": open("audio.mp3", "rb")},
+    data={"model": "iportal-audio-stt"}
+)
+print(res.json().get("text"))`, 'audio-stt-py')}
+                        className="p-1 rounded text-slate-400 hover:text-white"
+                      >
+                        {copiedSnippet === 'audio-stt-py' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                    <pre className="p-4 text-xs font-mono text-emerald-300 overflow-x-auto">
+{`import requests
+
+res = requests.post(
+    "https://ai.iportal.uz/api/v1/audio/transcriptions",
+    headers={"Authorization": "Bearer <API_KEY>"},
+    files={"file": open("audio.mp3", "rb")},
+    data={"model": "iportal-audio-stt"}
+)
+print(res.json().get("text"))`}
+                    </pre>
+                  </div>
+                </div>
+
+                {/* STT JSON Response */}
+                <div className="bg-slate-50 rounded-2xl border border-slate-200 p-4">
+                  <span className="text-[11px] font-mono font-bold text-slate-500 uppercase tracking-wider block mb-2">Javob Namunasi (200 OK JSON):</span>
+                  <pre className="text-xs font-mono text-slate-800 overflow-x-auto">
+{`{
+  "text": "Ertaga soat 8:00 da uyg'onib, yarim soat trenirovka qilib, 20 minut choy ichib, bir soatdan ishga ketishim kerak."
+}`}
                   </pre>
                 </div>
               </div>
 
               {/* Endpoint 2: TTS */}
-              <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-xs space-y-4">
+              <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-xs space-y-5">
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <div className="flex items-center gap-2">
                     <span className="px-2.5 py-1 rounded-lg bg-blue-100 text-blue-800 font-mono text-xs font-bold">POST</span>
                     <code className="text-sm font-bold text-slate-900">/api/v1/audio/speech</code>
                   </div>
-                  <span className="text-xs text-slate-500 font-mono">Model: iportal-audio-tts</span>
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[11px] font-semibold border border-blue-200">HD Neural Studio</span>
+                    <span className="text-xs text-slate-500 font-mono">Model: iportal-audio-tts</span>
+                  </div>
                 </div>
 
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  Matnni tabiiy o'zbek ayol (<code>uz-female</code> / Madina) yoki erkak (<code>uz-male</code> / Sardor) ovozida yuqori sifatli MP3 audio oqimiga aylantiring.
+                  Matnni tabiiy o'zbek ayol (<code>uz-female</code> / Madina) yoki erkak (<code>uz-male</code> / Sardor) ovozida yuqori sifatli MP3 audio oqimiga aylantiring. To'g'ridan-to'g'ri MP3 fayl binar oqimini qaytaradi.
                 </p>
 
-                <div className="bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden">
-                  <div className="px-4 py-2.5 bg-slate-900 border-b border-slate-800 flex items-center justify-between">
-                    <span className="text-xs text-slate-300 font-mono font-semibold">cURL Namuna (Text-to-Speech)</span>
-                    <button
-                      onClick={() => copyToClipboard(`curl https://ai.iportal.uz/api/v1/audio/speech \\
-  -H "Authorization: Bearer YOUR_IPORTAL_API_KEY" \\
+                {/* TTS Parameters */}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="border-b border-slate-100 text-slate-400 uppercase text-[10px] font-mono">
+                        <th className="py-2 px-3">Parametr (JSON Body)</th>
+                        <th className="py-2 px-3">Turi</th>
+                        <th className="py-2 px-3">Majburiy?</th>
+                        <th className="py-2 px-3">Tavsifi</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 text-slate-700 text-xs">
+                      <tr>
+                        <td className="py-2.5 px-3 font-mono font-bold text-blue-700">model</td>
+                        <td className="py-2.5 px-3 font-mono text-slate-500">string</td>
+                        <td className="py-2.5 px-3 text-slate-400">Yo'q</td>
+                        <td className="py-2.5 px-3"><code>iportal-audio-tts</code> yoki <code>tts-1</code></td>
+                      </tr>
+                      <tr>
+                        <td className="py-2.5 px-3 font-mono font-bold text-blue-700">input</td>
+                        <td className="py-2.5 px-3 font-mono text-slate-500">string</td>
+                        <td className="py-2.5 px-3 font-bold text-rose-600">Ha</td>
+                        <td className="py-2.5 px-3">Ovozlashtiriladigan matn (maksimal 4096 belgi).</td>
+                      </tr>
+                      <tr>
+                        <td className="py-2.5 px-3 font-mono font-bold text-blue-700">voice</td>
+                        <td className="py-2.5 px-3 font-mono text-slate-500">string</td>
+                        <td className="py-2.5 px-3 text-slate-400">Yo'q (default: "uz-female")</td>
+                        <td className="py-2.5 px-3">
+                          Ovoz tanlovi: <code>uz-female</code> (Madina), <code>uz-male</code> (Sardor), <code>ru-female</code> (Svetlana), <code>en-female</code> (Jenny).
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="py-2.5 px-3 font-mono font-bold text-blue-700">speed</td>
+                        <td className="py-2.5 px-3 font-mono text-slate-500">number</td>
+                        <td className="py-2.5 px-3 text-slate-400">Yo'q (default: 1.0)</td>
+                        <td className="py-2.5 px-3">Ovoz tezligi (0.5 dan 2.0 gacha).</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* TTS Code Examples */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {/* cURL */}
+                  <div className="bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden">
+                    <div className="px-4 py-2 bg-slate-900 border-b border-slate-800 flex items-center justify-between">
+                      <span className="text-xs text-slate-300 font-mono font-semibold">cURL So'rov</span>
+                      <button
+                        onClick={() => copyToClipboard(`curl https://ai.iportal.uz/api/v1/audio/speech \\
+  -H "Authorization: Bearer <API_KEY>" \\
   -H "Content-Type: application/json" \\
   -d '{
     "model": "iportal-audio-tts",
     "input": "Assalomu alaykum! iportal ovozli suniy intellekt xizmatiga xush kelibsiz.",
     "voice": "uz-female"
   }' --output speech.mp3`, 'audio-tts-curl')}
-                      className="p-1 rounded text-slate-400 hover:text-white"
-                    >
-                      {copiedSnippet === 'audio-tts-curl' ? <Check className="w-3.5 h-3.5 text-blue-400" /> : <Copy className="w-3.5 h-3.5" />}
-                    </button>
-                  </div>
-                  <pre className="p-4 text-xs font-mono text-blue-300 overflow-x-auto">
+                        className="p-1 rounded text-slate-400 hover:text-white"
+                      >
+                        {copiedSnippet === 'audio-tts-curl' ? <Check className="w-3.5 h-3.5 text-blue-400" /> : <Copy className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                    <pre className="p-4 text-xs font-mono text-blue-300 overflow-x-auto">
 {`curl https://ai.iportal.uz/api/v1/audio/speech \\
-  -H "Authorization: Bearer YOUR_IPORTAL_API_KEY" \\
+  -H "Authorization: Bearer <API_KEY>" \\
   -H "Content-Type: application/json" \\
   -d '{
     "model": "iportal-audio-tts",
-    "input": "Assalomu alaykum! iportal ovozli suniy intellekt xizmatiga xush kelibsiz.",
+    "input": "Assalomu alaykum! iportal ovozli xizmatiga xush kelibsiz.",
     "voice": "uz-female"
   }' --output speech.mp3`}
-                  </pre>
+                    </pre>
+                  </div>
+
+                  {/* Python */}
+                  <div className="bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden">
+                    <div className="px-4 py-2 bg-slate-900 border-b border-slate-800 flex items-center justify-between">
+                      <span className="text-xs text-slate-300 font-mono font-semibold">Python (requests)</span>
+                      <button
+                        onClick={() => copyToClipboard(`import requests
+
+res = requests.post(
+    "https://ai.iportal.uz/api/v1/audio/speech",
+    headers={"Authorization": "Bearer <API_KEY>", "Content-Type": "application/json"},
+    json={
+        "model": "iportal-audio-tts",
+        "input": "Assalomu alaykum! Yangi audio loyihangiz muborak bo'lsin.",
+        "voice": "uz-female"
+    }
+)
+with open("speech.mp3", "wb") as f:
+    f.write(res.content)`, 'audio-tts-py')}
+                        className="p-1 rounded text-slate-400 hover:text-white"
+                      >
+                        {copiedSnippet === 'audio-tts-py' ? <Check className="w-3.5 h-3.5 text-blue-400" /> : <Copy className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                    <pre className="p-4 text-xs font-mono text-blue-300 overflow-x-auto">
+{`import requests
+
+res = requests.post(
+    "https://ai.iportal.uz/api/v1/audio/speech",
+    headers={"Authorization": "Bearer <API_KEY>", "Content-Type": "application/json"},
+    json={
+        "model": "iportal-audio-tts",
+        "input": "Assalomu alaykum! Yangi audio loyihangiz muborak bo'lsin.",
+        "voice": "uz-female"
+    }
+)
+with open("speech.mp3", "wb") as f:
+    f.write(res.content)`}
+                    </pre>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1016,7 +1239,7 @@ echo $response;
 
               {/* Language Tabs */}
               <div className="flex flex-wrap gap-2 p-1.5 rounded-2xl bg-slate-100">
-                {(['curl', 'python', 'node', 'nextjs', 'go', 'php'] as const).map((tab) => (
+                {(['curl', 'python', 'node', 'nextjs', 'go', 'php', 'telegram'] as const).map((tab) => (
                   <button
                     key={tab}
                     onClick={() => setActiveSdkTab(tab)}
@@ -1026,7 +1249,7 @@ echo $response;
                         : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
-                    {tab === 'node' ? 'Node.js' : tab === 'nextjs' ? 'Next.js 15' : tab === 'go' ? 'Golang' : tab === 'php' ? 'PHP' : tab}
+                    {tab === 'node' ? 'Node.js' : tab === 'nextjs' ? 'Next.js 15' : tab === 'go' ? 'Golang' : tab === 'php' ? 'PHP' : tab === 'telegram' ? '🤖 Telegram Bot' : tab}
                   </button>
                 ))}
               </div>
