@@ -164,7 +164,7 @@ export async function POST(req: NextRequest) {
 
     recordRequestStats({
       model: 'iportal-audio-stt',
-      provider: result.provider === 'elevenlabs' ? 'elevenlabs' : 'groq',
+      provider: result.provider,
       latencyMs: Date.now() - startTime,
       promptTokens: Math.ceil(buffer.length / 1000),
       completionTokens: result.text.length,

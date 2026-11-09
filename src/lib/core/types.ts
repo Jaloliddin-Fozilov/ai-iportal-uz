@@ -77,7 +77,8 @@ export type ProviderId =
   | 'mistral' 
   | 'cloudflare' 
   | 'huggingface'
-  | 'elevenlabs';
+  | 'elevenlabs'
+  | 'microsoft';
 
 export interface AIModelMeta {
   id: string;

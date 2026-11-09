@@ -159,7 +159,7 @@ export async function POST(req: NextRequest) {
 
     recordRequestStats({
       model: 'iportal-audio-tts',
-      provider: result.provider === 'elevenlabs' ? 'elevenlabs' : 'msedge',
+      provider: 'microsoft',
       latencyMs: Date.now() - startTime,
       promptTokens: input.length,
       completionTokens: Math.ceil(result.audioBuffer.length / 1000),
