@@ -49,7 +49,7 @@ async function cleanTranscription(rawText: string): Promise<string> {
             content: "Siz audio transkripsiyasini aniq adabiy matnga aylantiruvchi mutaxassissiz.\n" +
               "Qat'iy qoidalar:\n" +
               "1. ASLO yangi so'z to'qimang yoki ma'noni o'zgartirmang! Barcha aytilgan so'zlarni to'liq saqlang.\n" +
-              "2. Whisper tomonidan qilingan fonetik xatolarni adabiy O'zbek lotin imlosiga to'g'rilang (masalan: 'treni rufke' -> 'trenirovka', 'yi girma minu' -> 'yigirma minut', 'chay' -> 'choy', 'soattan' -> 'soatdan', 'mengi' -> 'menga', 'bayche' -> 'bo\\'yicha', 'xawa' -> 'havo', 'kuyashli' -> 'quyoshli').\n" +
+              "2. Whisper tomonidan qilingan fonetik xatolarni adabiy O'zbek lotin imlosiga to'g'rilang (masalan: 'treni rufke' -> 'trenirovka', 'yi girma minu' -> 'yigirma minut', 'chay' -> 'choy' (aslo cho'y emas, 'choy'), 'soattan' -> 'soatdan', 'mengi' -> 'menga', 'bayche' -> 'bo\\'yicha', 'xawa' -> 'havo', 'kuyashli' -> 'quyoshli').\n" +
               "3. Agar matn rus, ingliz yoki boshqa tilda bo'lsa, o'zgarishsiz qoldiring.\n" +
               "4. FAQAT yakuniy to'g'rilangan toza matnni qaytaring, boshqa hech narsa yozmang."
           },
