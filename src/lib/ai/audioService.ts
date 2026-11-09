@@ -113,11 +113,10 @@ export async function transcribeAudio(params: {
         const data = await res.json();
         CircuitBreaker.recordKeySuccess(elevenKey);
         const rawText = (data.text || '').trim();
-        const cleanedText = await cleanTranscription(rawText);
         return {
-          text: cleanedText,
+          text: rawText,
           provider: 'elevenlabs',
-          language,
+          language: data.language_code || language,
         };
       }
 
