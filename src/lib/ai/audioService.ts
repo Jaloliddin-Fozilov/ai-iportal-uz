@@ -130,44 +130,116 @@ export async function transcribeAudio(params: {
     }
   }
 
-  // 2. High-speed Failover: Groq Whisper Large-v3 (with automatic Uzbek Latin prompt conditioning)
+  // 2. High-speed Failover: Groq Whisper Large-v3 with Intelligent Auto-Detection & Uzbek Latin Optimization
   const groqKey = LoadBalancer.selectKey('groq');
   const fallbackKey = groqKey?.key || process.env.GROQ_API_KEY || process.env.GROQ_API_KEYS?.split(',')[0] || '';
 
   try {
-    const targetLang = language && language !== 'auto' ? language : 'uz';
     const defaultPrompt = prompt || "O'zbekiston, Toshkent, Samarqand, iportal, dastur, assalomu alaykum, qandaysiz, rahmat";
 
-    const formData = new FormData();
-    const blob = new Blob([uint8], { type: mimeType });
-    formData.append('file', blob, filename);
-    formData.append('model', 'whisper-large-v3');
-    formData.append('language', targetLang);
-    if (defaultPrompt) formData.append('prompt', defaultPrompt);
+    // If caller explicitly passed a language (e.g. 'ru', 'en', 'uz', 'kk')
+    if (language && language !== 'auto') {
+      const formData = new FormData();
+      const blob = new Blob([uint8], { type: mimeType });
+      formData.append('file', blob, filename);
+      formData.append('model', 'whisper-large-v3');
+      formData.append('language', language);
+      if (defaultPrompt) formData.append('prompt', defaultPrompt);
 
-    const res = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+      const res = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${fallbackKey}`,
+        },
+        body: formData,
+        signal: AbortSignal.timeout(30000),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (groqKey) CircuitBreaker.recordKeySuccess(groqKey);
+        const rawText = (data.text || '').trim();
+        const cleanedText = await cleanTranscription(rawText);
+        return {
+          text: cleanedText,
+          provider: 'groq',
+          language,
+        };
+      }
+    }
+
+    // Auto-detection mode (Default): First pass with verbose_json
+    const autoFd = new FormData();
+    const blob = new Blob([uint8], { type: mimeType });
+    autoFd.append('file', blob, filename);
+    autoFd.append('model', 'whisper-large-v3');
+    autoFd.append('response_format', 'verbose_json');
+
+    const resAuto = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${fallbackKey}`,
       },
-      body: formData,
+      body: autoFd,
       signal: AbortSignal.timeout(30000),
     });
 
-    if (res.ok) {
-      const data = await res.json();
+    if (resAuto.ok) {
+      const dataAuto = await resAuto.json();
       if (groqKey) CircuitBreaker.recordKeySuccess(groqKey);
-      const rawText = (data.text || '').trim();
+      const detectedLang = (dataAuto.language || '').toLowerCase();
+      let rawText = (dataAuto.text || '').trim();
+
+      const hasArabic = /[\u0600-\u06FF]/.test(rawText);
+      const isPersianOrArabic = detectedLang === 'persian' || detectedLang === 'arabic' || detectedLang === 'urdu' || detectedLang === 'pashto';
+
+      // If Whisper misclassified Uzbek as Persian/Arabic or produced empty text, run targeted Uzbek pass
+      if (hasArabic || isPersianOrArabic || !rawText) {
+        const uzFd = new FormData();
+        uzFd.append('file', new Blob([uint8], { type: mimeType }), filename);
+        uzFd.append('model', 'whisper-large-v3');
+        uzFd.append('language', 'uz');
+        uzFd.append('prompt', defaultPrompt);
+
+        const resUz = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${fallbackKey}`,
+          },
+          body: uzFd,
+          signal: AbortSignal.timeout(30000),
+        });
+
+        if (resUz.ok) {
+          const dataUz = await resUz.json();
+          rawText = (dataUz.text || '').trim() || rawText;
+        }
+      }
+
+      // If text is clearly English, Russian, German, French, etc. without Central Asian scripts, return directly
+      const isCleanMajorLang = 
+        (detectedLang === 'english' || detectedLang === 'russian' || detectedLang === 'german' || detectedLang === 'french' || detectedLang === 'spanish' || detectedLang === 'chinese' || detectedLang === 'japanese') &&
+        !hasArabic;
+
+      if (isCleanMajorLang && rawText) {
+        return {
+          text: rawText,
+          provider: 'groq',
+          language: detectedLang,
+        };
+      }
+
+      // For Central Asian languages (Uzbek, Kazakh, etc.) or post-Uzbek pass, polish with cleanTranscription
       const cleanedText = await cleanTranscription(rawText);
       return {
         text: cleanedText,
         provider: 'groq',
-        language: targetLang,
+        language: detectedLang || 'uz',
       };
     }
 
-    const errText = await res.text().catch(() => '');
-    throw new Error(`STT transkripsiya xatosi (HTTP ${res.status}): ${errText}`);
+    const errText = await resAuto.text().catch(() => '');
+    throw new Error(`STT transkripsiya xatosi (HTTP ${resAuto.status}): ${errText}`);
   } catch (err: any) {
     if (groqKey) CircuitBreaker.recordKeyFailure(groqKey, 500, err.message);
     throw new Error(`Audio transkripsiyasida xatolik: ${err.message}`);
