@@ -16,21 +16,23 @@ export interface SpeechResult {
   voice: string;
 }
 
+function getGroqApiKey(): string {
+  const groqKey = LoadBalancer.selectKey('groq');
+  return groqKey?.key || process.env.GROQ_API_KEY || process.env.GROQ_API_KEYS?.split(',')[0] || '';
+}
+
 /**
- * Normalizes Uzbek speech transcription:
- * Converts Arabic script (Southern Uzbek) or Kazakh misclassifications to pure contemporary Latin Uzbek.
+ * Normalizes speech transcription:
+ * - Refines phonetic slips and Whisper misspellings into pristine modern Uzbek Latin.
+ * - Converts Arabic/Persian script artifacts from Whisper into clean Uzbek Latin.
+ * - Preserves Russian, English, Kazakh, or other languages untouched.
  */
-async function cleanUzbekTranscription(rawText: string, apiKey: string): Promise<string> {
+async function cleanTranscription(rawText: string): Promise<string> {
   const trimmed = rawText.trim();
   if (!trimmed) return trimmed;
 
-  // Check if text has Arabic script or Kazakh-specific letters / vocabulary
-  const hasArabic = /[\u0600-\u06FF]/.test(trimmed);
-  const hasKazakh = /[әғқңөұүһі]/i.test(trimmed) || /\b(жақсы|сәлем|болады|қалай|рахмет|жоқ|керек|істеп|барлық|бірақ|болып|дейін)\b/i.test(trimmed);
-
-  if (!hasArabic && !hasKazakh) {
-    return trimmed;
-  }
+  const apiKey = getGroqApiKey();
+  if (!apiKey) return trimmed;
 
   try {
     const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -44,7 +46,10 @@ async function cleanUzbekTranscription(rawText: string, apiKey: string): Promise
         messages: [
           {
             role: 'system',
-            content: "Siz audio transkripsiyasini tozalovchi mutaxassissiz. Agar matnda arab yozuvi yoki qozoqcha imloga xos so'zlar bo'lsa, uni sof va toza adabiy O'zbek lotin tiliga o'giring. Ruscha yoki inglizcha so'zlarni o'zgartirmang. FAQAT tozalangan matnni qaytaring, hech qanday izoh qo'shmang."
+            content: "Siz professional audio transkripsiyasini tozalovchi mutaxassissiz. Matndagi orfografik yoki fonetik xatolarni to'g'rilang. Hech qachon matnni qisqartirmang yoki so'zlarni tashlab ketmang. Barcha gaplarni to'liq saqlang.\n" +
+              "- Agar matn o'zbek tiliga xos bo'lsa (yoki arab/fors/fonetik xato yozuvda bo'lsa), uni zamonaviy adabiy O'zbek lotin imlosiga to'liq va to'g'ri o'giring (masalan: 'Mengi' -> 'Menga', 'bitti' -> 'bitta', 'yazmakh' -> 'yozmoq', 'Azbekistan' -> 'O\\'zbekiston', 'khawajude' -> 'havo juda', 'kalay' -> 'qalay', 'barmi' -> 'bormi').\n" +
+              "- Agar matn rus, ingliz, qozoq yoki boshqa tilda bo'lsa, uni boshqa tilga tarjima qilmang, o'sha tilning to'g'ri imlosi bilan to'liq qaytaring.\n" +
+              "- FAQAT to'g'rilangan yakuniy matnni qaytaring, hech qanday izoh yoki tushuntirish yozmang."
           },
           {
             role: 'user',
@@ -52,7 +57,7 @@ async function cleanUzbekTranscription(rawText: string, apiKey: string): Promise
           }
         ],
         temperature: 0.0,
-        max_tokens: 300,
+        max_tokens: 400,
       }),
       signal: AbortSignal.timeout(6000),
     });
@@ -63,7 +68,7 @@ async function cleanUzbekTranscription(rawText: string, apiKey: string): Promise
       if (cleaned) return cleaned;
     }
   } catch (e) {
-    console.warn('[AudioService] Fast Uzbek cleaner skipped on timeout:', e);
+    console.warn('[AudioService] Fast transcription cleaner skipped:', e);
   }
 
   return trimmed;
@@ -108,7 +113,7 @@ export async function transcribeAudio(params: {
         const data = await res.json();
         CircuitBreaker.recordKeySuccess(elevenKey);
         const rawText = (data.text || '').trim();
-        const cleanedText = await cleanUzbekTranscription(rawText, elevenKey.key);
+        const cleanedText = await cleanTranscription(rawText);
         return {
           text: cleanedText,
           provider: 'elevenlabs',
@@ -125,20 +130,19 @@ export async function transcribeAudio(params: {
     }
   }
 
-  // 2. High-speed Failover: Groq Whisper Large-v3 (with Uzbek Latin prompt conditioning)
+  // 2. High-speed Failover: Groq Whisper Large-v3 (with automatic Uzbek Latin prompt conditioning)
   const groqKey = LoadBalancer.selectKey('groq');
   const fallbackKey = groqKey?.key || process.env.GROQ_API_KEY || process.env.GROQ_API_KEYS?.split(',')[0] || '';
 
   try {
-    const defaultPrompt = prompt || (language === 'uz' || !language
-      ? "O'zbekiston, Toshkent, Samarqand, o'zbek tili, lotin yozuvi. Salom, assalomu alaykum, qandaysiz, yaxshimisiz, rahmat, nima gap, dastur, iportal."
-      : undefined);
+    const targetLang = language && language !== 'auto' ? language : 'uz';
+    const defaultPrompt = prompt || "O'zbekiston, Toshkent, Samarqand, iportal, dastur, assalomu alaykum, qandaysiz, rahmat";
 
     const formData = new FormData();
     const blob = new Blob([uint8], { type: mimeType });
     formData.append('file', blob, filename);
     formData.append('model', 'whisper-large-v3');
-    if (language && language !== 'auto') formData.append('language', language);
+    formData.append('language', targetLang);
     if (defaultPrompt) formData.append('prompt', defaultPrompt);
 
     const res = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
@@ -154,11 +158,11 @@ export async function transcribeAudio(params: {
       const data = await res.json();
       if (groqKey) CircuitBreaker.recordKeySuccess(groqKey);
       const rawText = (data.text || '').trim();
-      const cleanedText = await cleanUzbekTranscription(rawText, fallbackKey);
+      const cleanedText = await cleanTranscription(rawText);
       return {
         text: cleanedText,
         provider: 'groq',
-        language,
+        language: targetLang,
       };
     }
 

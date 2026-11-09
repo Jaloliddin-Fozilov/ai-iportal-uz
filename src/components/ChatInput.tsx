@@ -49,7 +49,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const [isUploading, setIsUploading] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
-  const [audioLang, setAudioLang] = useState<'uz' | 'auto' | 'ru' | 'en'>('uz');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -116,9 +115,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           const formData = new FormData();
           formData.append('file', audioBlob, `voice.${ext}`);
           formData.append('model', 'iportal-audio-stt');
-          if (audioLang && audioLang !== 'auto') {
-            formData.append('language', audioLang);
-          }
 
           const userToken = typeof window !== 'undefined' ? localStorage.getItem('iportal_auth_token') || '' : '';
           const res = await fetch('/api/v1/audio/transcriptions', {
@@ -408,50 +404,27 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           </button>
 
           {/* Voice Input (Microphone) Button */}
-          <div className="flex items-center gap-1 shrink-0 mt-0.5">
-            <button
-              type="button"
-              onClick={toggleRecording}
-              disabled={isTranscribing}
-              className={`p-2 rounded-full transition-all cursor-pointer ${
-                isRecording
-                  ? 'bg-red-500 text-white animate-pulse shadow-md shadow-red-500/30'
-                  : isTranscribing
-                  ? 'bg-amber-100 text-amber-700'
-                  : 'bg-slate-100 hover:bg-slate-200/80 text-slate-600 hover:text-slate-900'
-              }`}
-              title={isRecording ? "Ovoz yozishni to'xtatish" : isTranscribing ? "Matnga aylantirilmoqda..." : "Ovozli xabar (Speech-to-Text)"}
-            >
-              {isTranscribing ? (
-                <Loader2 className="w-4 h-4 animate-spin text-amber-600" />
-              ) : isRecording ? (
-                <MicOff className="w-4 h-4" />
-              ) : (
-                <Mic className="w-4 h-4" />
-              )}
-            </button>
-
-            {/* Quick Language Toggle (UZ / Avto / RU / EN) */}
-            <button
-              type="button"
-              onClick={() => {
-                const nextMap: Record<string, 'uz' | 'auto' | 'ru' | 'en'> = {
-                  uz: 'auto',
-                  auto: 'ru',
-                  ru: 'en',
-                  en: 'uz',
-                };
-                setAudioLang(nextMap[audioLang] || 'uz');
-              }}
-              className="px-2 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200/80 text-[10px] font-bold text-slate-700 transition-colors cursor-pointer select-none"
-              title="Ovoz tilini o'zgartirish (Bosib almashtiring: UZ / Avto / RU / EN)"
-            >
-              {audioLang === 'uz' && '🇺🇿 UZ'}
-              {audioLang === 'auto' && '🌐 Avto'}
-              {audioLang === 'ru' && '🇷🇺 RU'}
-              {audioLang === 'en' && '🇬🇧 EN'}
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={toggleRecording}
+            disabled={isTranscribing}
+            className={`p-2 rounded-full transition-all cursor-pointer shrink-0 mt-0.5 ${
+              isRecording
+                ? 'bg-red-500 text-white animate-pulse shadow-md shadow-red-500/30'
+                : isTranscribing
+                ? 'bg-amber-100 text-amber-700'
+                : 'bg-slate-100 hover:bg-slate-200/80 text-slate-600 hover:text-slate-900'
+            }`}
+            title={isRecording ? "Ovoz yozishni to'xtatish" : isTranscribing ? "Matnga aylantirilmoqda..." : "Ovozli xabar (Speech-to-Text)"}
+          >
+            {isTranscribing ? (
+              <Loader2 className="w-4 h-4 animate-spin text-amber-600" />
+            ) : isRecording ? (
+              <MicOff className="w-4 h-4" />
+            ) : (
+              <Mic className="w-4 h-4" />
+            )}
+          </button>
 
           {/* Textarea */}
           <textarea
