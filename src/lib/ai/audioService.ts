@@ -26,6 +26,7 @@ function getGroqApiKey(): string {
  * - Refines phonetic slips and Whisper misspellings into pristine modern Uzbek Latin.
  * - Converts Arabic/Persian script artifacts from Whisper into clean Uzbek Latin.
  * - Preserves Russian, English, Kazakh, or other languages untouched.
+ * - Strictly forbids changing user vocabulary or substituting synonyms.
  */
 async function cleanTranscription(rawText: string): Promise<string> {
   const trimmed = rawText.trim();
@@ -46,12 +47,18 @@ async function cleanTranscription(rawText: string): Promise<string> {
         messages: [
           {
             role: 'system',
-            content: "Siz audio transkripsiyasini aniq adabiy matnga aylantiruvchi mutaxassissiz.\n" +
+            content: "Siz audio transkripsiyasidagi imlo va fonetik xatolarni to'g'rilovchi tahrirchisiz.\n" +
               "Qat'iy qoidalar:\n" +
-              "1. ASLO yangi so'z to'qimang yoki ma'noni o'zgartirmang! Barcha aytilgan so'zlarni to'liq saqlang.\n" +
-              "2. Whisper tomonidan qilingan fonetik xatolarni adabiy O'zbek lotin imlosiga to'g'rilang (masalan: 'treni rufke' -> 'trenirovka', 'yi girma minu' -> 'yigirma minut', 'chay' -> 'choy' (aslo cho'y emas, 'choy'), 'soattan' -> 'soatdan', 'mengi' -> 'menga', 'bayche' -> 'bo\\'yicha', 'xawa' -> 'havo', 'kuyashli' -> 'quyoshli').\n" +
-              "3. Agar matn rus, ingliz yoki boshqa tilda bo'lsa, o'zgarishsiz qoldiring.\n" +
-              "4. FAQAT yakuniy to'g'rilangan toza matnni qaytaring, boshqa hech narsa yozmang."
+              "1. FOYDALANUVCHI AYTGAN SO'ZLARNI ASLO BOSHQA SO'ZGA YOKI SINONIMIGA ALMASHTIRMANG!\n" +
+              "   - Masalan: 'treni rufke' yoki 'trenirovka' aytilgan bo'lsa, 'trenirovka' deb qolsin, 'mashg'ulot' qilmang!\n" +
+              "   - 'minu' yoki 'minut' aytilgan bo'lsa, 'minut' deb qolsin, 'daqiqa' qilmang!\n" +
+              "   - So'zlarni tarjima qilmang, yangi so'z qo'shmang va mavjud so'zlarni olib tashlamang.\n" +
+              "2. Har bir tilni (o'zbek, rus, ingliz) o'z alifbosida saqlang:\n" +
+              "   - Ruscha so'zlarni rus kirill alifbosida ('Привет, как дела', 'Потом я соберусь купить машину').\n" +
+              "   - Inglizcha so'zlarni ingliz tilida ('I need to buy a milk and a car').\n" +
+              "   - O'zbekcha so'zlarni zamonaviy o'zbek lotin imlosida ('Ertaga soat 8:00 da uyg\\'onib...').\n" +
+              "3. Faqat fonetik xatolarni adabiy imloga to'g'rilang (masalan: 'soattan' / 'saatdən' -> 'soatdan', 'chay' -> 'choy', 'mengi' -> 'menga', 'uyqanıb' -> 'uyg\\'onib', 'kuyashli' -> 'quyoshli').\n" +
+              "4. Javob sifatida FAQAT to'g'rilangan yakuniy matnni qaytaring, ortiqcha izoh yozmang."
           },
           {
             role: 'user',
@@ -78,8 +85,8 @@ async function cleanTranscription(rawText: string): Promise<string> {
 
 /**
  * Speech-to-Text (STT) Audio Transcription Engine
- * Powered by Groq Whisper Large-v3 with Smart Auto-Detection & Uzbek Precision Pipeline
- * 100% Free, Unlimited, Multi-Lingual (Russian, English, Uzbek, Kazakh, etc.)
+ * Powered by Groq Whisper Large-v3 with Multilingual Code-Switching & Uzbek Precision Pipeline
+ * 100% Free, Unlimited, Multi-Lingual (Uzbek, Russian, English, Kazakh, etc.)
  */
 export async function transcribeAudio(params: {
   buffer: Buffer;
@@ -126,12 +133,16 @@ export async function transcribeAudio(params: {
       }
     }
 
-    // Step 1: Automatic Language Detection pass with verbose_json
+    const MULTILINGUAL_WHISPER_PROMPT =
+      "Multilingual mixed speech in English, Russian, Uzbek: I need, привет, как дела, va undan keyin soat sakkizda ishga ketaman.";
+
+    // Step 1: Automatic Language Detection pass with code-switching seed prompt
     const autoFd = new FormData();
     const blob = new Blob([uint8], { type: mimeType });
     autoFd.append('file', blob, filename);
     autoFd.append('model', 'whisper-large-v3');
     autoFd.append('response_format', 'verbose_json');
+    autoFd.append('prompt', MULTILINGUAL_WHISPER_PROMPT);
 
     const resAuto = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
       method: 'POST',
@@ -149,46 +160,59 @@ export async function transcribeAudio(params: {
       let rawText = (dataAuto.text || '').trim();
 
       const hasArabic = /[\u0600-\u06FF]/.test(rawText);
-      const isCleanMajor = 
-        (detectedLang === 'russian' || detectedLang === 'english' || detectedLang === 'german' || detectedLang === 'french' || detectedLang === 'spanish' || detectedLang === 'italian') &&
-        !hasArabic;
+      const hasCyrillic = /[а-яё]/i.test(rawText);
+      const hasLatin = /[a-z]/i.test(rawText);
+      const isMixed = hasCyrillic && hasLatin;
+      const isPureRussian = (detectedLang === 'russian' || hasCyrillic) && !hasLatin && !hasArabic;
+      const isPureEnglish = (detectedLang === 'english' || detectedLang === 'german' || detectedLang === 'french') && hasLatin && !hasCyrillic && !hasArabic;
 
-      // Russian, English and clean major languages are returned directly without hallucination
-      if (isCleanMajor && rawText) {
+      // Pure Russian or English is returned directly without hallucination
+      if (isPureRussian && rawText) {
         return {
           text: rawText,
           provider: 'groq',
-          language: detectedLang,
+          language: 'ru',
+        };
+      }
+      if (isPureEnglish && rawText) {
+        return {
+          text: rawText,
+          provider: 'groq',
+          language: detectedLang || 'en',
         };
       }
 
-      // Step 2: For Central Asian speech (where Whisper misclassifies Uzbek as Persian/Azerbaijani/Kazakh/Uzbek), run targeted Uzbek pass
-      const uzFd = new FormData();
-      uzFd.append('file', new Blob([uint8], { type: mimeType }), filename);
-      uzFd.append('model', 'whisper-large-v3');
-      uzFd.append('language', 'uz');
-      uzFd.append('prompt', "O'zbekiston Respublikasi Toshkent shahri. Salom, ertaga soat sakkizda uyg'onib ishga ketishim kerak.");
+      // Step 2: For pure Uzbek or regional speech (or if Arabic script artifacts appeared), run targeted Uzbek pass
+      if (!isMixed && (hasArabic || (detectedLang !== 'russian' && detectedLang !== 'english'))) {
+        const uzFd = new FormData();
+        uzFd.append('file', new Blob([uint8], { type: mimeType }), filename);
+        uzFd.append('model', 'whisper-large-v3');
+        uzFd.append('language', 'uz');
+        uzFd.append('prompt', "O'zbekiston Respublikasi Toshkent shahri. Ertaga soat 8:00 da uyg'onib, yarim soat trenirovka qilib, 20 minut choy ichib, bir soatdan ishga ketishim kerak.");
 
-      const resUz = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${fallbackKey}`,
-        },
-        body: uzFd,
-        signal: AbortSignal.timeout(30000),
-      });
+        const resUz = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${fallbackKey}`,
+          },
+          body: uzFd,
+          signal: AbortSignal.timeout(30000),
+        });
 
-      if (resUz.ok) {
-        const dataUz = await resUz.json();
-        rawText = (dataUz.text || '').trim() || rawText;
+        if (resUz.ok) {
+          const dataUz = await resUz.json();
+          if (dataUz.text && dataUz.text.trim()) {
+            rawText = dataUz.text.trim();
+          }
+        }
       }
 
-      // Step 3: Polish Uzbek phonetic slips with Qwen
+      // Step 3: Polish Uzbek or mixed speech with strict non-substituting cleaner
       const cleanedText = await cleanTranscription(rawText);
       return {
         text: cleanedText,
         provider: 'groq',
-        language: detectedLang || 'uz',
+        language: isMixed ? 'mixed' : 'uz',
       };
     }
 
