@@ -4,7 +4,7 @@ import { MsEdgeTTS, OUTPUT_FORMAT } from 'msedge-tts';
 
 export interface TranscribeResult {
   text: string;
-  provider: 'groq';
+  provider: 'elevenlabs' | 'groq';
   language?: string;
   duration?: number;
 }
@@ -19,6 +19,11 @@ export interface SpeechResult {
 function getGroqApiKey(): string {
   const groqKey = LoadBalancer.selectKey('groq');
   return groqKey?.key || process.env.GROQ_API_KEY || process.env.GROQ_API_KEYS?.split(',')[0] || '';
+}
+
+function getElevenLabsApiKey(): string {
+  const elevenKey = LoadBalancer.selectKey('elevenlabs');
+  return elevenKey?.key || process.env.ELEVENLABS_API_KEY || process.env.ELEVENLABS_API_KEYS?.split(',')[0] || '';
 }
 
 /**
@@ -100,6 +105,45 @@ export async function transcribeAudio(params: {
 
   const groqKey = LoadBalancer.selectKey('groq');
   const fallbackKey = groqKey?.key || process.env.GROQ_API_KEY || process.env.GROQ_API_KEYS?.split(',')[0] || '';
+
+  // Tier 1: ElevenLabs Scribe v1 Engine (State-of-the-art native Uzbek, Russian, English & code-switching)
+  const elevenKey = getElevenLabsApiKey();
+  if (elevenKey) {
+    try {
+      const elevenFd = new FormData();
+      const blob = new Blob([uint8], { type: mimeType });
+      elevenFd.append('file', blob, filename);
+      elevenFd.append('model_id', 'scribe_v1');
+      if (language && language !== 'auto' && language !== 'multilingual') {
+        elevenFd.append('language_code', language);
+      }
+
+      const resEleven = await fetch('https://api.elevenlabs.io/v1/speech-to-text', {
+        method: 'POST',
+        headers: {
+          'xi-api-key': elevenKey,
+        },
+        body: elevenFd,
+        signal: AbortSignal.timeout(20000),
+      });
+
+      if (resEleven.ok) {
+        const dataEleven = await resEleven.json();
+        const scribeText = (dataEleven.text || '').trim();
+        if (scribeText) {
+          return {
+            text: scribeText,
+            provider: 'elevenlabs',
+            language: dataEleven.language_code || 'auto',
+          };
+        }
+      } else {
+        console.warn('[AudioService] ElevenLabs Scribe status:', resEleven.status, await resEleven.text().catch(() => ''));
+      }
+    } catch (scribeErr: any) {
+      console.warn('[AudioService] ElevenLabs Scribe failed, falling back to Groq Whisper:', scribeErr?.message);
+    }
+  }
 
   try {
     // If caller explicitly passed a language (e.g. 'ru', 'en', 'uz', 'kk')
