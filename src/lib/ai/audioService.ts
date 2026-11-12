@@ -21,9 +21,17 @@ function getGroqApiKey(): string {
   return groqKey?.key || process.env.GROQ_API_KEY || process.env.GROQ_API_KEYS?.split(',')[0] || '';
 }
 
-function getElevenLabsApiKey(): string {
-  const elevenKey = LoadBalancer.selectKey('elevenlabs');
-  return elevenKey?.key || process.env.ELEVENLABS_API_KEY || process.env.ELEVENLABS_API_KEYS?.split(',')[0] || '';
+function getElevenLabsApiKeys(): string[] {
+  const fromEnv = process.env.ELEVENLABS_API_KEYS || process.env.ELEVENLABS_API_KEY || '';
+  const list = fromEnv
+    .split(',')
+    .map((k) => k.trim().replace(/['"]/g, ''))
+    .filter(Boolean);
+  const fromBalancer = LoadBalancer.selectKey('elevenlabs')?.key;
+  if (fromBalancer && !list.includes(fromBalancer)) {
+    list.unshift(fromBalancer);
+  }
+  return list;
 }
 
 /**
@@ -107,8 +115,8 @@ export async function transcribeAudio(params: {
   const fallbackKey = groqKey?.key || process.env.GROQ_API_KEY || process.env.GROQ_API_KEYS?.split(',')[0] || '';
 
   // Tier 1: ElevenLabs Scribe v1 Engine (State-of-the-art native Uzbek, Russian, English & code-switching)
-  const elevenKey = getElevenLabsApiKey();
-  if (elevenKey) {
+  const elevenKeys = getElevenLabsApiKeys();
+  for (const elevenKey of elevenKeys) {
     try {
       const elevenFd = new FormData();
       const blob = new Blob([uint8], { type: mimeType });
@@ -138,10 +146,11 @@ export async function transcribeAudio(params: {
           };
         }
       } else {
-        console.warn('[AudioService] ElevenLabs Scribe status:', resEleven.status, await resEleven.text().catch(() => ''));
+        const errBody = await resEleven.text().catch(() => '');
+        console.warn(`[AudioService] ElevenLabs key ...${elevenKey.slice(-6)} returned status ${resEleven.status}:`, errBody);
       }
     } catch (scribeErr: any) {
-      console.warn('[AudioService] ElevenLabs Scribe failed, falling back to Groq Whisper:', scribeErr?.message);
+      console.warn('[AudioService] ElevenLabs Scribe failed, trying next key or fallback:', scribeErr?.message);
     }
   }
 

@@ -125,6 +125,19 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (file.size < 400) {
+      return NextResponse.json(
+        {
+          error: {
+            message: 'Audio fayl juda qisqa yoki bo\'sh.',
+            type: 'invalid_request_error',
+            code: 'audio_too_short',
+          },
+        },
+        { status: 400, headers: corsHeaders }
+      );
+    }
+
     // Check size limit (max 25MB)
     if (file.size > 25 * 1024 * 1024) {
       return NextResponse.json(

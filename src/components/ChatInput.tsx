@@ -102,6 +102,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
         const actualMime = mediaRecorder.mimeType || selectedMimeType || 'audio/webm';
         const audioBlob = new Blob(audioChunksRef.current, { type: actualMime });
+        if (audioBlob.size < 400) {
+          return;
+        }
 
         let ext = 'webm';
         if (actualMime.includes('mp4') || actualMime.includes('m4a')) ext = 'mp4';
